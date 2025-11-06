@@ -1,0 +1,365 @@
+/* ========================================
+   BBB Auto Sales DMS - Premium Design System
+   Visual-only styling - No functional changes
+   ======================================== */
+
+/* Design Tokens */
+:root {
+  /* Color Palette */
+  --color-bg-base: #0a0a0a;
+  --color-glass-panel: rgba(18, 18, 18, 0.6);
+  --color-text-primary: #FFFFFF;
+  --color-text-secondary: #C6C6C6;
+  --color-text-muted: #8A8A8A;
+
+  /* Lava Accent Colors */
+  --color-lava-core: #FF312E;
+  --color-lava-warm: #FF5A1F;
+  --color-lava-cool: #C82025;
+
+  /* Borders */
+  --color-border-low: rgba(255, 255, 255, 0.08);
+  --color-border-high: rgba(255, 255, 255, 0.12);
+
+  /* Typography */
+  --font-family-primary: 'Inter Tight', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-weight-heading: 500;
+  --font-weight-body: 400;
+  --letter-spacing-large: -0.02em;
+  --letter-spacing-medium: -0.005em;
+
+  /* Spacing */
+  --radius-card: 16px;
+  --radius-panel: 22px;
+
+  /* Effects */
+  --blur-glass: 40px;
+  --blur-spotlight: 100px;
+}
+
+/* Global Styles */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: var(--font-family-primary);
+  font-weight: var(--font-weight-body);
+  color: var(--color-text-primary);
+  background-color: var(--color-bg-base);
+  letter-spacing: var(--letter-spacing-medium);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Typography Scale */
+h1, h2, h3, h4, h5, h6 {
+  font-weight: var(--font-weight-heading);
+  letter-spacing: var(--letter-spacing-large);
+  color: var(--color-text-primary);
+}
+
+/* Glass-Morphic Card System */
+.glass-card {
+  background: var(--color-glass-panel);
+  backdrop-filter: blur(var(--blur-glass));
+  -webkit-backdrop-filter: blur(var(--blur-glass));
+  border: 1px solid var(--color-border-low);
+  border-radius: var(--radius-card);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-panel {
+  background: var(--color-glass-panel);
+  backdrop-filter: blur(var(--blur-glass));
+  -webkit-backdrop-filter: blur(var(--blur-glass));
+  border: 1px solid var(--color-border-low);
+  border-radius: var(--radius-panel);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Liquid Glass Reflections */
+.glass-card::before,
+.glass-panel::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(ellipse 400px 300px at 65% 25%, rgba(255, 255, 255, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 300px 200px at 35% 75%, rgba(255, 255, 255, 0.05) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Top Edge Highlight */
+.glass-card::after,
+.glass-panel::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255, 255, 255, 0.12) 50%, transparent 100%);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Lava Gradient Button */
+.btn-lava {
+  background: linear-gradient(135deg, var(--color-lava-warm) 0%, var(--color-lava-core) 50%, var(--color-lava-cool) 100%);
+  border: none;
+  color: #FFFFFF;
+  font-weight: 600;
+  padding: 0.65rem 1.5rem;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 16px rgba(255, 49, 46, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-lava::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s ease;
+}
+
+.btn-lava:hover::before {
+  left: 100%;
+}
+
+.btn-lava:hover {
+  box-shadow: 0 6px 20px rgba(255, 49, 46, 0.4);
+  transform: translateY(-1px);
+}
+
+.btn-lava:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 12px rgba(255, 49, 46, 0.3);
+}
+
+/* Lava Focus Ring */
+.focus-lava:focus {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(255, 49, 46, 0.3),
+    0 0 8px rgba(255, 49, 46, 0.6);
+}
+
+/* Status Glow */
+.status-glow {
+  box-shadow: 0 0 8px rgba(255, 49, 46, 0.6);
+}
+
+/* Spotlight Background Effect */
+.spotlight-bg {
+  position: relative;
+  background: var(--color-bg-base);
+}
+
+.spotlight-bg::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(ellipse 1400px 900px at 50% 0%, rgba(60, 60, 60, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse 800px 600px at 20% 60%, rgba(50, 50, 50, 0.08) 0%, transparent 50%),
+    radial-gradient(ellipse 800px 600px at 80% 70%, rgba(50, 50, 50, 0.08) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Ensure content is above spotlight */
+.spotlight-bg > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* Border Hover Effect */
+.glass-card-hover {
+  transition: border-color 0.3s ease;
+}
+
+.glass-card-hover:hover {
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+/* Text Hierarchy */
+.text-primary {
+  color: var(--color-text-primary);
+}
+
+/* PDF Export Styling Helpers */
+.pdf-export-mode {
+  position: relative;
+  padding: 24px;
+  background: var(--color-bg-base);
+  border-radius: 24px;
+}
+
+.pdf-export-mode::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background:
+    radial-gradient(ellipse 1400px 900px at 50% 0%, rgba(60, 60, 60, 0.15) 0%, transparent 55%),
+    radial-gradient(ellipse 900px 600px at 20% 65%, rgba(50, 50, 50, 0.08) 0%, transparent 55%),
+    radial-gradient(ellipse 900px 600px at 80% 65%, rgba(50, 50, 50, 0.08) 0%, transparent 55%);
+  pointer-events: none;
+  border-radius: inherit;
+  z-index: 0;
+}
+
+.pdf-export-mode > * {
+  position: relative;
+  z-index: 1;
+}
+
+.pdf-export-mode .glass-card,
+.pdf-export-mode .glass-panel {
+  background: rgba(15, 17, 24, 0.88);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.text-secondary {
+  color: var(--color-text-secondary);
+}
+
+.text-muted {
+  color: var(--color-text-muted);
+}
+
+.text-white {
+  color: #ffffff;
+}
+
+.text-green-400 {
+  color: #4ade80;
+}
+
+.text-red-400 {
+  color: #f87171;
+}
+
+/* Lava Text */
+.text-lava {
+  background: linear-gradient(135deg, var(--color-lava-warm), var(--color-lava-core));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Smooth Transitions */
+.transition-smooth {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Input Styles with Glass Effect */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="date"],
+textarea,
+select {
+  background: rgba(18, 18, 18, 0.4);
+  border: 1px solid var(--color-border-low);
+  border-radius: 10px;
+  color: var(--color-text-primary);
+  padding: 0.65rem 1rem;
+  font-family: var(--font-family-primary);
+  transition: all 0.2s ease;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--color-lava-core);
+  box-shadow: 0 0 0 3px rgba(255, 49, 46, 0.2);
+}
+
+/* Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(18, 18, 18, 0.3);
+  border-radius: 5px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  transition: background 0.2s ease;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+/* Loading Skeleton with Glass Effect */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.08) 50%,
+    rgba(255, 255, 255, 0.03) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 8px;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* Utility Classes */
+.backdrop-blur-sm {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.backdrop-blur-md {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.backdrop-blur-lg {
+  backdrop-filter: blur(var(--blur-glass));
+  -webkit-backdrop-filter: blur(var(--blur-glass));
+}
