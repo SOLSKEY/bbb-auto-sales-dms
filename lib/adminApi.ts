@@ -1,6 +1,21 @@
 import { supabase } from '../supabaseClient';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4100';
+const normalizeApiUrl = (rawUrl: string | undefined | null) => {
+    if (!rawUrl || rawUrl.trim() === '') {
+        return 'http://localhost:4100';
+    }
+
+    const url = rawUrl.trim();
+
+    // Ensure protocol is present (default to https for production)
+    if (!/^https?:\/\//i.test(url)) {
+        return `https://${url.replace(/^\/+/, '')}`;
+    }
+
+    return url;
+};
+
+const API_URL = normalizeApiUrl(import.meta.env.VITE_API_URL);
 
 /**
  * Get the current user's auth token for API requests
