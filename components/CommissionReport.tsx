@@ -18,8 +18,10 @@ import {
     formatCommissionWeekLabel,
     buildWeekKey,
     getCommissionWeekRange,
+    getCommissionWeekStart,
 } from '../utils/commission';
 import AppSelect from './AppSelect';
+import { GlassButton } from '@/components/ui/glass-button';
 
 const BONUS_THRESHOLD = 5;
 const BONUS_PER_SALE = 50;
@@ -112,7 +114,14 @@ const computeWeeklyBonusBreakdown = (sales: Sale[], bonusStart: Date, bonusEnd: 
         }
         if (
             saleType &&
-            !(saleType === 'sale' || saleType === 'trade' || saleType === 'trade-in' || saleType === 'tradein')
+            !(
+                saleType === 'sale' ||
+                saleType === 'trade' ||
+                saleType === 'trade-in' ||
+                saleType === 'tradein' ||
+                saleType === 'cashsale' ||
+                saleType === 'cash'
+            )
         ) {
             return;
         }
@@ -162,6 +171,8 @@ const formatCurrency = (value: number) =>
         maximumFractionDigits: 2,
     })}`;
 
+const sanitizeCurrencyString = (value: string) => value.replace(/[^0-9.-]/g, '');
+
 const formatDownPayment = (value: number) =>
     `$${value.toLocaleString(undefined, {
         minimumFractionDigits: 2,
@@ -191,6 +202,8 @@ interface CommissionSalespersonBlockProps {
     collectionsOptions?: number[];
     isKey: boolean;
     collectionsLocked?: boolean;
+    cashOverrides?: Record<string, string>;
+    onCashOverrideChange?: (rowKey: string, value: string) => void;
 }
 
 const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
@@ -204,6 +217,8 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
     collectionsOptions = [0, 50, 100],
     isKey,
     collectionsLocked = false,
+    cashOverrides = {},
+    onCashOverrideChange,
 }) => {
     const {
         salesperson,
@@ -243,7 +258,7 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
         : 'No bonus selected';
 
     return (
-        <section className="mb-6 glass-card p-4 border border-border-low">
+        <section className="mb-6 glass-card p-4 border border-border-low overflow-visible">
             <header className="flex flex-col gap-4 pb-4 border-b border-border-low">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                     <h3 className="text-3xl font-bold text-primary tracking-tight-lg">
@@ -300,8 +315,9 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
                                         <p className="text-[11px] text-lava-warm mt-1">Required before export/log</p>
                                     )}
                                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                                        <button
+                                        <GlassButton
                                             type="button"
+                                            size="sm"
                                             onClick={() =>
                                                 onCollectionsBonusLockToggle?.(
                                                     normalizedName,
@@ -313,12 +329,12 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
                                                 !lockDisabled
                                                     ? collectionsLocked
                                                         ? 'bg-glass-panel border border-white/20 text-white hover:bg-glass-panel/80'
-                                                        : 'btn-lava'
+                                                        : ''
                                                     : 'bg-glass-panel border border-border-low text-muted cursor-not-allowed'
                                             }`}
                                         >
                                             {lockButtonLabel}
-                                        </button>
+                                        </GlassButton>
                                         <span className="text-[11px] text-secondary ml-auto">
                                             {collectionsStatusLabel}
                                         </span>
@@ -370,6 +386,14 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
                             const noteCellClasses = row.overrideApplied
                                 ? 'border border-lava-warm/60 bg-lava-warm/10 text-lava-warm font-semibold rounded-md'
                                 : 'text-secondary';
+                            const normalizedRowSaleType = normalizeSaleType(row.saleType);
+                            const isCashSaleRow =
+                                normalizedRowSaleType === 'cashsale' || normalizedRowSaleType === 'cash';
+                            const cashInputValue = cashOverrides[row.key] ?? '';
+                            const cashPreview =
+                                cashInputValue && Number.isFinite(Number(sanitizeCurrencyString(cashInputValue)))
+                                    ? formatCurrency(Number(sanitizeCurrencyString(cashInputValue)))
+                                    : '$0.00';
 
                             return (
                                 <tr key={row.key} className="hover:bg-glass-panel transition-colors">
@@ -378,11 +402,36 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
                                     <td className="py-2 pr-3 text-secondary">{row.accountNumber || '--'}</td>
                                     <td className="py-2 pr-3 text-secondary">{row.vehicle || '--'}</td>
                                     <td className="py-2 pr-3 text-secondary">{row.vinLast4 || '--'}</td>
-                                    <td className="py-2 pr-3 text-secondary text-right">
-                                        {formatDownPayment(row.trueDownPayment)}
+                                    <td className="py-2 pr-3 text-secondary">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span className="text-right flex-1">{formatDownPayment(row.trueDownPayment)}</span>
+                                            {isCashSaleRow && (
+                                                <span className="px-2 py-0.5 rounded-full border border-[#c084fc] text-[11px] font-semibold text-[#e9d5ff] whitespace-nowrap">
+                                                    CASH
+                                                </span>
+                                            )}
+                                        </div>
                                     </td>
-                                    <td className={`py-2 pr-3 text-right ${highlightClasses}`}>
-                                        {formatCurrency(row.adjustedCommission)}
+                                    <td className="py-2 pr-3 text-right">
+                                        {isCashSaleRow && editable ? (
+                                            <div className="flex flex-col items-end gap-1">
+                                                <input
+                                                    type="text"
+                                                    inputMode="decimal"
+                                                    value={cashInputValue}
+                                                    onChange={event => onCashOverrideChange?.(row.key, event.target.value)}
+                                                    placeholder="Enter amount"
+                                                    className="w-32 bg-[#111418] border border-border-low text-primary rounded-md px-2 py-1 text-right focus:border-lava-core focus:outline-none"
+                                                />
+                                                <span className="text-[11px] text-secondary italic">
+                                                    {cashInputValue ? cashPreview : '$0.00'}
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <span className={highlightClasses}>
+                                                {formatCurrency(row.adjustedCommission)}
+                                            </span>
+                                        )}
                                     </td>
                                     <td className="py-2 pr-3">
                                         {editable ? (
@@ -444,6 +493,7 @@ const buildSnapshot = (
         collectionsSelections?: Record<string, number | ''>;
         collectionsLocks?: Record<string, boolean>;
         allSales?: Sale[];
+        cashCommissionOverrides?: Record<string, number>;
     } = {},
 ): CommissionReportSnapshot => {
     const rowsBySalesperson = new Map<string, CommissionReportRowSnapshot[]>();
@@ -454,6 +504,7 @@ const buildSnapshot = (
     });
 
     const collectionsLocks = options.collectionsLocks ?? {};
+    const cashOverrideValues = options.cashCommissionOverrides ?? {};
     const normalizedCollectionsLocks = new Map<string, boolean>();
     Object.entries(collectionsLocks).forEach(([name, value]) => {
         normalizedCollectionsLocks.set(normalizeName(name), Boolean(value));
@@ -539,6 +590,20 @@ const buildSnapshot = (
                     ? manualNote
                     : defaultNotes;
 
+            const normalizedSaleType = normalizeSaleType(sale.saleType);
+            const isCashSale = normalizedSaleType === 'cashsale' || normalizedSaleType === 'cash';
+            const overrideValue = cashOverrideValues[rowKey];
+            const adjustedCommission = isCashSale
+                ? (typeof overrideValue === 'number' && Number.isFinite(overrideValue) ? overrideValue : 0)
+                : overrideResult.amount;
+            const overrideAppliedFlag =
+                isCashSale || overrideResult.overrideApplied || normalizedSplits.length > 1;
+            const overrideDetails = isCashSale
+                ? 'Cash Sale manual entry'
+                : normalizedSplits.length > 1
+                ? `Split share ${split.share.toFixed(2)}%`
+                : overrideResult.details;
+
             const row: CommissionReportRowSnapshot = {
                 key: rowKey,
                 sequence: 0,
@@ -551,13 +616,11 @@ const buildSnapshot = (
                 vinLast4: vinLast4 || '',
                 trueDownPayment,
                 baseCommission: commissionBeforeOverride,
-                adjustedCommission: overrideResult.amount,
-                overrideApplied: overrideResult.overrideApplied || normalizedSplits.length > 1,
-                overrideDetails:
-                    normalizedSplits.length > 1
-                        ? `Split share ${split.share.toFixed(2)}%`
-                        : overrideResult.details,
+                adjustedCommission,
+                overrideApplied: overrideAppliedFlag,
+                overrideDetails,
                 notes,
+                saleType: sale.saleType ?? '',
             };
 
             if (!rowsBySalesperson.has(split.name)) {
@@ -649,7 +712,22 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
         const [notesMap, setNotesMap] = useState<Record<string, string>>({});
         const [collectionsSelections, setCollectionsSelections] = useState<Record<string, number | ''>>({});
         const [collectionsLocks, setCollectionsLocks] = useState<Record<string, boolean>>({});
+        const [cashCommissionOverrides, setCashCommissionOverrides] = useState<Record<string, string>>({});
         const reportContainerRef = React.useRef<HTMLDivElement>(null);
+        const latestWeekKeyRef = React.useRef<string | null>(null);
+        const [activeWeekStartMs, setActiveWeekStartMs] = useState(() =>
+            getCommissionWeekStart(new Date()).getTime()
+        );
+
+        useEffect(() => {
+            if (typeof window === 'undefined') return;
+            const updateActiveWeek = () => {
+                const next = getCommissionWeekStart(new Date()).getTime();
+                setActiveWeekStartMs(prev => (prev === next ? prev : next));
+            };
+            const intervalId = window.setInterval(updateActiveWeek, 60 * 1000);
+            return () => window.clearInterval(intervalId);
+        }, []);
 
         const weekBuckets: WeekBucket[] = useMemo(() => {
             const buckets = new Map<string, WeekBucket>();
@@ -671,24 +749,85 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                 buckets.get(key)!.sales.push(sale);
             });
 
+            const activeWeekAnchor = new Date(activeWeekStartMs);
+            if (!Number.isNaN(activeWeekAnchor.getTime())) {
+                const { start: anchorStart, end: anchorEnd } = getCommissionWeekRange(activeWeekAnchor);
+                const anchorKey = buildWeekKey(activeWeekAnchor);
+                if (!buckets.has(anchorKey)) {
+                    buckets.set(anchorKey, {
+                        key: anchorKey,
+                        start: anchorStart,
+                        end: anchorEnd,
+                        label: formatCommissionWeekLabel(anchorStart, anchorEnd),
+                        sales: [],
+                    });
+                }
+            }
+
             return Array.from(buckets.values())
                 .map(bucket => ({
                     ...bucket,
                     sales: bucket.sales,
                 }))
                 .sort((a, b) => b.start.getTime() - a.start.getTime());
-        }, [sales]);
-
-        useEffect(() => {
-            if (!selectedWeekKey && weekBuckets.length > 0) {
-                setSelectedWeekKey(weekBuckets[0].key);
-            }
-        }, [selectedWeekKey, weekBuckets]);
+        }, [sales, activeWeekStartMs]);
 
         const currentWeek = useMemo(() => {
             if (!selectedWeekKey) return weekBuckets[0] ?? null;
             return weekBuckets.find(bucket => bucket.key === selectedWeekKey) ?? null;
         }, [weekBuckets, selectedWeekKey]);
+        const currentWeekKey = currentWeek?.key ?? null;
+
+        useEffect(() => {
+            setCashCommissionOverrides({});
+        }, [currentWeekKey]);
+
+        const numericCashOverrides = useMemo(() => {
+            const next: Record<string, number> = {};
+            Object.entries(cashCommissionOverrides).forEach(([key, value]) => {
+                if (value === undefined) return;
+                const numeric = Number(sanitizeCurrencyString(value));
+                if (Number.isFinite(numeric)) {
+                    next[key] = numeric;
+                }
+            });
+            return next;
+        }, [cashCommissionOverrides]);
+
+        useEffect(() => {
+            if (weekBuckets.length === 0) {
+                latestWeekKeyRef.current = null;
+                if (selectedWeekKey !== null) {
+                    setSelectedWeekKey(null);
+                }
+                return;
+            }
+
+            const latest = weekBuckets[0];
+            const prevLatest = latestWeekKeyRef.current;
+            const isNewWindow = Boolean(prevLatest && prevLatest !== latest.key);
+
+            if (!selectedWeekKey) {
+                latestWeekKeyRef.current = latest.key;
+                setSelectedWeekKey(latest.key);
+                return;
+            }
+
+            const selectionExists = weekBuckets.some(bucket => bucket.key === selectedWeekKey);
+            if (!selectionExists) {
+                latestWeekKeyRef.current = latest.key;
+                setSelectedWeekKey(latest.key);
+                return;
+            }
+
+            if (isNewWindow && currentWeek && currentWeek.key === prevLatest) {
+                latestWeekKeyRef.current = latest.key;
+                setSelectedWeekKey(latest.key);
+                return;
+            }
+
+            latestWeekKeyRef.current = latest.key;
+        }, [weekBuckets, selectedWeekKey, currentWeek]);
 
         useEffect(() => {
             if (!currentWeek) {
@@ -715,8 +854,9 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                 collectionsSelections,
                 collectionsLocks,
                 allSales: sales,
+                cashCommissionOverrides: numericCashOverrides,
             });
-        }, [currentWeek, notesMap, collectionsSelections, collectionsLocks, sales]);
+        }, [currentWeek, notesMap, collectionsSelections, collectionsLocks, sales, numericCashOverrides]);
 
         useImperativeHandle(
             ref,
@@ -759,6 +899,19 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
             }
         };
 
+        const handleCashCommissionChange = (rowKey: string, value: string) => {
+            setCashCommissionOverrides(prev => {
+                const next = { ...prev };
+                const sanitized = value.replace(/[^0-9.]/g, '');
+                if (!sanitized) {
+                    delete next[rowKey];
+                } else {
+                    next[rowKey] = sanitized;
+                }
+                return next;
+            });
+        };
+
         const handleCollectionsBonusLockToggle = (salesperson: string, locked: boolean) => {
             if (!currentWeek) return;
             const normalized = normalizeName(salesperson);
@@ -792,7 +945,7 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
 
         return (
             <div ref={reportContainerRef} className="space-y-6">
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 glass-card p-4 border border-border-low">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 glass-card p-4 border border-border-low overflow-visible">
                     <div className="space-y-2">
                         <h3 className="text-xs uppercase tracking-wide text-muted">
                             Reporting Window (Fri → Thu)
@@ -847,6 +1000,8 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                                 collectionsOptions={[0, 50, 100]}
                                 isKey={isKey}
                                 collectionsLocked={locked}
+                                cashOverrides={cashCommissionOverrides}
+                                onCashOverrideChange={handleCashCommissionChange}
                             />
                         );
                     })

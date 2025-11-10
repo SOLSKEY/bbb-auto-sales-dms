@@ -7,6 +7,7 @@ import { VEHICLE_FIELD_MAP, SALE_FIELD_MAP } from '../supabaseMapping';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AlertModal from '../components/AlertModal';
 import { supabase } from '../supabaseClient';
+import { GlassButton } from '@/components/ui/glass-button';
 
 const Data: React.FC = () => {
     const [activeTab, setActiveTab] = useState(DATA_TABS[0]);
@@ -199,17 +200,13 @@ const Data: React.FC = () => {
             <div className="border-b border-border-low mb-4">
                 <nav className="-mb-px flex space-x-6" aria-label="Tabs">
                     {DATA_TABS.map((tab) => (
-                        <button
+                        <GlassButton
                             key={tab}
                             onClick={() => setActiveTab(tab)}
-                            className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                                activeTab === tab
-                                    ? 'border-lava-core text-lava-core'
-                                    : 'border-transparent text-muted hover:text-primary hover:border-border-high'
-                            }`}
+                            className="whitespace-nowrap"
                         >
                             {tab}
-                        </button>
+                        </GlassButton>
                     ))}
                 </nav>
             </div>

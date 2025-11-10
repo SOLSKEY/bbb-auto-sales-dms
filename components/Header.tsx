@@ -1,46 +1,81 @@
 
-import React, { useContext } from 'react';
+import React, { useContext, useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../App';
-import { UserCircleIcon } from '@heroicons/react/24/solid';
-import AppSelect from './AppSelect';
-import type { Role } from '../types';
+import { UserCircleIcon, Cog6ToothIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/solid';
 
-const Header: React.FC<{ title: string }> = ({ title }) => {
+const Header: React.FC<{ title: string; onLogout?: () => void }> = ({ title, onLogout }) => {
     const userContext = useContext(UserContext);
+    const navigate = useNavigate();
+    const [isMenuOpen, setIsMenuOpen] = useState(false);
+    const profileRef = useRef<HTMLDivElement | null>(null);
 
     if (!userContext) {
         return null;
     }
 
-    const { user, setUser } = userContext;
+    const { user } = userContext;
 
-    const handleRoleChange = (value: string) => {
-        setUser({ ...user, role: value as Role });
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
+                setIsMenuOpen(false);
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const toggleMenu = () => setIsMenuOpen(prev => !prev);
+
+    const handleSignOut = () => {
+        setIsMenuOpen(false);
+        onLogout?.();
+    };
+
+    const handleAccountSettings = () => {
+        setIsMenuOpen(false);
+        navigate('/account-settings');
     };
 
     return (
         <header className="flex items-center justify-between p-4 bg-glass-panel backdrop-blur-glass border-b border-border-low h-16">
             <h1 className="text-2xl font-bold text-primary font-orbitron tracking-tight-lg">{title}</h1>
             <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                    <UserCircleIcon className="h-8 w-8 text-muted" />
-                    <div>
-                        <p className="font-semibold text-primary">{user.name}</p>
-                        <p className="text-xs text-muted capitalize">{user.role}</p>
-                    </div>
-                </div>
-                {/* Demo Role Switcher */}
-                <div className="w-36">
-                    <AppSelect
-                        value={user.role}
-                        onChange={handleRoleChange}
-                        options={[
-                            { value: 'admin', label: 'Admin' },
-                            { value: 'sales', label: 'Sales' },
-                            { value: 'collections', label: 'Collections' },
-                            { value: 'viewer', label: 'Viewer' },
-                        ]}
-                    />
+                <div ref={profileRef} className="relative">
+                    <button
+                        type="button"
+                        onClick={toggleMenu}
+                        className="flex items-center space-x-2 focus:outline-none"
+                        aria-haspopup="menu"
+                        aria-expanded={isMenuOpen}
+                    >
+                        <UserCircleIcon className="h-8 w-8 text-muted" />
+                        <div className="text-left">
+                            <p className="font-semibold text-primary">{user.name}</p>
+                            <p className="text-xs text-muted capitalize">{user.role}</p>
+                        </div>
+                    </button>
+                    {isMenuOpen && onLogout && (
+                        <div className="absolute right-0 mt-2 w-48 rounded-lg bg-glass-panel border border-border-low shadow-lg backdrop-blur-glass z-10">
+                            <button
+                                onClick={handleAccountSettings}
+                                className="w-full px-4 py-2 text-left text-sm font-semibold text-primary hover:bg-white/10 transition rounded-t-lg flex items-center gap-2"
+                            >
+                                <Cog6ToothIcon className="h-4 w-4" />
+                                Account Settings
+                            </button>
+                            <div className="border-t border-border-low"></div>
+                            <button
+                                onClick={handleSignOut}
+                                className="w-full px-4 py-2 text-left text-sm font-semibold text-primary hover:bg-white/10 transition rounded-b-lg flex items-center gap-2"
+                            >
+                                <ArrowRightOnRectangleIcon className="h-4 w-4" />
+                                Sign Out
+                            </button>
+                        </div>
+                    )}
                 </div>
             </div>
         </header>

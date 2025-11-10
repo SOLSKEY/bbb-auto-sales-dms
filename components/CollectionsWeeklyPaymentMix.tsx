@@ -16,12 +16,13 @@ interface CollectionsWeeklyPaymentMixProps {
         color: string;
     }[];
     total: number;
+    compact?: boolean;
 }
 
 const formatPercent = (value: number) =>
     `${value.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 
-const CollectionsWeeklyPaymentMix: React.FC<CollectionsWeeklyPaymentMixProps> = ({ data, total }) => {
+const CollectionsWeeklyPaymentMix: React.FC<CollectionsWeeklyPaymentMixProps> = ({ data, total, compact = false }) => {
     const gradients = data.map((entry, index) => {
         const isCash = entry.label.toLowerCase() === 'cash';
         return {
@@ -43,14 +44,14 @@ const CollectionsWeeklyPaymentMix: React.FC<CollectionsWeeklyPaymentMixProps> = 
     }
 
     return (
-        <div className="glass-card p-6 w-full h-full flex flex-col">
-            <h3 className="text-lg font-semibold text-primary mb-3 tracking-tight-md">
+        <div className={`glass-card ${compact ? 'p-4' : 'p-6'} w-full h-full flex flex-col`}>
+            <h3 className={`${compact ? 'text-base' : 'text-lg'} font-semibold text-primary mb-2 tracking-tight-md`}>
                 Week-to-Date Payment Mix
             </h3>
-            <p className="text-xs uppercase tracking-wide text-muted mb-4">
+            <p className={`${compact ? 'text-[10px]' : 'text-xs'} uppercase tracking-wide text-muted mb-3`}>
                 Cash vs BOA (virtual transfers)
             </p>
-            <div className="flex-1 min-h-[220px] sm:min-h-[240px]">
+            <div className={`flex-1 ${compact ? 'min-h-[170px]' : 'min-h-[220px] sm:min-h-[240px]'}`}>
                 <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                         <defs>
@@ -93,7 +94,7 @@ const CollectionsWeeklyPaymentMix: React.FC<CollectionsWeeklyPaymentMixProps> = 
                     </PieChart>
                 </ResponsiveContainer>
             </div>
-            <div className="pt-4 text-sm text-secondary text-center">
+            <div className="pt-3 text-sm text-secondary text-center">
                 Week total: ${total.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
             </div>
         </div>

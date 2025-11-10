@@ -5,9 +5,18 @@ import { buildSalesAggregates, getYtdCountForYear } from '../utils/salesAnalytic
 
 interface YtdSalesComparisonProps {
     salesData: Sale[];
+    compact?: boolean;
 }
 
-const YtdSalesComparison: React.FC<YtdSalesComparisonProps> = ({ salesData }) => {
+type ComparisonRow = {
+    label: string;
+    count: number;
+    change: number;
+    status: 'Ahead' | 'Behind';
+    meta?: string;
+};
+
+const YtdSalesComparison: React.FC<YtdSalesComparisonProps> = ({ salesData, compact = false }) => {
     const comparisonData = useMemo(() => {
         const today = new Date();
         const currentYear = today.getFullYear();
@@ -25,7 +34,7 @@ const YtdSalesComparison: React.FC<YtdSalesComparisonProps> = ({ salesData }) =>
         const currentYtdSales = getYtdCountForYear(parsedSales, currentYear, today);
 
         const comparisonYears = years.filter(year => year !== currentYear);
-        const results = comparisonYears.map(year => {
+        const results: ComparisonRow[] = comparisonYears.map(year => {
             const count = getYtdCountForYear(parsedSales, year, today);
             const change = count > 0 ? ((currentYtdSales - count) / count) * 100 : (currentYtdSales > 0 ? Infinity : 0);
             return {
@@ -47,7 +56,8 @@ const YtdSalesComparison: React.FC<YtdSalesComparisonProps> = ({ salesData }) =>
         if (recentYears.length > 0) {
             const avgChange = fiveYearAverage > 0 ? ((currentYtdSales - fiveYearAverage) / fiveYearAverage) * 100 : (currentYtdSales > 0 ? Infinity : 0);
             results.push({
-                label: `5-Year Avg (${recentYears[recentYears.length - 1]}-${recentYears[0]})`,
+                label: '5-Year Avg',
+                meta: `${recentYears[recentYears.length - 1]} - ${recentYears[0]}`,
                 count: parseFloat(fiveYearAverage.toFixed(1)),
                 change: avgChange,
                 status: currentYtdSales >= fiveYearAverage ? 'Ahead' : 'Behind'
@@ -59,23 +69,28 @@ const YtdSalesComparison: React.FC<YtdSalesComparisonProps> = ({ salesData }) =>
 
     const { currentYtdSales, results, today } = comparisonData;
 
+    const containerClasses = compact
+        ? 'glass-card p-4 h-full flex flex-col'
+        : 'glass-card p-6';
+
     return (
-        <div className="glass-card p-6">
-            <div className="flex justify-between items-baseline mb-4">
+        <div className={containerClasses}>
+            <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between mb-4">
                  <h3 className="text-xl font-semibold text-primary tracking-tight-md">YTD Sales Pace Comparison</h3>
                  <p className="text-sm text-muted">
-                    Current YTD Sales: <span className="font-bold text-2xl text-lava-core font-orbitron tracking-tight-lg">{currentYtdSales}</span>
+                    Current YTD Sales:{' '}
+                    <span className="font-bold text-2xl text-lava-core font-orbitron tracking-tight-lg">{currentYtdSales}</span>
                     <span className="ml-2">(as of {today.toLocaleDateString()})</span>
                 </p>
             </div>
-            <div className="overflow-x-auto">
-                <table className="min-w-full">
+            <div className={`${compact ? 'flex-1 overflow-y-auto' : ''}`}>
+                <table className="w-full table-auto text-sm">
                     <thead className="bg-glass-panel border-b border-border-low">
                         <tr>
-                            <th className="p-4 text-left text-sm font-semibold text-secondary tracking-wider">Year Label</th>
-                            <th className="p-4 text-right text-sm font-semibold text-secondary tracking-wider">Sales Count</th>
-                            <th className="p-4 text-right text-sm font-semibold text-secondary tracking-wider">% Change from Current YTD</th>
-                            <th className="p-4 text-center text-sm font-semibold text-secondary tracking-wider">Status</th>
+                            <th className="p-4 text-left font-semibold text-secondary tracking-wider">Year Label</th>
+                            <th className="p-4 text-right font-semibold text-secondary tracking-wider">Sales Count</th>
+                            <th className="p-4 text-right font-semibold text-secondary tracking-wider">Percent Change</th>
+                            <th className="p-4 text-center font-semibold text-secondary tracking-wider">Status</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border-low">
@@ -85,10 +100,15 @@ const YtdSalesComparison: React.FC<YtdSalesComparisonProps> = ({ salesData }) =>
                                 ? `${item.change > 0 ? '+' : ''}${item.change.toFixed(1)}%`
                                 : 'N/A';
                             return (
-                                <tr key={item.label} className="hover:bg-glass-panel transition-colors">
-                                    <td className="p-4 whitespace-nowrap font-bold text-primary">{item.label}</td>
-                                    <td className="p-4 whitespace-nowrap text-right font-mono text-secondary">{item.count}</td>
-                                    <td className={`p-4 whitespace-nowrap text-right font-mono font-bold ${isAhead ? 'text-green-400' : 'text-red-400'}`}>
+                                <tr key={`${item.label}-${item.meta ?? ''}`} className="hover:bg-glass-panel transition-colors">
+                                    <td className="p-4 font-bold text-primary align-middle">
+                                        <div className="flex flex-col leading-tight">
+                                            <span>{item.label}</span>
+                                            {item.meta && <span className="text-xs font-medium text-muted">{item.meta}</span>}
+                                        </div>
+                                    </td>
+                                    <td className="p-4 text-right font-mono text-secondary">{item.count}</td>
+                                    <td className={`p-4 text-right font-mono font-bold ${isAhead ? 'text-green-400' : 'text-red-400'}`}>
                                         {changeText}
                                     </td>
                                     <td className="p-4 whitespace-nowrap text-center">

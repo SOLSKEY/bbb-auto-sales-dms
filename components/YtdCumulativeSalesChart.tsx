@@ -3,12 +3,14 @@ import type { Sale } from '../types';
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { FunnelIcon, CheckIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import { buildSalesAggregates } from '../utils/salesAnalytics';
+import { GlassButton } from '@/components/ui/glass-button';
 
 interface YtdCumulativeSalesChartProps {
     salesData: Sale[];
+    compactHeight?: boolean;
 }
 
-const YtdCumulativeSalesChart: React.FC<YtdCumulativeSalesChartProps> = ({ salesData }) => {
+const YtdCumulativeSalesChart: React.FC<YtdCumulativeSalesChartProps> = ({ salesData, compactHeight = false }) => {
     const [isFilterOpen, setIsFilterOpen] = useState(false);
     const filterRef = useRef<HTMLDivElement>(null);
 
@@ -130,19 +132,22 @@ const YtdCumulativeSalesChart: React.FC<YtdCumulativeSalesChartProps> = ({ sales
         return map;
     }, [years, maxYear]);
 
+    const chartHeight = compactHeight ? 360 : 420;
+    const containerPadding = compactHeight ? 'p-5' : 'p-6';
+
     return (
-        <div className="glass-card p-6">
+        <div className={`glass-card ${containerPadding} h-full flex flex-col`}>
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-semibold text-primary tracking-tight-md">YTD Cumulative Sales</h3>
                 <div className="relative" ref={filterRef}>
-                    <button
+                    <GlassButton
                         onClick={() => setIsFilterOpen(!isFilterOpen)}
                         className="flex items-center gap-2 bg-glass-panel hover:bg-glass-panel/80 text-primary font-bold py-2 px-4 rounded-lg transition-colors border border-border-low"
                     >
                         <FunnelIcon className="h-5 w-5" />
                         Filter Years
                         <ChevronDownIcon className={`h-5 w-5 transition-transform ${isFilterOpen ? 'rotate-180' : ''}`} />
-                    </button>
+                    </GlassButton>
                     {isFilterOpen && (
                         <div className="absolute top-full right-0 mt-2 w-48 bg-glass-panel border border-border-high rounded-lg shadow-xl z-20 p-2 backdrop-blur-glass">
                             {lineKeys.map(key => (
@@ -164,7 +169,7 @@ const YtdCumulativeSalesChart: React.FC<YtdCumulativeSalesChartProps> = ({ sales
                     )}
                 </div>
             </div>
-            <ResponsiveContainer width="100%" height={400}>
+            <ResponsiveContainer width="100%" height={chartHeight}>
                 <LineChart data={chartData} margin={{ top: 5, right: 20, left: -10, bottom: 5 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#2c2f33" />
                     <XAxis dataKey="name" stroke="#9ca3af" tick={{ fontSize: 12 }} interval={Math.floor(chartData.length / 12)} angle={-20} textAnchor="end" height={50}/>

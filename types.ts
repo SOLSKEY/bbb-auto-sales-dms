@@ -1,10 +1,32 @@
 
-export type Role = 'admin' | 'sales' | 'collections' | 'viewer';
+export type Role = 'admin' | 'user';
 
 export interface User {
-  id: number;
+  id: string;
   name: string;
   role: Role;
+}
+
+export type AppSectionKey =
+  | 'Dashboard'
+  | 'Inventory'
+  | 'Sales'
+  | 'Collections'
+  | 'Reports'
+  | 'Data'
+  | 'Calendar'
+  | 'Team Chat'
+  | 'Settings';
+
+export interface UserAccessPolicy {
+  userId: string;
+  permissions: Record<
+    AppSectionKey,
+    {
+      canView: boolean;
+      canEdit: boolean;
+    }
+  >;
 }
 
 export interface Vehicle {
@@ -47,7 +69,7 @@ export interface Sale {
   }>;
   salePrice?: number;
   saleDownPayment?: number;
-  saleType?: 'Sale' | 'Trade-in' | 'Name Change';
+  saleType?: 'Sale' | 'Trade-in' | 'Name Change' | 'Cash Sale';
   stockNumber?: string;
   accountNumber?: string;
   
@@ -119,11 +141,13 @@ export interface CalendarEvent {
     date: Date;
     salesperson: string;
     customer: string;
+    createdBy: string;
 }
 
 export interface ChatMessage {
-    id: number;
+    id: string;
     sender: string;
+    senderId?: string;
     isAI: boolean;
     message: string;
     timestamp: string;
@@ -166,6 +190,7 @@ export interface CommissionReportRowSnapshot {
     overrideApplied: boolean;
     overrideDetails: string | null;
     notes: string;
+    saleType?: string;
 }
 
 export interface CommissionSalespersonSnapshot {

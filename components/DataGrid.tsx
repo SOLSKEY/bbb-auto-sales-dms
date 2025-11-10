@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { PlusCircleIcon, TrashIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
 import { supabase } from '../supabaseClient';
 import { toSupabase, quoteSupabaseColumn } from '../supabaseMapping';
+import { GlassButton } from '@/components/ui/glass-button';
 
 interface Column {
     key: string;
@@ -168,24 +169,26 @@ const DataGrid: React.FC<DataGridProps> = ({
                                     <td className="p-3">
                                         <div className="flex items-center gap-3">
                                             {onEditRow && (
-                                                <button
+                                                <GlassButton
+                                                    size="sm"
                                                     onClick={() => onEditRow(row)}
                                                     className="flex items-center gap-1 text-lava-warm hover:text-lava-core text-xs font-semibold"
                                                     title={editButtonTitle}
                                                 >
                                                     <PencilSquareIcon className="h-4 w-4" />
                                                     {editButtonText}
-                                                </button>
+                                                </GlassButton>
                                             )}
                                             {onDeleteRow && (
-                                                <button
+                                                <GlassButton
+                                                    size="sm"
                                                     onClick={() => onDeleteRow(row)}
                                                     className="flex items-center gap-1 text-red-500 hover:text-red-400 text-xs font-semibold"
                                                     title={deleteButtonTitle}
                                                 >
                                                     <TrashIcon className="h-4 w-4" />
                                                     {deleteButtonText}
-                                                </button>
+                                                </GlassButton>
                                             )}
                                         </div>
                                     </td>
@@ -197,13 +200,14 @@ const DataGrid: React.FC<DataGridProps> = ({
             </div>
             {editable && (
                 <div className="p-2 border-t border-border-low">
-                    <button
+                    <GlassButton
+                        size="sm"
                         onClick={handleAddRow}
                         className="flex items-center gap-2 text-sm text-lava-warm hover:text-lava-core font-semibold py-2 px-4 rounded-lg hover:bg-glass-panel transition-colors"
                     >
                         <PlusCircleIcon className="h-5 w-5" />
                         Add Row
-                    </button>
+                    </GlassButton>
                 </div>
             )}
         </div>

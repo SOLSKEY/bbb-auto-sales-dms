@@ -1,8 +1,7 @@
 import React, { useState, useContext, useMemo, useEffect } from 'react';
 import type { Vehicle, Sale } from '../types';
-import DataGrid from '../components/DataGrid';
 import { UserContext, DataContext } from '../App';
-import { EyeIcon, TableCellsIcon, PhotoIcon, PencilSquareIcon, CheckCircleIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, XCircleIcon, ChevronLeftIcon, ChevronRightIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import { PhotoIcon, PencilSquareIcon, CheckCircleIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, XCircleIcon, ChevronLeftIcon, ChevronRightIcon, XMarkIcon } from '@heroicons/react/24/solid';
 import EditVehicleModal from '../components/EditVehicleModal';
 import MarkSoldModal from '../components/MarkSoldModal';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -11,6 +10,7 @@ import { supabase } from '../supabaseClient';
 import { computeNextAccountNumber, computeNextStockNumbers, getStockPrefix } from '../utils/stockNumbers';
 import { toSupabase, fromSupabase, SALE_FIELD_MAP, VEHICLE_FIELD_MAP, quoteSupabaseColumn } from '../supabaseMapping';
 import { INVENTORY_STATUS_VALUES } from '../constants';
+import { GlassButton } from '@/components/ui/glass-button';
 
 const INVENTORY_STATUS_OPTIONS = INVENTORY_STATUS_VALUES.map(status => ({
     value: status,
@@ -74,7 +74,10 @@ const VehicleCard: React.FC<{
     onSold: () => void;
     onTrash: () => void;
     onView: () => void;
-}> = ({ vehicle, onEdit, onSold, onTrash, onView }) => {
+    canEdit: boolean;
+    canMarkSold: boolean;
+    canDelete: boolean;
+}> = ({ vehicle, onEdit, onSold, onTrash, onView, canEdit, canMarkSold, canDelete }) => {
     const images = vehicle.images ?? [];
     const [activeImageIndex, setActiveImageIndex] = useState(0);
 
@@ -110,22 +113,24 @@ const VehicleCard: React.FC<{
                 )}
                 {images.length > 1 && (
                     <>
-                        <button
+                        <GlassButton
                             type="button"
+                            size="icon"
                             onClick={showPrevious}
-                            className="absolute left-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-2 transition-colors"
+                            className="absolute left-3 top-1/2 -translate-y-1/2"
                             aria-label="Previous image"
                         >
                             <ChevronLeftIcon className="h-5 w-5" />
-                        </button>
-                        <button
+                        </GlassButton>
+                        <GlassButton
                             type="button"
+                            size="icon"
                             onClick={showNext}
-                            className="absolute right-3 top-1/2 -translate-y-1/2 bg-black/40 hover:bg-black/60 text-white rounded-full p-2 transition-colors"
+                            className="absolute right-3 top-1/2 -translate-y-1/2"
                             aria-label="Next image"
                         >
                             <ChevronRightIcon className="h-5 w-5" />
-                        </button>
+                        </GlassButton>
                         <div className="absolute bottom-3 left-1/2 -translate-x-1/2 bg-black/50 text-white text-xs px-3 py-1 rounded-full">
                             {activeImageIndex + 1} / {images.length}
                         </div>
@@ -134,13 +139,12 @@ const VehicleCard: React.FC<{
             </div>
             <div className="p-4 flex-grow">
                 <div className="flex justify-between items-start">
-                    <button
+                    <GlassButton
                         type="button"
                         onClick={onView}
-                        className="text-left text-xl font-bold text-primary pr-2 transition-colors hover:text-lava-core"
                     >
                         {vehicle.year} {vehicle.make} {vehicle.model}
-                    </button>
+                    </GlassButton>
                     <div className={`flex-shrink-0 px-3 py-1 text-xs font-semibold rounded-full border whitespace-nowrap ${badgeClasses}`}>
                         {vehicle.status}
                     </div>
@@ -159,10 +163,33 @@ const VehicleCard: React.FC<{
                         <p className="text-xs text-muted">Down: ${formatNumberDisplay(vehicle.downPayment)}</p>
                     </div>
                 </div>
-                 <div className="flex justify-between items-center space-x-2">
-                    <button onClick={onEdit} className="flex-1 flex items-center justify-center gap-2 bg-glass-panel hover:bg-glass-panel/80 text-primary text-xs font-bold py-2 px-2 rounded-md transition-colors border border-border-low"><PencilSquareIcon className="h-4 w-4"/> Edit</button>
-                    <button onClick={onSold} disabled={isSold} className="flex-1 flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold py-2 px-2 rounded-md transition-colors disabled:bg-gray-600 disabled:cursor-not-allowed"><CheckCircleIcon className="h-4 w-4"/> Sold</button>
-                    <button onClick={onTrash} className="p-2 bg-red-800/50 hover:bg-red-800/80 text-white rounded-md transition-colors"><TrashIcon className="h-4 w-4"/></button>
+                <div className="flex flex-wrap items-center gap-2">
+                    {canEdit && (
+                        <GlassButton
+                            size="sm"
+                            onClick={onEdit}
+                            className="flex-1 min-w-[110px]"
+                            contentClassName="flex items-center justify-center gap-2"
+                        >
+                            <PencilSquareIcon className="h-4 w-4" /> Edit
+                        </GlassButton>
+                    )}
+                    {canMarkSold && (
+                        <GlassButton
+                            size="sm"
+                            onClick={onSold}
+                            disabled={isSold}
+                            className="flex-1 min-w-[110px]"
+                            contentClassName="flex items-center justify-center gap-2"
+                        >
+                            <CheckCircleIcon className="h-4 w-4" /> Sold
+                        </GlassButton>
+                    )}
+                    {canDelete && (
+                        <GlassButton size="icon" onClick={onTrash} className="flex-shrink-0">
+                            <TrashIcon className="h-4 w-4" />
+                        </GlassButton>
+                    )}
                 </div>
             </div>
             <div className="absolute bottom-0 left-0 w-0 h-1 bg-gradient-to-r from-lava-warm via-lava-core to-lava-cool group-hover:w-full transition-all duration-300"></div>
@@ -194,9 +221,9 @@ const VehicleDetailsModal: React.FC<{ vehicle: Vehicle; onClose: () => void }> =
                         <h2 className="text-2xl font-orbitron text-primary tracking-wide">{vehicle.year} {vehicle.make} {vehicle.model}</h2>
                         <p className="text-sm text-muted">VIN ending in {vehicle.vin.slice(-4)}</p>
                     </div>
-                    <button onClick={onClose} className="text-muted hover:text-primary transition-colors">
+                    <GlassButton size="icon" onClick={onClose}>
                         <XMarkIcon className="h-6 w-6" />
-                    </button>
+                    </GlassButton>
                 </div>
 
                 <div className="flex-1 overflow-y-auto">
@@ -212,22 +239,24 @@ const VehicleDetailsModal: React.FC<{ vehicle: Vehicle; onClose: () => void }> =
                         )}
                         {images.length > 1 && (
                             <>
-                                <button
+                                <GlassButton
                                     type="button"
+                                    size="icon"
                                     onClick={showPrevious}
-                                    className="absolute left-6 top-1/2 -translate-y-1/2 bg-black/45 hover:bg-black/65 text-white rounded-full p-3 transition-colors"
+                                    className="absolute left-6 top-1/2 -translate-y-1/2"
                                     aria-label="Previous image"
                                 >
                                     <ChevronLeftIcon className="h-6 w-6" />
-                                </button>
-                                <button
+                                </GlassButton>
+                                <GlassButton
                                     type="button"
+                                    size="icon"
                                     onClick={showNext}
-                                    className="absolute right-6 top-1/2 -translate-y-1/2 bg-black/45 hover:bg-black/65 text-white rounded-full p-3 transition-colors"
+                                    className="absolute right-6 top-1/2 -translate-y-1/2"
                                     aria-label="Next image"
                                 >
                                     <ChevronRightIcon className="h-6 w-6" />
-                                </button>
+                                </GlassButton>
                                 <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 text-white text-sm px-4 py-1 rounded-full">
                                     {activeImageIndex + 1} / {images.length}
                                 </div>
@@ -264,7 +293,7 @@ const VehicleDetailsModal: React.FC<{ vehicle: Vehicle; onClose: () => void }> =
                 </div>
 
                 <div className="px-6 py-4 border-t border-border-low flex justify-end">
-                    <button onClick={onClose} className="btn-lava px-6 py-2 font-semibold">Close</button>
+                    <GlassButton onClick={onClose}>Close</GlassButton>
                 </div>
             </div>
         </div>
@@ -330,10 +359,14 @@ const prepareVehicleForDb = (vehicle: Vehicle) => {
 };
 
 const Inventory: React.FC = () => {
-    const [viewMode, setViewMode] = useState<'visual' | 'data'>('visual');
     const userContext = useContext(UserContext);
     const dataContext = useContext(DataContext);
-    const isAdmin = userContext?.user.role === 'admin';
+    const role = userContext?.user.role ?? 'user';
+    const isAdmin = role === 'admin';
+    const canAddInventory = isAdmin || role === 'user';
+    const canEditInventory = isAdmin || role === 'user';
+    const canMarkSold = isAdmin;
+    const canDeleteInventory = isAdmin;
 
     const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
     const [sellingVehicle, setSellingVehicle] = useState<Vehicle | null>(null);
@@ -458,32 +491,6 @@ const Inventory: React.FC = () => {
             prev && prev.id === vehicleId ? { ...prev, images: urls } : prev,
         );
     };
-
-
-    const columns = [
-        { key: 'vehicleId', name: 'Vehicle ID' },
-        { key: 'status', name: 'Status' },
-        { key: 'arrivalDate', name: 'Arrival Date' },
-        { key: 'vinLast4', name: 'Vin Last 4' },
-        { key: 'year', name: 'Year' },
-        { key: 'make', name: 'Make' },
-        { key: 'model', name: 'Model' },
-        { key: 'trim', name: 'Trim' },
-        { key: 'exterior', name: 'Exterior' },
-        { key: 'interior', name: 'Interior' },
-        { key: 'upholstery', name: 'Upholstery' },
-        { key: 'bodyStyle', name: 'Body Style' },
-        { key: 'driveTrain', name: 'Drive Train' },
-        { key: 'mileage', name: 'Mileage' },
-        { key: 'mileageUnit', name: 'Mileage Unit' },
-        { key: 'transmission', name: 'Transmission' },
-        { key: 'fuelType', name: 'Fuel Type' },
-        { key: 'engine', name: 'Engine' },
-        { key: 'price', name: 'Price' },
-        { key: 'downPayment', name: 'Down Payment' },
-        { key: 'vin', name: 'VIN' },
-    ];
-
     const applyInventoryIdentifier = (query: any, vehicle: Vehicle) => {
     if (vehicle.id !== undefined) {
         return query.eq('id', vehicle.id);
@@ -496,6 +503,10 @@ const Inventory: React.FC = () => {
 };
 
     const handleSaveVehicle = async (updatedVehicle: Vehicle) => {
+        if (!canEditInventory) {
+            alert('You do not have permission to edit vehicles.');
+            return;
+        }
         try {
             const normalizedVehicle = normalizeVehicleNumbers(updatedVehicle);
             const vehicleForDb = prepareVehicleForDb(normalizedVehicle);
@@ -530,6 +541,10 @@ const Inventory: React.FC = () => {
     };
 
     const handleAddNewVehicle = async (newVehicle: Vehicle) => {
+        if (!canAddInventory) {
+            alert('You do not have permission to add vehicles.');
+            return;
+        }
         if (!newVehicle.vin || !newVehicle.make || !newVehicle.model) {
             alert('VIN, Make, and Model are required fields.');
             return;
@@ -573,11 +588,20 @@ const Inventory: React.FC = () => {
     };
 
     const startDeleteProcess = (vehicle: Vehicle) => {
+        if (!canDeleteInventory) {
+            alert('You do not have permission to delete vehicles.');
+            return;
+        }
         setVehicleToDelete(vehicle);
     };
 
     const confirmDeleteVehicle = async () => {
         if (!vehicleToDelete) return;
+        if (!canDeleteInventory) {
+            alert('You do not have permission to delete vehicles.');
+            setVehicleToDelete(null);
+            return;
+        }
 
         try {
             let query = supabase
@@ -612,11 +636,16 @@ const Inventory: React.FC = () => {
         primarySalesperson: string;
         salespersonSplit: Array<{ name: string; share: number }>;
         downPayment: number;
-        saleType: 'Sale' | 'Trade-in' | 'Name Change';
+        saleType: 'Sale' | 'Trade-in' | 'Name Change' | 'Cash Sale';
         stockNumber: string;
         accountNumber: string;
     }) => {
         if (!sellingVehicle) return;
+        if (!canMarkSold) {
+            alert('You do not have permission to mark vehicles as sold.');
+            setSellingVehicle(null);
+            return;
+        }
 
         try {
             // 1. Update vehicle status to Sold in Supabase
@@ -723,6 +752,14 @@ const Inventory: React.FC = () => {
         }
     };
 
+    const handleSelectVehicleForEdit = (vehicle: Vehicle) => {
+        setEditingVehicle(vehicle);
+    };
+
+    const handleSelectVehicleForSale = (vehicle: Vehicle) => {
+        if (!canMarkSold) return;
+        setSellingVehicle(vehicle);
+    };
 
     return (
         <div>
@@ -754,27 +791,14 @@ const Inventory: React.FC = () => {
                     </div>
                 </div>
                 <div className="flex flex-col items-end gap-3 w-full lg:w-auto">
-                    <button
-                        onClick={() => setIsAddingVehicle(true)}
-                        className="btn-lava flex items-center gap-2 self-end"
+                    <GlassButton
+                        onClick={canAddInventory ? () => setIsAddingVehicle(true) : undefined}
+                        disabled={!canAddInventory}
+                        contentClassName="flex items-center gap-2"
                     >
                         <PlusIcon className="h-5 w-5" />
                         Add Inventory
-                    </button>
-                    <div className="flex space-x-1 bg-glass-panel p-1 rounded-lg border border-border-low">
-                        <button
-                            onClick={() => setViewMode('visual')}
-                            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${viewMode === 'visual' ? 'btn-lava' : 'text-secondary hover:bg-glass-panel'}`}
-                        >
-                            <EyeIcon className="h-5 w-5 inline-block mr-1"/> Visual
-                        </button>
-                        <button
-                            onClick={() => setViewMode('data')}
-                            className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${viewMode === 'data' ? 'btn-lava' : 'text-secondary hover:bg-glass-panel'}`}
-                        >
-                            <TableCellsIcon className="h-5 w-5 inline-block mr-1"/> Raw Data
-                        </button>
-                    </div>
+                    </GlassButton>
                 </div>
             </div>
 
@@ -831,44 +855,30 @@ const Inventory: React.FC = () => {
                         }))}
                     />
                 </div>
-                <button onClick={handleResetFilters} className="flex items-center gap-2 text-sm text-muted hover:text-primary transition-colors">
+                <GlassButton size="sm" onClick={handleResetFilters} contentClassName="flex items-center gap-2">
                     <XCircleIcon className="h-5 w-5"/> Reset
-                </button>
+                </GlassButton>
             </div>
-
-
-            {viewMode === 'visual' ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                    {filteredInventory.length > 0 ? filteredInventory.map(vehicle => (
-                        <VehicleCard
-                            key={vehicle.id ?? vehicle.vin}
-                            vehicle={vehicle}
-                            onEdit={() => setEditingVehicle(vehicle)}
-                            onSold={() => setSellingVehicle(vehicle)}
-                            onTrash={() => startDeleteProcess(vehicle)}
-                            onView={() => setViewingVehicle(vehicle)}
-                        />
-                    )) : (
-                         <div className="col-span-full text-center py-16">
-                            <h3 className="text-2xl font-semibold text-primary tracking-tight-lg">No Vehicles Found</h3>
-                            <p className="text-muted mt-2">Try adjusting your search or filter criteria.</p>
-                        </div>
-                    )}
-                </div>
-            ) : (
-                <DataGrid
-                    columns={columns}
-                    data={filteredInventory}
-                    setData={setInventory as React.Dispatch<React.SetStateAction<any[]>>}
-                    editable={isAdmin}
-                    onDeleteRow={isAdmin ? startDeleteProcess : undefined}
-                    deleteButtonText="Delete"
-                    deleteButtonTitle="Delete Vehicle"
-                    tableName="Inventory"
-                    primaryKey="vin"
-                    fieldMap={VEHICLE_FIELD_MAP}
-                />
-            )}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                {filteredInventory.length > 0 ? filteredInventory.map(vehicle => (
+                    <VehicleCard
+                        key={vehicle.id ?? vehicle.vin}
+                        vehicle={vehicle}
+                        onEdit={() => handleSelectVehicleForEdit(vehicle)}
+                        onSold={() => handleSelectVehicleForSale(vehicle)}
+                        onTrash={() => startDeleteProcess(vehicle)}
+                        onView={() => setViewingVehicle(vehicle)}
+                        canEdit={canEditInventory}
+                        canMarkSold={canMarkSold}
+                        canDelete={canDeleteInventory}
+                    />
+                )) : (
+                        <div className="col-span-full text-center py-16">
+                        <h3 className="text-2xl font-semibold text-primary tracking-tight-lg">No Vehicles Found</h3>
+                        <p className="text-muted mt-2">Try adjusting your search or filter criteria.</p>
+                    </div>
+                )}
+            </div>
             
             {editingVehicle && (
                 <EditVehicleModal
@@ -878,7 +888,7 @@ const Inventory: React.FC = () => {
                     onImagesUpdated={handleVehicleImagesUpdated}
                 />
             )}
-            {sellingVehicle && (
+            {sellingVehicle && canMarkSold && (
                 <MarkSoldModal
                     vehicle={sellingVehicle}
                     onClose={() => setSellingVehicle(null)}
@@ -888,7 +898,7 @@ const Inventory: React.FC = () => {
                     salespeople={salespeople}
                 />
             )}
-            {isAddingVehicle && (
+            {isAddingVehicle && canAddInventory && (
                 <EditVehicleModal
                     vehicle={blankVehicle}
                     onClose={() => setIsAddingVehicle(false)}

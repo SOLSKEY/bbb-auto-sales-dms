@@ -267,6 +267,37 @@ h1, h2, h3, h4, h5, h6 {
   color: #f87171;
 }
 
+.glass-button-wrap.glass-button-active .glass-button {
+  background: linear-gradient(135deg, var(--color-lava-warm) 0%, var(--color-lava-core) 50%, var(--color-lava-cool) 100%);
+  color: #ffffff;
+  box-shadow: 0 10px 35px rgba(255, 90, 31, 0.35);
+}
+
+.glass-button-wrap.glass-button-active .glass-button-text {
+  color: #ffffff;
+}
+
+.app-select-container {
+  position: relative;
+  width: 100%;
+}
+
+.app-select-container--open {
+  z-index: 100000;
+}
+
+.app-select-container--open .app-select-menu {
+  z-index: 100001;
+}
+
+.app-select-menu {
+  z-index: 100000;
+}
+
+.overflow-visible {
+  overflow: visible !important;
+}
+
 /* Lava Text */
 .text-lava {
   background: linear-gradient(135deg, var(--color-lava-warm), var(--color-lava-core));
@@ -346,6 +377,85 @@ select:focus {
   100% {
     background-position: 200% 0;
   }
+}
+
+/* Glass Button Styles */
+.glass-button-wrap {
+  position: relative;
+  display: inline-block;
+}
+
+.glass-button {
+  background: linear-gradient(135deg, rgba(255, 90, 31, 0.85) 0%, rgba(255, 49, 46, 0.9) 50%, rgba(200, 32, 37, 0.85) 100%);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 8px 32px rgba(255, 49, 46, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 1px 2px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  z-index: 1;
+}
+
+.glass-button:hover {
+  background: linear-gradient(135deg, rgba(255, 90, 31, 0.95) 0%, rgba(255, 49, 46, 1) 50%, rgba(200, 32, 37, 0.95) 100%);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow:
+    0 12px 48px rgba(255, 49, 46, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.3);
+  transform: translateY(-2px);
+}
+
+.glass-button:active {
+  transform: translateY(0);
+  box-shadow:
+    0 4px 16px rgba(255, 49, 46, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.glass-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.glass-button:disabled:hover {
+  transform: none;
+  box-shadow:
+    0 8px 32px rgba(255, 49, 46, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.glass-button-text {
+  color: #FFFFFF;
+  font-weight: 600;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.glass-button-shadow {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: radial-gradient(ellipse at center, rgba(255, 49, 46, 0.3) 0%, transparent 70%);
+  filter: blur(20px);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  z-index: -1;
+  pointer-events: none;
+}
+
+.glass-button-wrap:hover .glass-button-shadow {
+  opacity: 1;
+}
+
+/* Utility class for unset styles */
+.all-unset {
+  all: unset;
 }
 
 /* Utility Classes */

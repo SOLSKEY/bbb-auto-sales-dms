@@ -1,7 +1,10 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useContext, useEffect } from 'react';
 import { CALENDAR_EVENTS } from '../constants';
 import type { CalendarEvent } from '../types';
 import { TrashIcon } from '@heroicons/react/24/solid';
+import { GlassButton } from '@/components/ui/glass-button';
+import { UserContext } from '../App';
+import { supabase } from '../supabaseClient';
 
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
@@ -10,15 +13,23 @@ import listPlugin from '@fullcalendar/list';
 import interactionPlugin from '@fullcalendar/interaction';
 import type { DateSelectArg, EventClickArg, EventChangeArg } from '@fullcalendar/core';
 
+type CalendarEventFormData = Omit<CalendarEvent, 'id' | 'createdBy'>;
+
 // Modal component for adding/editing events
 const EventModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
-    onSave: (data: Omit<CalendarEvent, 'id'>) => void;
+    onSave: (data: CalendarEventFormData) => void;
     onDelete?: () => void;
-    initialData: Omit<CalendarEvent, 'id'>;
+    initialData: CalendarEventFormData;
 }> = ({ isOpen, onClose, onSave, onDelete, initialData }) => {
     const [formData, setFormData] = useState(initialData);
+
+    useEffect(() => {
+        if (isOpen) {
+            setFormData(initialData);
+        }
+    }, [initialData, isOpen]);
 
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const { name, value } = e.target;
@@ -52,7 +63,7 @@ const EventModal: React.FC<{
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity">
-            <div className="glass-panel rounded-panel shadow-glass p-8 w-full max-w-md transform transition-all border border-border-high">
+            <div className="w-full max-w-md transform transition-all bg-[#1b1f26] border border-border-high rounded-panel shadow-2xl p-8">
                 <h3 className="text-2xl font-bold text-primary mb-6 font-orbitron tracking-tight-lg">{onDelete ? 'Edit Appointment' : 'New Appointment'}</h3>
                 <div className="space-y-4">
                     <div>
@@ -75,14 +86,14 @@ const EventModal: React.FC<{
                 <div className="mt-8 flex justify-between items-center">
                     <div>
                         {onDelete && (
-                            <button onClick={onDelete} className="flex items-center gap-2 px-4 py-2 rounded-md text-red-400 bg-glass-panel hover:bg-red-900/50 transition-colors border border-border-low">
+                            <GlassButton size="sm" onClick={onDelete} contentClassName="flex items-center gap-2">
                                 <TrashIcon className="h-5 w-5"/> Delete
-                            </button>
+                            </GlassButton>
                         )}
                     </div>
                     <div className="flex space-x-4">
-                        <button onClick={onClose} className="px-4 py-2 rounded-md text-secondary bg-glass-panel hover:bg-glass-panel/80 transition-colors border border-border-low">Cancel</button>
-                        <button onClick={handleSave} className="btn-lava">Save Appointment</button>
+                        <GlassButton onClick={onClose}>Cancel</GlassButton>
+                        <GlassButton onClick={handleSave}>Save Appointment</GlassButton>
                     </div>
                 </div>
             </div>
@@ -92,68 +103,132 @@ const EventModal: React.FC<{
 
 
 const Calendar: React.FC = () => {
+    const userContext = useContext(UserContext);
+    const currentUserId = userContext?.user.id || 'anonymous';
+    const isAdmin = userContext?.user.role === 'admin';
+
+    const [currentUserName, setCurrentUserName] = useState<string>(userContext?.user.name ?? 'Dealer User');
     const [events, setEvents] = useState<CalendarEvent[]>(CALENDAR_EVENTS);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalInitialData, setModalInitialData] = useState<Omit<CalendarEvent, 'id'>>({
-        title: '', customer: '', salesperson: '', date: new Date()
+    const [modalInitialData, setModalInitialData] = useState<CalendarEventFormData>({
+        title: '',
+        customer: '',
+        salesperson: currentUserName,
+        date: new Date(),
     });
     const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+    const [selectedEventOwner, setSelectedEventOwner] = useState<string | null>(null);
+
+    // Load current user's username from user_metadata
+    useEffect(() => {
+        const loadUsername = async () => {
+            try {
+                const { data: { user }, error } = await supabase.auth.getUser();
+                if (error) throw error;
+                if (user) {
+                    const username = user.user_metadata?.username ?? user.email ?? 'Dealer User';
+                    setCurrentUserName(username);
+                }
+            } catch (error) {
+                console.error('Error loading username:', error);
+            }
+        };
+        loadUsername();
+    }, []);
     
     const fullCalendarEvents = useMemo(() => {
-        return events.map(e => ({
-            id: String(e.id),
-            title: e.title,
-            start: e.date,
-            extendedProps: {
-                customer: e.customer,
-                salesperson: e.salesperson,
-            }
-        }));
-    }, [events]);
+        return events.map(e => {
+            const owner = e.createdBy || 'system';
+            return {
+                id: String(e.id),
+                title: e.title,
+                start: e.date,
+                editable: isAdmin || owner === currentUserId,
+                extendedProps: {
+                    customer: e.customer,
+                    salesperson: e.salesperson,
+                    createdBy: owner,
+                },
+            };
+        });
+    }, [events, currentUserId, isAdmin]);
 
     const handleDateSelect = (selectInfo: DateSelectArg) => {
         setModalInitialData({
             title: '',
             customer: '',
-            salesperson: '',
+            salesperson: currentUserName,
             date: selectInfo.start,
         });
         setSelectedEventId(null);
+        setSelectedEventOwner(currentUserId);
         setIsModalOpen(true);
     };
 
     const handleEventClick = (clickInfo: EventClickArg) => {
         const { id, title, start, extendedProps } = clickInfo.event;
+        const ownerIdRaw: string | undefined =
+            extendedProps.createdBy ?? events.find(event => String(event.id) === id)?.createdBy;
+        const ownerId = ownerIdRaw || 'system';
+        const canModify = isAdmin || ownerId === currentUserId;
+        if (!canModify) {
+            alert('You can only edit events that you created.');
+            return;
+        }
         setModalInitialData({
             title,
             date: start || new Date(),
             customer: extendedProps.customer,
-            salesperson: extendedProps.salesperson
+            salesperson: extendedProps.salesperson,
         });
+        setSelectedEventOwner(ownerId ?? null);
         setSelectedEventId(id);
         setIsModalOpen(true);
     };
 
     const handleEventChange = (changeInfo: EventChangeArg) => {
         const { id, start } = changeInfo.event;
-        setEvents(prev => prev.map(event => 
-            String(event.id) === id ? { ...event, date: start || event.date } : event
-        ));
+        const eventToUpdate = events.find(event => String(event.id) === id);
+        const ownerId = eventToUpdate?.createdBy || 'system';
+        const canModify = eventToUpdate && (isAdmin || ownerId === currentUserId);
+        if (!canModify) {
+            changeInfo.revert();
+            alert('You can only adjust your own events.');
+            return;
+        }
+        setEvents(prev =>
+            prev.map(event =>
+                String(event.id) === id ? { ...event, date: start || event.date } : event,
+            ),
+        );
     };
     
     const handleCloseModal = () => {
         setIsModalOpen(false);
+        setSelectedEventId(null);
+        setSelectedEventOwner(null);
     };
 
-    const handleSaveEvent = (data: Omit<CalendarEvent, 'id'>) => {
-        if (selectedEventId) { // Editing existing event
-            setEvents(prev => prev.map(event =>
-                String(event.id) === selectedEventId ? { ...data, id: parseInt(selectedEventId) } : event
-            ));
-        } else { // Creating new event
+    const handleSaveEvent = (data: CalendarEventFormData) => {
+        if (selectedEventId) {
+            const target = events.find(event => String(event.id) === selectedEventId);
+            const ownerId = target?.createdBy || 'system';
+            const canModify = target && (isAdmin || ownerId === currentUserId);
+            if (!canModify) {
+                alert('You can only update events that you created.');
+                return;
+            }
+            setEvents(prev =>
+                prev.map(event =>
+                    String(event.id) === selectedEventId ? { ...event, ...data } : event,
+                ),
+            );
+        } else {
+            const owner = currentUserId || 'anonymous';
             const newEvent: CalendarEvent = {
                 ...data,
                 id: Date.now(),
+                createdBy: owner,
             };
             setEvents(prev => [...prev, newEvent]);
         }
@@ -162,6 +237,11 @@ const Calendar: React.FC = () => {
 
     const handleDeleteEvent = () => {
         if (!selectedEventId) return;
+        const canModify = isAdmin || (selectedEventOwner && selectedEventOwner === currentUserId);
+        if (!canModify) {
+            alert('You can only delete events that you created.');
+            return;
+        }
         setEvents(prev => prev.filter(event => String(event.id) !== selectedEventId));
         handleCloseModal();
     };

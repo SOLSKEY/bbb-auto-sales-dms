@@ -3,6 +3,7 @@ import type { Vehicle, UserAccount } from '../types';
 import { XMarkIcon } from '@heroicons/react/24/solid';
 import { USERS } from '../constants';
 import AppSelect from './AppSelect';
+import { GlassButton } from '@/components/ui/glass-button';
 
 interface MarkSoldModalProps {
     vehicle: Vehicle;
@@ -11,7 +12,7 @@ interface MarkSoldModalProps {
         primarySalesperson: string;
         salespersonSplit: Array<{ name: string; share: number }>;
         downPayment: number;
-        saleType: 'Sale' | 'Trade-in' | 'Name Change';
+        saleType: 'Sale' | 'Trade-in' | 'Name Change' | 'Cash Sale';
         stockNumber: string;
         accountNumber: string;
     }) => void;
@@ -28,7 +29,7 @@ interface MarkSoldModalProps {
     initialValues?: {
         stockNumber?: string;
         accountNumber?: string;
-        saleType?: 'Sale' | 'Trade-in' | 'Name Change';
+        saleType?: 'Sale' | 'Trade-in' | 'Name Change' | 'Cash Sale';
         downPayment?: number;
         salespersonSplit?: Array<{ name: string; share: number }>;
     };
@@ -85,7 +86,7 @@ const MarkSoldModal: React.FC<MarkSoldModalProps> = ({
     const [downPayment, setDownPayment] = useState<string>(
         String(initialValues?.downPayment ?? vehicle.downPayment ?? '')
     );
-    const [saleType, setSaleType] = useState<'Sale' | 'Trade-in' | 'Name Change'>(
+    const [saleType, setSaleType] = useState<'Sale' | 'Trade-in' | 'Name Change' | 'Cash Sale'>(
         initialValues?.saleType ?? 'Sale'
     );
     const [stockNumber, setStockNumber] = useState(
@@ -187,7 +188,7 @@ const MarkSoldModal: React.FC<MarkSoldModalProps> = ({
             <div className="bg-gunmetal-light rounded-lg shadow-xl w-full max-w-md">
                  <div className="flex justify-between items-center p-4 border-b border-gunmetal">
                      <h3 className="text-2xl font-bold text-white font-orbitron">{title}</h3>
-                     <button onClick={onClose}><XMarkIcon className="h-6 w-6 text-gray-400 hover:text-white" /></button>
+                     <GlassButton size="icon" onClick={onClose}><XMarkIcon className="h-6 w-6" /></GlassButton>
                 </div>
                 <div className="p-6 space-y-4">
                     <p className="text-gray-300">Confirming sale for: <span className="font-bold text-white">{vehicle.year} {vehicle.make} {vehicle.model}</span></p>
@@ -277,6 +278,7 @@ const MarkSoldModal: React.FC<MarkSoldModalProps> = ({
                                 { value: 'Sale', label: 'Sale' },
                                 { value: 'Trade-in', label: 'Trade-in' },
                                 { value: 'Name Change', label: 'Name Change' },
+                                { value: 'Cash Sale', label: 'Cash Sale' },
                             ]}
                         />
                     </div>
@@ -293,18 +295,13 @@ const MarkSoldModal: React.FC<MarkSoldModalProps> = ({
 
                 </div>
                 <div className="mt-4 p-4 flex justify-end space-x-4 border-t border-gunmetal">
-                    <button onClick={onClose} className="px-4 py-2 rounded-md text-gray-300 bg-gunmetal hover:bg-gray-700 transition-colors">Cancel</button>
-                    <button
+                    <GlassButton onClick={onClose}>Cancel</GlassButton>
+                    <GlassButton
                         onClick={handleConfirm}
                         disabled={confirmDisabled || salespersonSplit.length === 0}
-                        className={`px-6 py-2 rounded-md text-white transition-colors font-semibold ${
-                            confirmDisabled || salespersonSplit.length === 0
-                                ? 'bg-green-800/60 cursor-not-allowed'
-                                : 'bg-green-600 hover:bg-green-700'
-                        }`}
                     >
                         {confirmLabel}
-                    </button>
+                    </GlassButton>
                 </div>
             </div>
         </div>

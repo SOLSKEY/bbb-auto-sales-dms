@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 export interface AppSelectOption {
     value: string;
@@ -28,6 +29,8 @@ const AppSelect: React.FC<AppSelectProps> = ({
     const [open, setOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement | null>(null);
     const buttonRef = useRef<HTMLButtonElement | null>(null);
+    const menuRef = useRef<HTMLDivElement | null>(null);
+    const [menuRect, setMenuRect] = useState<{ top: number; left: number; width: number } | null>(null);
 
     const selectedOption = useMemo(
         () => options.find(option => option.value === value) ?? null,
@@ -44,7 +47,9 @@ const AppSelect: React.FC<AppSelectProps> = ({
         const handleClickOutside = (event: MouseEvent) => {
             if (
                 containerRef.current &&
-                !containerRef.current.contains(event.target as Node)
+                !containerRef.current.contains(event.target as Node) &&
+                menuRef.current &&
+                !menuRef.current.contains(event.target as Node)
             ) {
                 setOpen(false);
             }
@@ -63,6 +68,16 @@ const AppSelect: React.FC<AppSelectProps> = ({
             document.removeEventListener('keydown', handleKeyDown);
         };
     }, []);
+
+    const updateMenuPosition = () => {
+        if (!buttonRef.current) return;
+        const rect = buttonRef.current.getBoundingClientRect();
+        setMenuRect({
+            top: rect.bottom,
+            left: rect.left,
+            width: rect.width,
+        });
+    };
 
     const handleOptionClick = (option: AppSelectOption) => {
         if (option.disabled) return;
@@ -101,8 +116,29 @@ const AppSelect: React.FC<AppSelectProps> = ({
         }
     };
 
+    const containerClasses = [
+        'app-select-container',
+        open ? 'app-select-container--open' : '',
+        className,
+    ]
+        .filter(Boolean)
+        .join(' ')
+        .trim();
+
+    useEffect(() => {
+        if (!open) return;
+        updateMenuPosition();
+        const handleWindowEvent = () => updateMenuPosition();
+        window.addEventListener('resize', handleWindowEvent);
+        window.addEventListener('scroll', handleWindowEvent, true);
+        return () => {
+            window.removeEventListener('resize', handleWindowEvent);
+            window.removeEventListener('scroll', handleWindowEvent, true);
+        };
+    }, [open]);
+
     return (
-        <div className={`app-select-container ${className}`} ref={containerRef}>
+        <div className={containerClasses} ref={containerRef}>
             <button
                 type="button"
                 className={`app-select-trigger ${disabled ? 'app-select-trigger--disabled' : ''}`}
@@ -122,35 +158,43 @@ const AppSelect: React.FC<AppSelectProps> = ({
                     </svg>
                 </span>
             </button>
-            {open && (
-                <div
-                    className={`app-select-menu ${menuClassName}`}
-                    role="listbox"
-                    tabIndex={-1}
-                >
-                    {options.map(option => {
-                        const isSelected = option.value === value;
-                        return (
-                            <button
-                                type="button"
-                                key={option.value}
-                                role="option"
-                                aria-selected={isSelected}
-                                disabled={option.disabled}
-                                className={`app-select-option ${
-                                    isSelected ? 'app-select-option--selected' : ''
-                                } ${option.disabled ? 'app-select-option--disabled' : ''}`}
-                                onClick={() => handleOptionClick(option)}
-                            >
-                                {option.label}
-                            </button>
-                        );
-                    })}
-                </div>
-            )}
+            {open && typeof document !== 'undefined' && menuRect &&
+                createPortal(
+                    <div
+                        ref={menuRef}
+                        className={`app-select-menu ${menuClassName}`}
+                        role="listbox"
+                        tabIndex={-1}
+                        style={{
+                            position: 'fixed',
+                            top: `${menuRect.top}px`,
+                            left: `${menuRect.left}px`,
+                            width: `${menuRect.width}px`,
+                        }}
+                    >
+                        {options.map(option => {
+                            const isSelected = option.value === value;
+                            return (
+                                <button
+                                    type="button"
+                                    key={option.value}
+                                    role="option"
+                                    aria-selected={isSelected}
+                                    disabled={option.disabled}
+                                    className={`app-select-option ${
+                                        isSelected ? 'app-select-option--selected' : ''
+                                    } ${option.disabled ? 'app-select-option--disabled' : ''}`}
+                                    onClick={() => handleOptionClick(option)}
+                                >
+                                    {option.label}
+                                </button>
+                            );
+                        })}
+                    </div>,
+                    document.body
+                )}
         </div>
     );
 };
 
 export default AppSelect;
-

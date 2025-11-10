@@ -5,6 +5,7 @@ import { decodeVin } from '../services/vinDecoderService';
 import AppSelect from './AppSelect';
 import { INVENTORY_STATUS_VALUES } from '../constants';
 import { supabase } from '../supabaseClient';
+import { GlassButton } from '@/components/ui/glass-button';
 
 
 interface EditVehicleModalProps {
@@ -351,7 +352,7 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
             <div className="bg-[#1a1d21] rounded-lg shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col border border-border-high">
                 <div className="flex justify-between items-center p-4 border-b border-border-low">
                      <h3 className="text-2xl font-bold text-primary font-orbitron tracking-tight-lg">{isNewVehicle ? 'Add New Vehicle' : 'Edit Vehicle'}</h3>
-                     <button onClick={onClose}><XMarkIcon className="h-6 w-6 text-muted hover:text-primary transition-colors" /></button>
+                     <GlassButton size="icon" onClick={onClose}><XMarkIcon className="h-6 w-6" /></GlassButton>
                 </div>
 
                 <div className="p-6 overflow-y-auto space-y-6">
@@ -368,10 +369,11 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
                                 maxLength={17}
                                 disabled={!isNewVehicle} // Disable editing VIN for existing vehicles
                             />
-                            <button
+                            <GlassButton
                                 onClick={handleVinDecode}
                                 disabled={isDecoding}
-                                className="btn-lava flex items-center gap-2 whitespace-nowrap disabled:opacity-60 disabled:cursor-not-allowed"
+                                className="whitespace-nowrap"
+                                contentClassName="flex items-center gap-2"
                             >
                                 {isDecoding ? (
                                     <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -380,7 +382,7 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
                                     </svg>
                                 ) : <SparklesIcon className="h-5 w-5" />}
                                 Decode VIN
-                            </button>
+                            </GlassButton>
                         </div>
                         {vinError && <p className="text-red-400 text-xs mt-1">{vinError}</p>}
                     </div>
@@ -435,7 +437,7 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
                                     >
                                         <img src={src} className="w-full h-full object-cover rounded-md pointer-events-none" />
                                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex items-center justify-center gap-2 transition-opacity">
-                                            <button onClick={() => void handleRemoveImage(index)} title="Remove Image" className="p-2 bg-red-600/80 rounded-full cursor-pointer"><TrashIcon className="h-4 w-4 text-white"/></button>
+                                            <GlassButton size="icon" onClick={() => void handleRemoveImage(index)} title="Remove Image"><TrashIcon className="h-4 w-4"/></GlassButton>
                                         </div>
                                          {index === 0 && <div className="absolute top-1 left-1 bg-lava-core text-white text-xs px-2 py-0.5 rounded-full">Cover</div>}
                                     </div>
@@ -474,8 +476,8 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
                 </div>
 
                 <div className="mt-auto p-4 flex justify-end space-x-4 border-t border-border-low">
-                    <button onClick={onClose} className="px-4 py-2 rounded-md text-secondary bg-glass-panel hover:bg-glass-panel/80 transition-colors border border-border-low">Cancel</button>
-                    <button onClick={handleSave} className="btn-lava px-6 py-2 font-semibold">Save Changes</button>
+                    <GlassButton onClick={onClose}>Cancel</GlassButton>
+                    <GlassButton onClick={handleSave}>Save Changes</GlassButton>
                 </div>
             </div>
         </div>

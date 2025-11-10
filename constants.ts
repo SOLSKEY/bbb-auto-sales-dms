@@ -22,9 +22,9 @@ export const CHAT_MESSAGES: ChatMessage[] = [];
 
 // USERS has some default data to prevent UI components like dropdowns from breaking.
 export const USERS: User[] = [
-    { id: 1, name: 'Admin User', role: 'admin' },
-    { id: 2, name: 'Sales Person A', role: 'sales' },
-    { id: 3, name: 'Collections Agent', role: 'collections' },
+    { id: 'seed-admin', name: 'Admin User', role: 'admin' },
+    { id: 'seed-sales', name: 'Sales Person A', role: 'sales' },
+    { id: 'seed-collections', name: 'Collections Agent', role: 'collections' },
 ];
 
 // Reconstructed from component usage.

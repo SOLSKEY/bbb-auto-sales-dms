@@ -2,6 +2,7 @@ import React, { useState, useMemo, forwardRef, useImperativeHandle } from 'react
 import { PlusCircleIcon, TrashIcon, EyeIcon, PencilIcon } from '@heroicons/react/24/outline';
 import type { Payment, Check, Cost, Bills, BillDenomination, DailyClosingReportState } from '../types';
 import { BILL_DENOMINATIONS } from '../types';
+import { GlassButton } from '@/components/ui/glass-button';
 
 type ViewMode = 'input' | 'output';
 
@@ -99,11 +100,11 @@ const DynamicListCard = <T extends {id: number} & Record<string, any>>(
                                 return <p key={String(col.key)} className={`p-2 truncate text-sm text-secondary ${col.className}`}>{displayValue}</p>
                            }
                        })}
-                       {viewMode === 'input' && <button onClick={() => onRemove(item.id)}><TrashIcon className="h-5 w-5 text-muted hover:text-red-400" /></button>}
+                       {viewMode === 'input' && <GlassButton size="icon" onClick={() => onRemove(item.id)}><TrashIcon className="h-5 w-5" /></GlassButton>}
                    </div>
                ))}
            </div>
-           {viewMode === 'input' && <button onClick={onAdd} className="flex items-center gap-2 text-sm text-lava-warm hover:text-lava-core mt-2"><PlusCircleIcon className="h-5 w-5" /> Add Row</button>}
+           {viewMode === 'input' && <GlassButton size="sm" onClick={onAdd} contentClassName="flex items-center gap-2"><PlusCircleIcon className="h-5 w-5" /> Add Row</GlassButton>}
            <div className="flex justify-between items-center font-bold text-lg mt-auto pt-2 border-t border-border-low">
                <span className="text-primary">Total</span>
                <span className="font-orbitron text-primary">${total.toFixed(2)}</span>
@@ -220,12 +221,12 @@ const DailyClosingReport = forwardRef<
             {!isReadOnly && (
                 <div className="pdf-hide flex justify-end">
                     <div className="flex space-x-1 bg-glass-panel p-1 rounded-lg border border-border-low">
-                        <button onClick={() => setLocalViewMode('input')} className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${viewMode === 'input' ? 'btn-lava' : 'text-secondary hover:bg-glass-panel'}`}>
+                        <GlassButton onClick={() => setLocalViewMode('input')} contentClassName="flex items-center gap-2">
                            <PencilIcon className="h-5 w-5"/> Input
-                        </button>
-                         <button onClick={() => setLocalViewMode('output')} className={`flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-md transition-colors ${viewMode === 'output' ? 'btn-lava' : 'text-secondary hover:bg-glass-panel'}`}>
+                        </GlassButton>
+                         <GlassButton onClick={() => setLocalViewMode('output')} contentClassName="flex items-center gap-2">
                            <EyeIcon className="h-5 w-5"/> Clean View
-                        </button>
+                        </GlassButton>
                     </div>
                 </div>
             )}

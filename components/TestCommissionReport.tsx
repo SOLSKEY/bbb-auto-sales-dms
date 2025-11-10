@@ -20,6 +20,7 @@ import {
     getCommissionWeekRange,
 } from '../utils/commission';
 import AppSelect from './AppSelect';
+import { GlassButton } from '@/components/ui/glass-button';
 
 const BONUS_THRESHOLD = 5;
 const BONUS_PER_SALE = 50;
@@ -112,7 +113,14 @@ const computeWeeklyBonusBreakdown = (sales: Sale[], bonusStart: Date, bonusEnd: 
         }
         if (
             saleType &&
-            !(saleType === 'sale' || saleType === 'trade' || saleType === 'trade-in' || saleType === 'tradein')
+            !(
+                saleType === 'sale' ||
+                saleType === 'trade' ||
+                saleType === 'trade-in' ||
+                saleType === 'tradein' ||
+                saleType === 'cashsale' ||
+                saleType === 'cash'
+            )
         ) {
             return;
         }
@@ -325,8 +333,9 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
                                         <p className="text-[11px] text-accent-orange mt-1">Required before export/log</p>
                                     )}
                                     <div className="mt-3 flex flex-wrap items-center gap-2">
-                                        <button
+                                        <GlassButton
                                             type="button"
+                                            size="sm"
                                             onClick={() =>
                                                 onCollectionsBonusLockToggle?.(
                                                     normalizedName,
@@ -343,7 +352,7 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
                                             }`}
                                         >
                                             {lockButtonLabel}
-                                        </button>
+                                        </GlassButton>
                                         <span className="text-[11px] text-gray-300 ml-auto">
                                             {collectionsStatusLabel}
                                         </span>

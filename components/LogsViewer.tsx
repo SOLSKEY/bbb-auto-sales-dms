@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import type { LoggedReport } from '../types';
 import { TrashIcon } from '@heroicons/react/24/outline';
+import { GlassButton } from '@/components/ui/glass-button';
 
 interface LogsViewerProps<T> {
     logs: LoggedReport<T>[];
@@ -38,29 +39,25 @@ const LogsViewer = <T,>({ logs, onDeleteLog, renderLogContent }: LogsViewerProps
                     <ul className="space-y-2">
                         {logs.map(log => (
                             <li key={log.id} className="flex items-center gap-2 group">
-                                <button
+                                <GlassButton
                                     onClick={() => setSelectedLog(log)}
-                                    className={`flex-grow text-left p-3 rounded-lg transition-colors duration-200 ${
-                                        selectedLog?.id === log.id
-                                            ? 'bg-accent-red/80 text-white'
-                                            : 'bg-gunmetal-light text-gray-300 hover:bg-gunmetal-dark'
-                                    }`}
+                                    className="flex-grow"
                                 >
                                     <span className="font-semibold">Report for {log.reportDate}</span>
                                     <span className="block text-xs text-gray-400">
                                         Logged on {new Date(log.loggedAt).toLocaleDateString()}
                                     </span>
-                                </button>
-                                <button
+                                </GlassButton>
+                                <GlassButton
+                                    size="icon"
                                     onClick={(e) => {
                                         e.stopPropagation();
                                         onDeleteLog(log.id);
                                     }}
-                                    className="p-2 rounded-md text-gray-500 hover:bg-red-500/20 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
                                     title="Delete Log"
                                 >
                                     <TrashIcon className="h-5 w-5" />
-                                </button>
+                                </GlassButton>
                             </li>
                         ))}
                     </ul>

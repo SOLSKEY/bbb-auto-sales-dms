@@ -16,6 +16,7 @@ import type {
 import { DataContext } from '../App';
 import { useReportLogs } from '../hooks/useReportLogs';
 import { downloadHtmlElementAsPdf } from '../utils/export';
+import { GlassButton } from '@/components/ui/glass-button';
 
 const DAILY_CLOSING_TABLE = 'DailyClosingReportsLog';
 const COMMISSION_TABLE = 'CommissionReportsLog';
@@ -247,19 +248,17 @@ const Reports: React.FC = () => {
                 <ul className="space-y-2">
                     {REPORT_TYPES.map(report => (
                         <li key={report}>
-                            <button
+                            <GlassButton
                                 onClick={() => {
                                     setActiveReport(report);
                                     setReportView('live');
                                 }}
-                                className={`w-full text-left p-3 rounded-lg transition-colors duration-200 ${
-                                    activeReport === report
-                                        ? 'btn-lava'
-                                        : 'text-secondary hover:bg-glass-panel border border-border-low'
-                                }`}
+                                className={`w-full ${activeReport === report ? 'glass-button-active pointer-events-none' : ''}`}
+                                contentClassName={activeReport === report ? 'text-white' : undefined}
+                                disabled={activeReport === report}
                             >
                                 {report} Report
-                            </button>
+                            </GlassButton>
                         </li>
                     ))}
                 </ul>
@@ -271,52 +270,46 @@ const Reports: React.FC = () => {
                             {activeReport} Report
                         </h2>
                         <div className="flex space-x-1 bg-glass-panel p-1 rounded-lg border border-border-low">
-                            <button
+                            <GlassButton
                                 onClick={() => setReportView('live')}
-                                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                                    reportView === 'live'
-                                        ? 'btn-lava'
-                                        : 'text-secondary hover:bg-glass-panel'
-                                }`}
+                                size="sm"
+                                className={reportView === 'live' ? 'glass-button-active pointer-events-none' : undefined}
+                                contentClassName={reportView === 'live' ? 'text-white' : 'text-secondary'}
+                                disabled={reportView === 'live'}
                             >
                                 Live Report
-                            </button>
-                            <button
+                            </GlassButton>
+                            <GlassButton
                                 onClick={() => setReportView('logs')}
-                                className={`px-3 py-1 text-sm font-medium rounded-md transition-colors ${
-                                    reportView === 'logs'
-                                        ? 'btn-lava'
-                                        : 'text-secondary hover:bg-glass-panel'
-                                }`}
+                                size="sm"
+                                className={reportView === 'logs' ? 'glass-button-active pointer-events-none' : undefined}
+                                contentClassName={reportView === 'logs' ? 'text-white' : 'text-secondary'}
+                                disabled={reportView === 'logs'}
                             >
                                 Archived Logs
-                            </button>
+                            </GlassButton>
                         </div>
                     </div>
 
                     <div className="flex items-center gap-2">
                         {reportView === 'live' && canLogReport && (
-                            <button
+                            <GlassButton
                                 onClick={handleLogReport}
                                 disabled={isLogging}
-                                className={`btn-lava flex items-center disabled:opacity-60 disabled:cursor-not-allowed`}
+                                contentClassName="flex items-center"
                             >
                                 <BookmarkIcon className="h-5 w-5 mr-2" />
                                 {isLogging ? 'Logging…' : 'Log Report'}
-                            </button>
+                            </GlassButton>
                         )}
-                        <button
+                        <GlassButton
                             onClick={handleExport}
-                            className={`btn-lava flex items-center ${
-                                !canExportReport || reportView !== 'live'
-                                    ? 'opacity-60 cursor-not-allowed'
-                                    : ''
-                            }`}
                             disabled={!canExportReport || reportView !== 'live'}
+                            contentClassName="flex items-center"
                         >
                             <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
                             Export
-                        </button>
+                        </GlassButton>
                     </div>
                 </div>
 

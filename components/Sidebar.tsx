@@ -1,21 +1,37 @@
 
-import React from 'react';
-import { ChartPieIcon, BuildingStorefrontIcon, CurrencyDollarIcon, DocumentChartBarIcon, CircleStackIcon, TableCellsIcon, CalendarIcon, ChatBubbleLeftRightIcon, Cog6ToothIcon } from '@heroicons/react/24/outline';
+import React, { useMemo } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import {
+    ChartPieIcon,
+    BuildingStorefrontIcon,
+    CurrencyDollarIcon,
+    DocumentChartBarIcon,
+    CircleStackIcon,
+    TableCellsIcon,
+    CalendarIcon,
+    ChatBubbleLeftRightIcon,
+    Cog6ToothIcon,
+    UserGroupIcon,
+} from '@heroicons/react/24/outline';
+import type { AppSectionKey, UserAccessPolicy } from '@/types';
+import { GlassButton } from '@/components/ui/glass-button';
 
-interface SidebarProps {
-    activePage: string;
-    setActivePage: (page: string) => void;
-}
+type NavItem = {
+    name: string;
+    icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
+    path: string;
+    permissionKey?: AppSectionKey;
+};
 
-const navItems = [
-    { name: 'Dashboard', icon: ChartPieIcon },
-    { name: 'Inventory', icon: BuildingStorefrontIcon },
-    { name: 'Sales', icon: CurrencyDollarIcon },
-    { name: 'Collections', icon: DocumentChartBarIcon },
-    { name: 'Reports', icon: CircleStackIcon },
-    { name: 'Data', icon: TableCellsIcon },
-    { name: 'Calendar', icon: CalendarIcon },
-    { name: 'Team Chat', icon: ChatBubbleLeftRightIcon },
+const BASE_NAV_ITEMS: NavItem[] = [
+    { name: 'Dashboard', icon: ChartPieIcon, path: '/', permissionKey: 'Dashboard' },
+    { name: 'Inventory', icon: BuildingStorefrontIcon, path: '/inventory', permissionKey: 'Inventory' },
+    { name: 'Sales', icon: CurrencyDollarIcon, path: '/sales', permissionKey: 'Sales' },
+    { name: 'Collections', icon: DocumentChartBarIcon, path: '/collections', permissionKey: 'Collections' },
+    { name: 'Reports', icon: CircleStackIcon, path: '/reports', permissionKey: 'Reports' },
+    { name: 'Data', icon: TableCellsIcon, path: '/data', permissionKey: 'Data' },
+    { name: 'Calendar', icon: CalendarIcon, path: '/calendar', permissionKey: 'Calendar' },
+    { name: 'Team Chat', icon: ChatBubbleLeftRightIcon, path: '/team-chat', permissionKey: 'Team Chat' },
 ];
 
 const BbbLogo = () => (
@@ -29,7 +45,40 @@ const BbbLogo = () => (
 );
 
 
-const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage }) => {
+interface SidebarProps {
+    isAdmin?: boolean;
+    permissions?: UserAccessPolicy['permissions'];
+    canViewPage?: (page: AppSectionKey) => boolean;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ isAdmin = false, permissions, canViewPage }) => {
+    const navigate = useNavigate();
+    const location = useLocation();
+    const normalizedPath = location.pathname.replace(/\/+$/, '') || '/';
+    const navItems = useMemo(() => {
+        const canView = (key?: AppSectionKey) => {
+            if (!key) return true;
+            // Admins can view everything
+            if (isAdmin) return true;
+            // Use canViewPage function if provided (preferred method)
+            if (canViewPage) {
+                return canViewPage(key);
+            }
+            // Fallback to permissions object
+            if (permissions) {
+                return Boolean(permissions[key]?.canView);
+            }
+            // If no permissions available, deny access for security
+            return false;
+        };
+
+        const base = BASE_NAV_ITEMS.filter(item => canView(item.permissionKey));
+        if (isAdmin) {
+            base.push({ name: 'Admin', icon: UserGroupIcon, path: '/admin' });
+        }
+        return base;
+    }, [isAdmin, permissions, canViewPage]);
+
     return (
         <nav className="w-64 bg-glass-panel backdrop-blur-glass flex flex-col p-4 border-r border-border-low">
             <div className="flex items-center justify-center p-4 mb-8">
@@ -40,48 +89,42 @@ const Sidebar: React.FC<SidebarProps> = ({ activePage, setActivePage }) => {
             <ul className="flex-1 space-y-2">
                 {navItems.map((item) => (
                     <li key={item.name}>
-                        <a
-                            href="#"
-                            onClick={(e) => { e.preventDefault(); setActivePage(item.name); }}
-                            className={`flex items-center p-3 rounded-lg transition-smooth group relative ${
-                                activePage === item.name
+                        <button
+                            type="button"
+                            onClick={() => navigate(item.path)}
+                            className={`flex w-full items-center p-3 text-left rounded-lg transition-smooth group relative ${
+                                normalizedPath === item.path || (item.path !== '/' && normalizedPath.startsWith(`${item.path}/`))
                                     ? 'bg-glass-panel text-primary shadow-lava border border-border-high'
                                     : 'text-secondary hover:bg-glass-panel hover:text-primary hover:border hover:border-border-low'
                             }`}
                         >
                             <item.icon className={`h-6 w-6 mr-3 transition-smooth ${
-                                activePage === item.name ? 'text-lava-core' : 'text-muted group-hover:text-secondary'
+                                normalizedPath === item.path || (item.path !== '/' && normalizedPath.startsWith(`${item.path}/`))
+                                    ? 'text-lava-core'
+                                    : 'text-muted group-hover:text-secondary'
                             }`} />
                             <span className="font-medium">{item.name}</span>
-                             {activePage === item.name && (
+                             {(
+                                normalizedPath === item.path ||
+                                (item.path !== '/' && normalizedPath.startsWith(`${item.path}/`))
+                            ) && (
                                 <div className="absolute left-0 w-1.5 h-8 bg-gradient-to-b from-lava-warm via-lava-core to-lava-cool rounded-r-full" />
                             )}
-                        </a>
+                        </button>
                     </li>
                 ))}
             </ul>
             <div className="mt-auto">
-                <button
-                    type="button"
-                    onClick={() => setActivePage('Settings')}
-                    className={`w-full flex items-center p-3 rounded-lg transition-smooth group relative ${
-                        activePage === 'Settings'
-                            ? 'bg-glass-panel text-primary shadow-lava border border-border-high'
-                            : 'text-secondary hover:bg-glass-panel hover:text-primary hover:border hover:border-border-low'
-                    }`}
-                >
-                    <Cog6ToothIcon
-                        className={`h-6 w-6 mr-3 transition-smooth ${
-                            activePage === 'Settings'
-                                ? 'text-lava-core'
-                                : 'text-muted group-hover:text-secondary'
-                        }`}
-                    />
-                    <span className="font-medium">Settings</span>
-                    {activePage === 'Settings' && (
-                        <div className="absolute left-0 w-1.5 h-8 bg-gradient-to-b from-lava-warm via-lava-core to-lava-cool rounded-r-full" />
-                    )}
-                </button>
+                {(isAdmin || (canViewPage && canViewPage('Settings')) || (permissions && permissions['Settings']?.canView)) && (
+                    <GlassButton
+                        type="button"
+                        size="sm"
+                        onClick={() => navigate('/settings')}
+                    >
+                        <Cog6ToothIcon className="h-6 w-6 mr-3" />
+                        <span className="font-medium">Settings</span>
+                    </GlassButton>
+                )}
             </div>
         </nav>
     );

@@ -18,6 +18,7 @@ import {
     addUtcDays,
     formatDateKey,
 } from '../utils/date';
+import { GlassButton } from '@/components/ui/glass-button';
 
 const MS_IN_DAY = 24 * 60 * 60 * 1000;
 
@@ -304,12 +305,13 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
                     <p className="text-sm text-muted">Sum of payments and late fees per week (Monday – Sunday).</p>
                 </div>
                 <div className="relative">
-                    <button
+                    <GlassButton
+                        size="sm"
                         onClick={() => setFilterOpen(prev => !prev)}
                         className="flex items-center gap-2 bg-glass-panel hover:bg-glass-panel/80 text-primary text-sm font-semibold py-2 px-4 rounded-md transition-colors border border-border-low"
                     >
                         Filter Years
-                    </button>
+                    </GlassButton>
                     {filterOpen && (
                         <div className="absolute right-0 mt-2 w-44 bg-glass-panel border border-border-high rounded-lg shadow-xl z-20 p-2 backdrop-blur-glass">
                             {lineKeys.map(year => (

@@ -35,6 +35,7 @@ interface CollectionsWeeklyForecastProps {
     weeklyData: WeeklySummary[];
     paymentsData: DailyCollectionSummary[];
     today?: Date;
+    compact?: boolean;
 }
 
 interface NormalizedDailyEntry {
@@ -117,6 +118,7 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
     weeklyData,
     paymentsData,
     today = new Date(),
+    compact = false,
 }) => {
     const [selectedWeekKey, setSelectedWeekKey] = useState<string | null>(null);
 
@@ -462,8 +464,8 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
         : ArrowTrendingDownIcon;
 
     return (
-        <div className="glass-card p-6 relative overflow-hidden">
-            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-6">
+        <div className={`glass-card ${compact ? 'p-5' : 'p-6'} relative overflow-hidden`}>
+            <div className={`flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 ${compact ? 'mb-4' : 'mb-6'}`}>
                 <div>
                     <h3 className="text-xl font-semibold text-primary tracking-tight-md">
                         Weekly Payments Forecast
@@ -489,7 +491,7 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
                         <span className="text-sm uppercase tracking-wide text-green-400">
                             Actual
                         </span>
-                        <span className="text-3xl font-bold text-green-400 font-orbitron tracking-tight-lg">
+                        <span className={`${compact ? 'text-2xl' : 'text-3xl'} font-bold text-green-400 font-orbitron tracking-tight-lg`}>
                             {formatCurrency(actualSoFar)}
                         </span>
                     </div>
@@ -497,7 +499,7 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
                         <span className="text-sm uppercase tracking-wide text-white">
                             Expected
                         </span>
-                        <span className="text-3xl font-bold text-primary font-orbitron tracking-tight-lg">
+                        <span className={`${compact ? 'text-2xl' : 'text-3xl'} font-bold text-primary font-orbitron tracking-tight-lg`}>
                             {formatCurrency(expectedSoFar)}
                         </span>
                     </div>
@@ -538,7 +540,7 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
                 </div>
             </div>
 
-            <div className="h-64">
+            <div className={compact ? 'h-56' : 'h-64'}>
                 <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={chartData}>
                         <CartesianGrid strokeDasharray="4 4" stroke="#2c2f33" />

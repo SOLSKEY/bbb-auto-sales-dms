@@ -1,8 +1,7 @@
 import React, { useState, useContext, useMemo, useEffect, useCallback, useRef } from 'react';
 import type { DailyCollectionSummary } from '../types';
-import DataGrid from '../components/DataGrid';
 import { UserContext } from '../App';
-import { EyeIcon, BanknotesIcon, ExclamationTriangleIcon, CalendarDaysIcon, ArrowDownTrayIcon } from '@heroicons/react/24/solid';
+import { CalendarDaysIcon, ArrowDownTrayIcon } from '@heroicons/react/24/solid';
 import { supabase } from '../supabaseClient';
 import CollectionsWeeklyPaymentsChart from '../components/CollectionsWeeklyPaymentsChart';
 import CollectionsWeeklyDelinquencyChart from '../components/CollectionsWeeklyDelinquencyChart';
@@ -15,6 +14,7 @@ import {
     toUtcMidnight,
 } from '../utils/date';
 import { downloadHtmlElementAsPdf } from '../utils/export';
+import { GlassButton } from '@/components/ui/glass-button';
 
 const safeParseFloat = (val: unknown) => {
     if (val === null || val === undefined) return 0;
@@ -42,7 +42,17 @@ const CollectionsOverview: React.FC<{
     delinquencyData: NormalizedDelinquencyEntry[];
     onLogComplete: () => void;
     onRegisterLogHandler?: (handler: (() => void) | null) => void;
-}> = ({ paymentsData, weeklyData, delinquencyData, onLogComplete, onRegisterLogHandler }) => {
+    layoutVariant?: 'classic' | 'compact';
+    canLogDailyData?: boolean;
+}> = ({
+    paymentsData,
+    weeklyData,
+    delinquencyData,
+    onLogComplete,
+    onRegisterLogHandler,
+    layoutVariant = 'compact',
+    canLogDailyData = true,
+}) => {
     const isPdfMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pdf') === 'collections';
     const [isLogModalOpen, setIsLogModalOpen] = useState(false);
     const [isSubmittingLog, setIsSubmittingLog] = useState(false);
@@ -116,16 +126,49 @@ const CollectionsOverview: React.FC<{
         let todayPaymentsTotal = 0;
         let weekToDatePayments = 0;
 
+        // Track daily totals for finding record
+        const dailyTotals = new Map<string, number>();
+
         paymentsData.forEach(entry => {
             const parsedDate = parseDateStringToUtc(entry.date);
             if (!parsedDate) return;
             const normalizedDate = toUtcMidnight(parsedDate);
             const dayTotal = safeParseFloat(entry.payments) + safeParseFloat(entry.lateFees);
+
+            // Track daily total
+            const dateKey = formatDateKey(normalizedDate);
+            dailyTotals.set(dateKey, (dailyTotals.get(dateKey) || 0) + dayTotal);
+
             if (normalizedDate.getTime() === today.getTime()) {
                 todayPaymentsTotal += dayTotal;
             }
             if (normalizedDate.getTime() >= weekStart.getTime() && normalizedDate.getTime() <= today.getTime()) {
                 weekToDatePayments += dayTotal;
+            }
+        });
+
+        // Find record daily total and date
+        let recordDailyTotal = 0;
+        let recordDailyDate: Date | null = null;
+        dailyTotals.forEach((total, dateKey) => {
+            if (total > recordDailyTotal) {
+                recordDailyTotal = total;
+                const parsed = parseDateStringToUtc(dateKey);
+                recordDailyDate = parsed ? toUtcMidnight(parsed) : null;
+            }
+        });
+
+        // Find record weekly total and date range
+        let recordWeeklyTotal = 0;
+        let recordWeekStart: Date | null = null;
+        let recordWeekEnd: Date | null = null;
+        weeklyData.forEach(week => {
+            if (week.totalPayments > recordWeeklyTotal) {
+                recordWeeklyTotal = week.totalPayments;
+                recordWeekStart = getWeekStartUtc(week.weekStart);
+                const end = new Date(recordWeekStart);
+                end.setDate(end.getDate() + 6);
+                recordWeekEnd = end;
             }
         });
 
@@ -178,56 +221,116 @@ const CollectionsOverview: React.FC<{
             todayPaymentsTotal,
             weekToDatePayments,
             expectedWeeklyTotal,
+            recordDailyTotal,
+            recordDailyDate,
+            recordWeeklyTotal,
+            recordWeekStart,
+            recordWeekEnd,
         };
     }, [paymentsData, delinquencyData, weeklyData]);
 
     const cardData = useMemo(
-        () => [
-            {
-                title: "Today's Open Accounts",
-                value: metrics.todayOpenAccounts.toLocaleString(undefined, { maximumFractionDigits: 0 }),
-                accent: 'text-green-400',
-            },
-            {
-                title: "Today's Overdue Accounts",
-                value: metrics.todayOverdueAccounts.toLocaleString(undefined, { maximumFractionDigits: 0 }),
-                accent: 'text-red-400',
-            },
-            {
-                title: "Today's Delinquency Rate",
-                value: `${metrics.todayDelinquencyRate.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                })}%`,
-                accent: 'text-red-400',
-            },
-            {
-                title: "Today's Total Payments",
-                value: `$${metrics.todayPaymentsTotal.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                })}`,
-                accent: 'text-white',
-            },
-            {
-                title: 'Week-to-Date Payments',
-                value: `$${metrics.weekToDatePayments.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                })}`,
-                accent: 'text-white',
-            },
-            {
-                title: 'Expected Payments (Week)',
-                value: `$${metrics.expectedWeeklyTotal.toLocaleString(undefined, {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                })}`,
-                accent: 'text-white',
-            },
-        ],
+        () => ({
+            group1: [
+                {
+                    title: "Today's Open Accounts",
+                    value: metrics.todayOpenAccounts.toLocaleString(undefined, { maximumFractionDigits: 0 }),
+                    accent: 'text-green-400',
+                },
+                {
+                    title: "Today's Overdue Accounts",
+                    value: metrics.todayOverdueAccounts.toLocaleString(undefined, { maximumFractionDigits: 0 }),
+                    accent: 'text-red-400',
+                },
+                {
+                    title: "Today's Delinquency Rate",
+                    value: `${metrics.todayDelinquencyRate.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                    })}%`,
+                    accent: 'text-red-400',
+                },
+            ],
+            group2: [
+                {
+                    title: "Today's Total Payments",
+                    value: `$${metrics.todayPaymentsTotal.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                    })}`,
+                    accent: 'text-white',
+                },
+                {
+                    title: 'Week-to-Date Payments',
+                    value: `$${metrics.weekToDatePayments.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                    })}`,
+                    accent: 'text-white',
+                },
+                {
+                    title: 'Expected Payments (Week)',
+                    value: `$${metrics.expectedWeeklyTotal.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                    })}`,
+                    accent: 'text-white',
+                },
+            ],
+            recordCards: [
+                {
+                    title: 'Record Daily Payments',
+                    subtitle: metrics.recordDailyDate
+                        ? metrics.recordDailyDate.toLocaleDateString(undefined, {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                          })
+                        : '',
+                    value: `$${metrics.recordDailyTotal.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                    })}`,
+                    accent: 'text-white',
+                    isRecord: true,
+                },
+                {
+                    title: 'Record Weekly Payments',
+                    subtitle: metrics.recordWeekStart && metrics.recordWeekEnd
+                        ? `${metrics.recordWeekStart.toLocaleDateString(undefined, {
+                              month: 'short',
+                              day: 'numeric',
+                          })} - ${metrics.recordWeekEnd.toLocaleDateString(undefined, {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                          })}`
+                        : '',
+                    value: `$${metrics.recordWeeklyTotal.toLocaleString(undefined, {
+                        minimumFractionDigits: 2,
+                        maximumFractionDigits: 2,
+                    })}`,
+                    accent: 'text-white',
+                    isRecord: true,
+                },
+            ],
+        }),
         [metrics]
     );
+
+    const cardGridClasses =
+        layoutVariant === 'compact'
+            ? 'grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-4'
+            : 'grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6';
+    const cardPaddingClass = layoutVariant === 'compact' ? 'p-4' : 'p-6';
+    const cardTitleClass =
+        layoutVariant === 'compact'
+            ? 'text-xs uppercase tracking-wide text-muted mb-1'
+            : 'text-sm uppercase tracking-wide text-muted mb-2';
+    const cardValueClass =
+        layoutVariant === 'compact'
+            ? 'text-3xl font-bold font-orbitron tracking-tight-lg'
+            : 'text-3xl font-bold font-orbitron tracking-tight-lg';
 
     const handleLogInputChange = useCallback((field: keyof typeof logForm, value: string) => {
         setLogForm(prev => ({ ...prev, [field]: value }));
@@ -247,13 +350,14 @@ const CollectionsOverview: React.FC<{
     }, []);
 
     const openLogModal = useCallback(() => {
+        if (!canLogDailyData) return;
         resetLogForm();
         setIsLogModalOpen(true);
-    }, [resetLogForm]);
+    }, [resetLogForm, canLogDailyData]);
 
     useEffect(() => {
         if (!onRegisterLogHandler) return;
-        if (isPdfMode) {
+        if (isPdfMode || !canLogDailyData) {
             onRegisterLogHandler(null);
             return;
         }
@@ -261,7 +365,7 @@ const CollectionsOverview: React.FC<{
         return () => {
             onRegisterLogHandler(null);
         };
-    }, [onRegisterLogHandler, openLogModal, isPdfMode]);
+    }, [onRegisterLogHandler, openLogModal, isPdfMode, canLogDailyData]);
 
     const parseNumericInput = (value: string) => {
         if (!value) return 0;
@@ -272,6 +376,7 @@ const CollectionsOverview: React.FC<{
 
     const handleSubmitLog = async (event: React.FormEvent) => {
         event.preventDefault();
+        if (!canLogDailyData) return;
         if (isSubmittingLog) return;
         setIsSubmittingLog(true);
         setLogError(null);
@@ -322,11 +427,12 @@ const CollectionsOverview: React.FC<{
 
     return (
         <div id="collections-analytics-export" className={containerClasses}>
-            {isLogModalOpen && (
+            {canLogDailyData && isLogModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8">
-                    <div className="glass-card w-full max-w-xl p-6 relative">
-                        <button
+                    <div className="w-full max-w-xl p-6 relative bg-[#1b1f26] border border-border-high rounded-2xl shadow-2xl">
+                        <GlassButton
                             type="button"
+                            size="icon"
                             className="absolute top-3 right-3 text-secondary hover:text-primary transition-colors"
                             onClick={() => {
                                 setIsLogModalOpen(false);
@@ -335,7 +441,7 @@ const CollectionsOverview: React.FC<{
                             disabled={isSubmittingLog}
                         >
                             ✕
-                        </button>
+                        </GlassButton>
                         <h3 className="text-2xl font-semibold text-primary mb-1 tracking-tight-md">Log Daily Collections</h3>
                         <p className="text-sm text-muted mb-6">
                             Capture payments and delinquency data for a specific date.
@@ -353,8 +459,9 @@ const CollectionsOverview: React.FC<{
                                         required
                                         max={formatDateKey(toUtcMidnight(new Date()))}
                                     />
-                                    <button
+                                    <GlassButton
                                         type="button"
+                                        size="icon"
                                         className="absolute inset-y-0 right-0 flex items-center px-3 text-muted hover:text-primary transition-colors"
                                         onClick={() => {
                                             const input = dateInputRef.current as any;
@@ -367,7 +474,7 @@ const CollectionsOverview: React.FC<{
                                         tabIndex={-1}
                                     >
                                         <CalendarDaysIcon className="h-5 w-5" />
-                                    </button>
+                                    </GlassButton>
                                 </div>
                             </div>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -443,7 +550,7 @@ const CollectionsOverview: React.FC<{
                                 </div>
                             )}
                             <div className="flex justify-end gap-3 pt-2">
-                                <button
+                                <GlassButton
                                     type="button"
                                     className="px-4 py-2 rounded-md border border-border-low text-sm text-secondary hover:bg-glass-panel transition-colors"
                                     onClick={() => {
@@ -453,25 +560,65 @@ const CollectionsOverview: React.FC<{
                                     disabled={isSubmittingLog}
                                 >
                                     Cancel
-                                </button>
-                                <button
+                                </GlassButton>
+                                <GlassButton
                                     type="submit"
-                                    className="btn-lava px-4 py-2 text-sm font-semibold"
+                                    className="px-4 py-2 text-sm font-semibold"
                                     disabled={isSubmittingLog}
                                 >
                                     {isSubmittingLog ? 'Logging…' : 'Submit'}
-                                </button>
+                                </GlassButton>
                             </div>
                         </form>
                     </div>
                 </div>
             )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
-                {cardData.map(card => (
-                    <div key={card.title} className="glass-card p-6">
-                        <p className="text-sm uppercase tracking-wide text-muted mb-2">{card.title}</p>
-                        <p className={`text-3xl font-bold font-orbitron tracking-tight-lg ${card.accent}`}>
+            <div className="flex flex-wrap items-stretch gap-4 w-full">
+                {/* Group 1: Today's Accounts - 3 cards in a row */}
+                {cardData.group1.map(card => (
+                    <div key={card.title} className={`glass-card ${cardPaddingClass} flex-1 min-w-[200px] flex flex-col justify-between`}>
+                        <p className={cardTitleClass}>{card.title}</p>
+                        <p className={`${cardValueClass} ${card.accent} mt-auto`}>
+                            {card.value}
+                        </p>
+                    </div>
+                ))}
+
+                {/* Vertical Divider 1 */}
+                <div className="hidden xl:block w-px bg-border-low self-stretch" />
+
+                {/* Group 2: Payments - 3 cards in a row */}
+                {cardData.group2.map(card => (
+                    <div key={card.title} className={`glass-card ${cardPaddingClass} flex-1 min-w-[200px] flex flex-col justify-between`}>
+                        <p className={cardTitleClass}>{card.title}</p>
+                        <p className={`${cardValueClass} ${card.accent} mt-auto`}>
+                            {card.value}
+                        </p>
+                    </div>
+                ))}
+
+                {/* Vertical Divider 2 */}
+                <div className="hidden xl:block w-px bg-border-low self-stretch" />
+
+                {/* Record Cards - Neon Red/Pink Styling - 2 cards in a row */}
+                {cardData.recordCards.map(card => (
+                    <div
+                        key={card.title}
+                        className={`${cardPaddingClass} rounded-lg border-2 shadow-lg bg-gradient-to-br from-red-500/20 via-pink-500/20 to-rose-500/20 border-pink-500/70 flex-1 min-w-[200px] flex flex-col justify-between`}
+                        style={{
+                            boxShadow: '0 0 20px rgba(244, 63, 94, 0.5), 0 0 40px rgba(236, 72, 153, 0.3)',
+                        }}
+                    >
+                        <p className={`${cardTitleClass} text-pink-300 font-bold uppercase tracking-wider`}>
+                            {card.title}
+                            {card.subtitle && (
+                                <span className="block text-[10px] text-pink-400/80 font-normal mt-1">
+                                    {card.subtitle}
+                                </span>
+                            )}
+                        </p>
+                        <p className={`${cardValueClass} text-transparent bg-clip-text bg-gradient-to-r from-red-300 via-pink-300 to-rose-300 mt-auto`}>
                             {card.value}
                         </p>
                     </div>
@@ -480,27 +627,55 @@ const CollectionsOverview: React.FC<{
 
             <div className="border-t border-border-low pt-6" />
 
-            <div className="flex flex-col lg:flex-row gap-6 lg:items-stretch">
-                <div className="w-full lg:w-1/4">
-                    <CollectionsWeeklyPaymentMix data={paymentMix.data} total={paymentMix.total} />
-                </div>
-                <div className="w-full lg:w-3/4">
-                    <CollectionsWeeklyForecast weeklyData={weeklyData} paymentsData={paymentsData} />
-                </div>
-            </div>
+            {layoutVariant === 'compact' ? (
+                <>
+                    <div className="flex flex-col xl:flex-row gap-4 xl:items-stretch">
+                        <div className="w-full xl:w-[25%]">
+                            <CollectionsWeeklyPaymentMix data={paymentMix.data} total={paymentMix.total} compact />
+                        </div>
+                        <div className="w-full xl:w-[75%]">
+                            <CollectionsWeeklyPaymentsChart payments={paymentsData} />
+                        </div>
+                    </div>
+                    <div className="mt-4 flex flex-col xl:flex-row gap-4">
+                        <div className="w-full xl:w-[40%]">
+                            <CollectionsWeeklyForecast
+                                weeklyData={weeklyData}
+                                paymentsData={paymentsData}
+                                compact
+                            />
+                        </div>
+                        <div className="w-full xl:w-[60%]">
+                            <CollectionsWeeklyDelinquencyChart delinquency={delinquencyData} />
+                        </div>
+                    </div>
+                </>
+            ) : (
+                <>
+                    <div className="flex flex-col lg:flex-row gap-6 lg:items-stretch">
+                        <div className="w-full lg:w-1/4">
+                            <CollectionsWeeklyPaymentMix data={paymentMix.data} total={paymentMix.total} />
+                        </div>
+                        <div className="w-full lg:w-3/4">
+                            <CollectionsWeeklyForecast weeklyData={weeklyData} paymentsData={paymentsData} />
+                        </div>
+                    </div>
 
-            <CollectionsWeeklyPaymentsChart payments={paymentsData} />
-            <CollectionsWeeklyDelinquencyChart delinquency={delinquencyData} />
+                    <CollectionsWeeklyPaymentsChart payments={paymentsData} />
+                    <CollectionsWeeklyDelinquencyChart delinquency={delinquencyData} />
+                </>
+            )}
         </div>
     );
 };
 
 const Collections: React.FC = () => {
-    const [viewMode, setViewMode] = useState<'analytics' | 'payments' | 'delinquency'>('analytics');
     const [paymentsRaw, setPaymentsRaw] = useState<any[]>([]);
     const [delinquencyRaw, setDelinquencyRaw] = useState<any[]>([]);
     const userContext = useContext(UserContext);
-    const isAdmin = userContext?.user.role === 'admin';
+    const role = userContext?.user.role ?? 'user';
+    const isAdmin = role === 'admin';
+    const canLogCollections = isAdmin;
     const [isExporting, setIsExporting] = useState(false);
     const isPdfMode = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('pdf') === 'collections';
 
@@ -626,7 +801,7 @@ const Collections: React.FC = () => {
     const logModalHandlerRef = useRef<(() => void) | null>(null);
 
     const handleExportReport = useCallback(async () => {
-        if (isExporting || viewMode !== 'analytics') return;
+        if (isExporting) return;
 
         const attemptHtmlFallback = async () => {
             if (!overviewExportRef.current) {
@@ -706,112 +881,57 @@ const Collections: React.FC = () => {
         } finally {
             setIsExporting(false);
         }
-    }, [isExporting, viewMode]);
+    }, [isExporting]);
 
     const handleOpenLogModal = useCallback(() => {
-        if (viewMode !== 'analytics' || isPdfMode) return;
+        if (isPdfMode || !canLogCollections) return;
         logModalHandlerRef.current?.();
-    }, [viewMode, isPdfMode]);
+    }, [isPdfMode, canLogCollections]);
 
     return (
         <div>
             {!isPdfMode && (
                 <div className="flex flex-col md:flex-row items-center gap-4 mb-6">
                     <div className="w-full md:w-auto flex justify-start">
-                        <button
+                        <GlassButton
                             type="button"
+                            size="sm"
                             className="glass-card px-4 py-2 text-sm font-semibold text-primary border border-border-low hover:bg-glass-panel transition-colors flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
                             onClick={handleExportReport}
-                            disabled={viewMode !== 'analytics' || isExporting}
+                            disabled={isExporting}
                         >
                             <ArrowDownTrayIcon className="h-5 w-5" /> {isExporting ? 'Exporting…' : 'Export'}
-                        </button>
+                        </GlassButton>
                     </div>
-                    <div className="w-full md:flex-1 flex justify-center">
-                        <button
-                            type="button"
-                            className="btn-lava px-5 py-2 text-sm font-semibold disabled:opacity-60 disabled:cursor-not-allowed"
-                            onClick={handleOpenLogModal}
-                            disabled={viewMode !== 'analytics'}
-                        >
-                            Log Today's Data
-                        </button>
-                    </div>
-                    <div className="flex justify-center md:justify-end w-full md:w-auto">
-                        <div className="flex space-x-1 bg-glass-panel p-1 rounded-lg border border-border-low">
-                            <button
-                                onClick={() => setViewMode('analytics')}
-                                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                                    viewMode === 'analytics' ? 'btn-lava' : 'text-secondary hover:bg-glass-panel'
-                                }`}
+                    {canLogCollections && (
+                        <div className="w-full md:flex-1 flex justify-center">
+                            <GlassButton
+                                type="button"
+                                className="px-5 py-2 text-sm font-semibold"
+                                onClick={handleOpenLogModal}
                             >
-                                <EyeIcon className="h-5 w-5 inline-block mr-1" /> Analytics
-                            </button>
-                            <button
-                                onClick={() => setViewMode('payments')}
-                                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                                    viewMode === 'payments' ? 'btn-lava' : 'text-secondary hover:bg-glass-panel'
-                                }`}
-                            >
-                                <BanknotesIcon className="h-5 w-5 inline-block mr-1" /> Payments
-                            </button>
-                            <button
-                                onClick={() => setViewMode('delinquency')}
-                                className={`px-4 py-2 text-sm font-medium rounded-md transition-colors ${
-                                    viewMode === 'delinquency' ? 'btn-lava' : 'text-secondary hover:bg-glass-panel'
-                                }`}
-                            >
-                                <ExclamationTriangleIcon className="h-5 w-5 inline-block mr-1" /> Delinquency
-                            </button>
+                                Log Today's Data
+                            </GlassButton>
                         </div>
-                    </div>
+                    )}
                 </div>
             )}
 
-            {viewMode === 'analytics' ? (
-                <div ref={overviewExportRef}>
-                    <CollectionsOverview
-                        paymentsData={paymentsNormalized}
-                        weeklyData={weeklySummaries}
-                        delinquencyData={delinquencyNormalized}
-                        onLogComplete={() => {
-                            loadPayments();
-                            loadDelinquency();
-                        }}
-                        onRegisterLogHandler={handler => {
-                            logModalHandlerRef.current = handler ?? null;
-                        }}
-                    />
-                </div>
-            ) : viewMode === 'payments' ? (
-                <DataGrid
-                    columns={[
-                        { key: 'Date', name: 'Date' },
-                        { key: 'Payments', name: 'Payments' },
-                        { key: 'Late Fees', name: 'Late Fees' },
-                        { key: 'BOA', name: 'BOA' },
-                    ]}
-                    data={paymentsRaw}
-                    setData={setPaymentsRaw as React.Dispatch<React.SetStateAction<any[]>>}
-                    editable={isAdmin}
-                    tableName="Payments"
-                    primaryKey="Date"
+            <div ref={overviewExportRef}>
+                <CollectionsOverview
+                    paymentsData={paymentsNormalized}
+                    weeklyData={weeklySummaries}
+                    delinquencyData={delinquencyNormalized}
+                    onLogComplete={() => {
+                        loadPayments();
+                        loadDelinquency();
+                    }}
+                    onRegisterLogHandler={handler => {
+                        logModalHandlerRef.current = handler ?? null;
+                    }}
+                    canLogDailyData={canLogCollections}
                 />
-            ) : (
-                <DataGrid
-                    columns={[
-                        { key: 'Date', name: 'Date' },
-                        { key: 'Overdue Accounts', name: 'Overdue Accounts' },
-                        { key: 'Open Accounts', name: 'Open Accounts' },
-                        { key: 'Overdue Rate', name: 'Overdue Rate' },
-                    ]}
-                    data={delinquencyRaw}
-                    setData={setDelinquencyRaw as React.Dispatch<React.SetStateAction<any[]>>}
-                    editable={isAdmin}
-                    tableName="Delinquency"
-                    primaryKey="Date"
-                />
-            )}
+            </div>
         </div>
     );
 };

@@ -10,3 +10,19 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
         },
     },
 });
+
+const serviceRoleKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+
+export const adminSupabase = serviceRoleKey
+    ? createClient(supabaseUrl, serviceRoleKey, {
+          auth: {
+              autoRefreshToken: false,
+              persistSession: false,
+          },
+          global: {
+              headers: {
+                  'x-client-info': 'bbb-auto-sales-dms-admin',
+              },
+          },
+      })
+    : null;

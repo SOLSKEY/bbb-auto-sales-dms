@@ -1,5 +1,6 @@
 import React from 'react';
 import { CheckCircleIcon } from '@heroicons/react/24/solid';
+import { GlassButton } from '@/components/ui/glass-button';
 
 interface AlertModalProps {
     isOpen: boolean;
@@ -13,7 +14,7 @@ const AlertModal: React.FC<AlertModalProps> = ({ isOpen, onClose, title, message
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-75 backdrop-blur-sm flex items-center justify-center z-50 transition-opacity">
-            <div className="glass-panel rounded-panel shadow-glass w-full max-w-md transform transition-all border border-border-high">
+            <div className="w-full max-w-md transform transition-all bg-[#1b1f26] border border-border-high rounded-panel shadow-2xl">
                 <div className="p-6">
                     <div className="flex items-start">
                         <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-green-900/50 sm:mx-0 sm:h-10 sm:w-10 status-glow">
@@ -31,10 +32,10 @@ const AlertModal: React.FC<AlertModalProps> = ({ isOpen, onClose, title, message
                         </div>
                     </div>
                 </div>
-                <div className="bg-glass-panel backdrop-blur-glass px-6 py-4 flex justify-end border-t border-border-low">
-                    <button type="button" className="btn-lava" onClick={onClose}>
+                <div className="bg-[#151821] px-6 py-4 flex justify-end border-t border-border-low rounded-b-panel">
+                    <GlassButton type="button" onClick={onClose}>
                         OK
-                    </button>
+                    </GlassButton>
                 </div>
             </div>
         </div>
