@@ -28,12 +28,14 @@ const supabase = createClient(
 );
 
 // Allow preflight CORS requests to pass through without auth checks
-app.options('*', cors());
+app.options('*', cors(), (req, res) => {
+  res.sendStatus(204);
+});
 
 // Middleware to verify the request is from an authenticated admin
 const verifyAdmin = async (req, res, next) => {
   if (req.method === 'OPTIONS') {
-    return next();
+    return res.sendStatus(204);
   }
 
   const authHeader = req.headers.authorization;
