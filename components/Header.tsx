@@ -43,7 +43,7 @@ const Header: React.FC<{ title: string; onLogout?: () => void }> = ({ title, onL
         <header className="flex items-center justify-between p-4 bg-glass-panel backdrop-blur-glass border-b border-border-low h-16">
             <h1 className="text-2xl font-bold text-primary font-orbitron tracking-tight-lg">{title}</h1>
             <div className="flex items-center space-x-4">
-                <div ref={profileRef} className="relative">
+                <div ref={profileRef} className="relative z-50">
                     <button
                         type="button"
                         onClick={toggleMenu}
@@ -58,7 +58,7 @@ const Header: React.FC<{ title: string; onLogout?: () => void }> = ({ title, onL
                         </div>
                     </button>
                     {isMenuOpen && onLogout && (
-                        <div className="absolute right-0 mt-2 w-48 rounded-lg bg-glass-panel border border-border-low shadow-lg backdrop-blur-glass z-10">
+                        <div className="absolute right-0 mt-2 w-48 rounded-lg bg-glass-panel border border-border-low shadow-lg backdrop-blur-glass z-[9999]">
                             <button
                                 onClick={handleAccountSettings}
                                 className="w-full px-4 py-2 text-left text-sm font-semibold text-primary hover:bg-white/10 transition rounded-t-lg flex items-center gap-2"
