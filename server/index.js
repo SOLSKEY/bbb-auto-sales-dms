@@ -22,15 +22,10 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-// Allow preflight CORS requests to pass through without auth checks
-app.options('*', cors(), (req, res) => {
-  res.sendStatus(204);
-});
+// Allow preflight CORS requests to pass through without auth checks (Express 5)
+app.options(/.*/, cors(), (_req, res) => res.sendStatus(204));
 
 // Middleware to verify the request is from an authenticated admin
 const verifyAdmin = async (req, res, next) => {
