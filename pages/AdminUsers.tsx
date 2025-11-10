@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { adminSupabase } from '../supabaseClient';
+import { adminApi } from '../lib/adminApi';
 import { UserContext } from '../App';
 
 interface ManagedUser {
@@ -19,26 +19,21 @@ const AdminUsers: React.FC = () => {
 
     useEffect(() => {
         if (!isAdmin) return;
-        if (!adminSupabase) {
-            setError('Admin Supabase client is not configured.');
-            setLoading(false);
-            return;
-        }
 
         const fetchUsers = async () => {
             setLoading(true);
             setError(null);
             try {
-                const { data, error: listError } = await adminSupabase.auth.admin.listUsers();
-                if (listError) throw listError;
-                const sanitized = (data?.users ?? []).map(user => ({
+                const { users: fetchedUsers } = await adminApi.listUsers();
+                const sanitized = fetchedUsers.map((user: any) => ({
                     id: user.id,
                     email: user.email ?? 'unknown@user',
-                    role: (user.user_metadata?.role as 'user' | 'admin') ?? 'user',
+                    role: (user.role as 'user' | 'admin') ?? 'user',
                 }));
                 setUsers(sanitized);
             } catch (err: any) {
-                setError(err.message ?? 'Failed to load users.');
+                console.error('Error loading users:', err);
+                setError(err.message ?? 'Failed to load users. Make sure the API server is running.');
             } finally {
                 setLoading(false);
             }

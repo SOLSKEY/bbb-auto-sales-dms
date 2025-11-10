@@ -1,6 +1,6 @@
 import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { adminSupabase } from '../supabaseClient';
+import { adminApi } from '../lib/adminApi';
 import { UserContext } from '../App';
 
 const AdminUserPermissions: React.FC = () => {
@@ -17,27 +17,21 @@ const AdminUserPermissions: React.FC = () => {
 
     useEffect(() => {
         if (!isAdmin || !id) return;
-        if (!adminSupabase) {
-            setError('Admin Supabase client is not configured.');
-            setLoading(false);
-            return;
-        }
 
         const loadUserData = async () => {
             setLoading(true);
             setError(null);
             try {
-                const { data: userData, error: userError } = await adminSupabase.auth.admin.getUserById(id);
+                const { user: userData } = await adminApi.getUserById(id);
 
-                if (userError) throw userError;
-
-                if (userData?.user) {
-                    setUserEmail(userData.user.email ?? 'unknown@user');
-                    const role = (userData.user.user_metadata?.role as 'user' | 'admin') ?? 'user';
+                if (userData) {
+                    setUserEmail(userData.email ?? 'unknown@user');
+                    const role = (userData.role as 'user' | 'admin') ?? 'user';
                     setUserRole(role);
                 }
             } catch (err: any) {
-                setError(err.message ?? 'Failed to load user data.');
+                console.error('Error loading user:', err);
+                setError(err.message ?? 'Failed to load user data. Make sure the API server is running.');
             } finally {
                 setLoading(false);
             }
@@ -47,19 +41,12 @@ const AdminUserPermissions: React.FC = () => {
     }, [id, isAdmin]);
 
     const handleSave = async () => {
-        if (!id || !adminSupabase) return;
+        if (!id) return;
         setSaving(true);
         setError(null);
         setSuccess(null);
         try {
-            // Update user role - permissions are now determined automatically by role
-            const { error: roleError } = await adminSupabase.auth.admin.updateUserById(id, {
-                user_metadata: { role: userRole },
-            });
-
-            if (roleError) {
-                throw new Error(roleError.message ?? 'Failed to update user role.');
-            }
+            await adminApi.updateUserRole(id, userRole);
 
             console.log('Successfully updated role for user:', id, 'to:', userRole);
 
@@ -68,7 +55,8 @@ const AdminUserPermissions: React.FC = () => {
                 navigate('/admin/users');
             }, 1500);
         } catch (err: any) {
-            setError(err.message ?? 'Failed to save changes.');
+            console.error('Error updating user:', err);
+            setError(err.message ?? 'Failed to save changes. Make sure the API server is running.');
         } finally {
             setSaving(false);
         }

@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { adminSupabase } from '../supabaseClient';
-import { supabase } from '../supabaseClient';
+import { adminApi } from '../lib/adminApi';
 
 interface AdminCreateUserFormProps {
     onUserCreated?: () => void;
@@ -41,58 +40,32 @@ const AdminCreateUserForm: React.FC<AdminCreateUserFormProps> = ({ onUserCreated
         setError(null);
         setSuccess(null);
 
-        if (!adminSupabase) {
-            setError('Admin Supabase client is not configured. Please set VITE_SUPABASE_SERVICE_ROLE_KEY.');
-            return;
-        }
-
         setSubmitting(true);
         try {
-            // Create user with admin client
-            const { data: userData, error: userError } = await adminSupabase.auth.admin.createUser({
+            // Create user through secure API
+            const result = await adminApi.createUser({
                 email,
                 password,
-                email_confirm: true,
-                user_metadata: { role }, // Set role in user_metadata
+                role,
+                access,
             });
 
-            if (userError || !userData?.user) {
-                throw new Error(userError?.message || "Unable to create user.");
+            if (result.success) {
+                setSuccess("User created successfully.");
+                setEmail("");
+                setPassword("");
+                setRole('user');
+                setAccess(defaultAccess);
+                onUserCreated?.();
+
+                // Optionally redirect to admin users list after a short delay
+                setTimeout(() => {
+                    navigate('/admin/users');
+                }, 1500);
             }
-
-            const userId = userData.user.id;
-
-            // Insert permissions if UserPermissions table exists
-            try {
-                const { error: permError } = await supabase
-                    .from('UserPermissions')
-                    .insert({
-                        user_id: userId,
-                        permissions: access,
-                    });
-
-                if (permError) {
-                    console.warn('Failed to save permissions:', permError);
-                    // Don't fail the user creation if permissions fail
-                }
-            } catch (permErr) {
-                console.warn('UserPermissions table may not exist:', permErr);
-                // Continue even if permissions can't be saved
-            }
-
-            setSuccess("User created successfully.");
-            setEmail("");
-            setPassword("");
-            setRole('user');
-            setAccess(defaultAccess);
-            onUserCreated?.();
-            
-            // Optionally redirect to admin users list after a short delay
-            setTimeout(() => {
-                navigate('/admin/users');
-            }, 1500);
         } catch (err: any) {
-            setError(err.message ?? "Failed to create user.");
+            console.error('Error creating user:', err);
+            setError(err.message ?? "Failed to create user. Make sure the API server is running.");
         } finally {
             setSubmitting(false);
         }

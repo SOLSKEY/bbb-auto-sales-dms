@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { adminSupabase } from '../supabaseClient';
+import { adminApi } from '../lib/adminApi';
 import type { UserAccessPolicy, AppSectionKey } from '../types';
 
 const APP_PAGES: AppSectionKey[] = [
@@ -27,22 +27,18 @@ const AccessControlPanel: React.FC<AccessControlPanelProps> = ({ currentUserId }
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!adminSupabase) {
-            setError('Admin Supabase client not configured.');
-            return;
-        }
-
         const loadUsers = async () => {
             setLoading(true);
+            setError(null);
             try {
-                const { data, error: listError } = await adminSupabase.auth.admin.listUsers();
-                if (listError) throw listError;
-                const sanitized = (data?.users ?? [])
-                    .filter(u => (currentUserId ? u.id !== currentUserId : true))
-                    .map(user => ({ id: user.id, email: user.email ?? 'unknown@user' }));
+                const { users: fetchedUsers } = await adminApi.listUsers();
+                const sanitized = fetchedUsers
+                    .filter((u: any) => (currentUserId ? u.id !== currentUserId : true))
+                    .map((user: any) => ({ id: user.id, email: user.email ?? 'unknown@user' }));
                 setUsers(sanitized);
             } catch (err: any) {
-                setError(err.message ?? 'Failed to load users');
+                console.error('Error loading users:', err);
+                setError(err.message ?? 'Failed to load users. Make sure the API server is running.');
             } finally {
                 setLoading(false);
             }
@@ -52,19 +48,12 @@ const AccessControlPanel: React.FC<AccessControlPanelProps> = ({ currentUserId }
     }, [currentUserId]);
 
     useEffect(() => {
-        if (!adminSupabase) return;
-
         const loadPolicy = async () => {
             if (!selectedUser) return;
             setLoading(true);
             setError(null);
             try {
-                const { data, error: fetchError } = await adminSupabase
-                    .from('UserPermissions')
-                    .select('*')
-                    .eq('user_id', selectedUser)
-                    .maybeSingle();
-                if (fetchError) throw fetchError;
+                const { permissions: data } = await adminApi.getUserPermissions(selectedUser);
                 if (data) {
                     setPolicies(prev => ({ ...prev, [selectedUser]: data.permissions as UserAccessPolicy['permissions'] }));
                 } else {
@@ -75,6 +64,7 @@ const AccessControlPanel: React.FC<AccessControlPanelProps> = ({ currentUserId }
                     setPolicies(prev => ({ ...prev, [selectedUser]: defaultPolicy }));
                 }
             } catch (err: any) {
+                console.error('Error loading policy:', err);
                 setError(err.message ?? 'Failed to load policy');
             } finally {
                 setLoading(false);
@@ -101,24 +91,11 @@ const AccessControlPanel: React.FC<AccessControlPanelProps> = ({ currentUserId }
     };
 
     const handleSave = async () => {
-        if (!selectedUser || !adminSupabase) return;
+        if (!selectedUser) return;
         setSaving(true);
         setError(null);
         try {
-            const { error: saveError } = await adminSupabase.from('UserPermissions').upsert(
-                {
-                    user_id: selectedUser,
-                    permissions: policies[selectedUser],
-                },
-                { onConflict: 'user_id' }
-            );
-
-            if (saveError) {
-                console.error('Failed to save permissions:', saveError);
-                console.error('Error details:', JSON.stringify(saveError, null, 2));
-                throw new Error(saveError.message ?? 'Failed to save policy');
-            }
-
+            await adminApi.updateUserPermissions(selectedUser, policies[selectedUser]);
             console.log('Successfully saved permissions for user:', selectedUser);
             alert('Permissions saved successfully!');
         } catch (err: any) {
