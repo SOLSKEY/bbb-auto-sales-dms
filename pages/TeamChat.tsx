@@ -275,23 +275,23 @@ const TeamChat: React.FC = () => {
     return (
         <div className="flex flex-col h-full glass-card overflow-hidden">
             <div className="border-b border-border-low p-4 flex flex-col gap-3 md:flex-row md:items-center">
-                <div className="relative flex-1">
-                    <MagnifyingGlassIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted pointer-events-none" />
+                <div className="flex items-center gap-3 flex-grow min-w-[250px] bg-glass-panel border border-border-low rounded-xl px-3 py-2.5 focus-within:border-lava-core transition-colors">
+                    <MagnifyingGlassIcon className="h-5 w-5 text-muted" />
                     <input
                         type="text"
                         value={searchTerm}
                         onChange={event => setSearchTerm(event.target.value)}
                         placeholder="Search messages or senders"
-                        className="w-full bg-glass-panel border border-border-low rounded-xl py-2.5 pl-10 pr-4 text-sm text-primary focus:outline-none focus:border-lava-core"
+                        className="flex-1 bg-transparent text-sm text-primary focus:outline-none placeholder:text-secondary"
                     />
                 </div>
-                <div className="relative w-full md:w-auto">
-                    <CalendarIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted pointer-events-none" />
+                <div className="flex items-center gap-3 w-full md:w-auto bg-glass-panel border border-border-low rounded-xl px-3 py-2.5 focus-within:border-lava-core transition-colors">
+                    <CalendarIcon className="h-5 w-5 text-muted" />
                     <input
                         type="date"
                         value={selectedDate}
                         onChange={event => setSelectedDate(event.target.value)}
-                        className="w-full md:w-48 bg-glass-panel border border-border-low rounded-xl py-2.5 pl-10 pr-3 text-sm text-primary focus:outline-none focus:border-lava-core"
+                        className="flex-1 bg-transparent text-sm text-primary focus:outline-none"
                     />
                 </div>
                 {(searchTerm || selectedDate) && (

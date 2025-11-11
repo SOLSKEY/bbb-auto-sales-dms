@@ -8,7 +8,6 @@ import { supabase } from '../supabaseClient';
 import { GlassButton } from '@/components/ui/glass-button';
 
 const CAPITALIZED_FIELDS: Array<keyof Vehicle> = [
-    'status',
     'make',
     'model',
     'interior',
@@ -25,7 +24,7 @@ const capitalizeDisplayValue = (value: string) => {
     return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
 };
 
-const normalizeVehicleDisplayFields = <T extends Partial<Vehicle>>(vehicle: T): T => {
+const normalizeVehicleDisplayFields = <T extends Partial<Vehicle>>(vehicle: T, statusNormalizer?: (value?: string) => string): T => {
     const next = { ...vehicle };
     CAPITALIZED_FIELDS.forEach(field => {
         const raw = (next as any)[field];
@@ -33,6 +32,12 @@ const normalizeVehicleDisplayFields = <T extends Partial<Vehicle>>(vehicle: T): 
             (next as any)[field] = capitalizeDisplayValue(raw);
         }
     });
+    if (statusNormalizer) {
+        const normalizedStatus = statusNormalizer((next as any).status);
+        if (normalizedStatus) {
+            (next as any).status = normalizedStatus;
+        }
+    }
     return next;
 };
 
@@ -46,7 +51,24 @@ interface EditVehicleModalProps {
 }
 
 const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, onSave, isNewVehicle = false, onImagesUpdated }) => {
-    const [editedVehicle, setEditedVehicle] = useState<Vehicle>(() => normalizeVehicleDisplayFields(vehicle));
+    const statusCanonicalMap = useMemo(() => {
+        const map = new Map<string, string>();
+        INVENTORY_STATUS_VALUES.forEach(status => {
+            map.set(status.toLowerCase(), status);
+        });
+        return map;
+    }, []);
+
+    const normalizeStatus = (value?: string) => {
+        if (!value) return '';
+        const trimmed = value.trim();
+        if (!trimmed) return '';
+        return statusCanonicalMap.get(trimmed.toLowerCase()) ?? trimmed;
+    };
+
+    const [editedVehicle, setEditedVehicle] = useState<Vehicle>(() =>
+        normalizeVehicleDisplayFields({ ...vehicle }, normalizeStatus),
+    );
     const [imagePreviews, setImagePreviews] = useState<string[]>(vehicle.images || []);
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [isDecoding, setIsDecoding] = useState(false);
@@ -129,7 +151,7 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
     useEffect(() => {
         let cancelled = false;
 
-        setEditedVehicle(normalizeVehicleDisplayFields(vehicle));
+        setEditedVehicle(normalizeVehicleDisplayFields({ ...vehicle }, normalizeStatus));
         setImagePreviews(vehicle.images || []);
 
         const resolveVehicleId = async () => {
@@ -351,7 +373,10 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
     };
 
     const handleSave = () => {
-        const normalizedVehicle = normalizeVehicleDisplayFields(editedVehicle);
+        const normalizedVehicle = normalizeVehicleDisplayFields(
+            { ...editedVehicle, status: normalizeStatus(editedVehicle.status) },
+            normalizeStatus,
+        );
         setEditedVehicle(normalizedVehicle);
         const trimmedVehicleId = normalizedVehicle.vehicleId ? normalizedVehicle.vehicleId.trim() : '';
         const trimmedVinLast4 = normalizedVehicle.vinLast4 ? normalizedVehicle.vinLast4.trim().toUpperCase() : '';
@@ -442,7 +467,7 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
                             <AppSelect
                                 value={editedVehicle.status ?? ''}
                                 onChange={value => {
-                                    const normalized = value ? capitalizeDisplayValue(value) : '';
+                                    const normalized = normalizeStatus(value);
                                     setEditedVehicle(prev => ({ ...prev, status: normalized }));
                                 }}
                                 options={vehicleStatusOptions}
