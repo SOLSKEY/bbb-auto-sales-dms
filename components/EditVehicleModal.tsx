@@ -7,6 +7,35 @@ import { INVENTORY_STATUS_VALUES } from '../constants';
 import { supabase } from '../supabaseClient';
 import { GlassButton } from '@/components/ui/glass-button';
 
+const CAPITALIZED_FIELDS: Array<keyof Vehicle> = [
+    'status',
+    'make',
+    'model',
+    'interior',
+    'exterior',
+    'upholstery',
+    'bodyStyle',
+];
+
+const CAPITALIZED_FIELD_SET = new Set<keyof Vehicle>(CAPITALIZED_FIELDS);
+
+const capitalizeDisplayValue = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed) return '';
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+};
+
+const normalizeVehicleDisplayFields = <T extends Partial<Vehicle>>(vehicle: T): T => {
+    const next = { ...vehicle };
+    CAPITALIZED_FIELDS.forEach(field => {
+        const raw = (next as any)[field];
+        if (typeof raw === 'string' && raw.trim().length > 0) {
+            (next as any)[field] = capitalizeDisplayValue(raw);
+        }
+    });
+    return next;
+};
+
 
 interface EditVehicleModalProps {
     vehicle: Vehicle;
@@ -17,7 +46,7 @@ interface EditVehicleModalProps {
 }
 
 const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, onSave, isNewVehicle = false, onImagesUpdated }) => {
-    const [editedVehicle, setEditedVehicle] = useState<Vehicle>(vehicle);
+    const [editedVehicle, setEditedVehicle] = useState<Vehicle>(() => normalizeVehicleDisplayFields(vehicle));
     const [imagePreviews, setImagePreviews] = useState<string[]>(vehicle.images || []);
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [isDecoding, setIsDecoding] = useState(false);
@@ -100,7 +129,7 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
     useEffect(() => {
         let cancelled = false;
 
-        setEditedVehicle(vehicle);
+        setEditedVehicle(normalizeVehicleDisplayFields(vehicle));
         setImagePreviews(vehicle.images || []);
 
         const resolveVehicleId = async () => {
@@ -199,7 +228,7 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
                 if (autoId) {
                     next.vehicleId = autoId;
                 }
-                return next;
+                return normalizeVehicleDisplayFields(next);
             });
         } catch (error) {
             if (error instanceof Error) {
@@ -210,6 +239,20 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
         } finally {
             setIsDecoding(false);
         }
+    };
+
+    const handleFieldBlur = (event: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+        const { name, value } = event.target;
+        if (!name || !CAPITALIZED_FIELD_SET.has(name as keyof Vehicle)) return;
+        const normalized = capitalizeDisplayValue(value);
+        if (normalized === value) return;
+        setEditedVehicle(prev => {
+            const currentValue = (prev as any)[name];
+            if (currentValue === normalized) return prev;
+            const next = { ...prev } as Vehicle;
+            (next as any)[name] = normalized;
+            return next;
+        });
     };
 
 
@@ -308,10 +351,12 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
     };
 
     const handleSave = () => {
-        const trimmedVehicleId = editedVehicle.vehicleId ? editedVehicle.vehicleId.trim() : '';
-        const trimmedVinLast4 = editedVehicle.vinLast4 ? editedVehicle.vinLast4.trim().toUpperCase() : '';
+        const normalizedVehicle = normalizeVehicleDisplayFields(editedVehicle);
+        setEditedVehicle(normalizedVehicle);
+        const trimmedVehicleId = normalizedVehicle.vehicleId ? normalizedVehicle.vehicleId.trim() : '';
+        const trimmedVinLast4 = normalizedVehicle.vinLast4 ? normalizedVehicle.vinLast4.trim().toUpperCase() : '';
         onSave({
-            ...editedVehicle,
+            ...normalizedVehicle,
             vehicleId: trimmedVehicleId,
             vinLast4: trimmedVinLast4,
             images: imagePreviews,
@@ -364,7 +409,10 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
                                 name="vin"
                                 value={editedVehicle.vin}
                                 onChange={handleChange}
-                                onBlur={handleVinDecode}
+                                onBlur={event => {
+                                    handleFieldBlur(event);
+                                    handleVinDecode();
+                                }}
                                 className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors uppercase"
                                 maxLength={17}
                                 disabled={!isNewVehicle} // Disable editing VIN for existing vehicles
@@ -393,7 +441,10 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
                             <label className="block text-sm font-medium text-muted mb-1 uppercase tracking-wide">Status</label>
                             <AppSelect
                                 value={editedVehicle.status ?? ''}
-                                onChange={value => setEditedVehicle(prev => ({ ...prev, status: value }))}
+                                onChange={value => {
+                                    const normalized = value ? capitalizeDisplayValue(value) : '';
+                                    setEditedVehicle(prev => ({ ...prev, status: normalized }));
+                                }}
                                 options={vehicleStatusOptions}
                             />
                         </div>
@@ -411,6 +462,7 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
                                         type={field.type || 'text'}
                                         value={inputValue}
                                         onChange={handleChange}
+                                        onBlur={handleFieldBlur}
                                         placeholder={field.placeholder}
                                         maxLength={field.maxLength}
                                         className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors"

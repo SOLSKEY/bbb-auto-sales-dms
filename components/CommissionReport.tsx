@@ -22,10 +22,12 @@ import {
 } from '../utils/commission';
 import AppSelect from './AppSelect';
 import { GlassButton } from '@/components/ui/glass-button';
+import { PencilSquareIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
 
 const BONUS_THRESHOLD = 5;
 const BONUS_PER_SALE = 50;
 const COLLECTIONS_STORAGE_PREFIX = 'commission-collections-bonus';
+const MANUAL_OVERRIDE_STORAGE_PREFIX = 'commission-manual-overrides';
 
 const buildCollectionsStorageKey = (weekKey: string) =>
     `${COLLECTIONS_STORAGE_PREFIX}:${weekKey}`;
@@ -73,11 +75,91 @@ const clearCollectionsState = (weekKey: string) => {
     }
 };
 
+const buildManualOverrideStorageKey = (weekKey: string) =>
+    `${MANUAL_OVERRIDE_STORAGE_PREFIX}:${weekKey}`;
+
+const sanitizeManualOverrideMap = (overrides: Record<string, string>) => {
+    const sanitized: Record<string, string> = {};
+    Object.entries(overrides).forEach(([key, value]) => {
+        if (typeof value !== 'string') return;
+        const cleaned = value.replace(/[^0-9.]/g, '');
+        if (cleaned) {
+            sanitized[key] = cleaned;
+        }
+    });
+    return sanitized;
+};
+
+const loadManualOverrideState = (weekKey: string): Record<string, string> => {
+    if (typeof window === 'undefined') return {};
+    try {
+        const raw = window.localStorage.getItem(buildManualOverrideStorageKey(weekKey));
+        if (!raw) return {};
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== 'object') return {};
+        return sanitizeManualOverrideMap(parsed as Record<string, string>);
+    } catch (error) {
+        console.warn('[CommissionReport] Failed to load manual commission overrides', error);
+        return {};
+    }
+};
+
+const persistManualOverrideState = (weekKey: string, overrides: Record<string, string>) => {
+    if (typeof window === 'undefined') return;
+    try {
+        const sanitized = sanitizeManualOverrideMap(overrides);
+        const storageKey = buildManualOverrideStorageKey(weekKey);
+        if (Object.keys(sanitized).length === 0) {
+            window.localStorage.removeItem(storageKey);
+            return;
+        }
+        window.localStorage.setItem(storageKey, JSON.stringify(sanitized));
+    } catch (error) {
+        console.warn('[CommissionReport] Failed to persist manual commission overrides', error);
+    }
+};
+
 const normalizeName = (value: string | undefined | null) =>
     value?.trim() && value.trim().length > 0 ? value.trim() : 'Unassigned';
 
 const normalizeSaleType = (value: string | undefined | null) =>
     value?.toLowerCase().replace(/\s+/g, '') ?? '';
+
+type SaleTypeCategory = 'sale' | 'cash' | 'trade' | 'namechange' | 'other';
+
+const SALE_TYPE_BADGES: Record<SaleTypeCategory, { label: string; className: string }> = {
+    sale: {
+        label: 'Sale',
+        className: 'border border-emerald-400/60 text-emerald-200 bg-emerald-500/15',
+    },
+    cash: {
+        label: 'Cash Sale',
+        className: 'border border-purple-400/60 text-purple-100 bg-purple-500/20',
+    },
+    trade: {
+        label: 'Trade-In',
+        className: 'border border-amber-400/70 text-amber-100 bg-amber-400/25',
+    },
+    namechange: {
+        label: 'Name Change',
+        className: 'border border-cyan-400/70 text-cyan-100 bg-cyan-400/20',
+    },
+    other: {
+        label: 'Other',
+        className: 'border border-slate-500/70 text-slate-200 bg-slate-600/20',
+    },
+};
+
+const getSaleTypeCategory = (value: string | undefined | null): SaleTypeCategory => {
+    const normalized = normalizeSaleType(value);
+    if (normalized === 'cashsale' || normalized === 'cash') return 'cash';
+    if (normalized === 'trade' || normalized === 'tradein' || normalized === 'trade-in') return 'trade';
+    if (normalized === 'namechange' || normalized === 'name-change') return 'namechange';
+    if (normalized === 'sale' || normalized === '') return 'sale';
+    return 'other';
+};
+
+const MANUAL_COMMISSION_TYPES = new Set<SaleTypeCategory>(['cash', 'trade', 'namechange']);
 
 const getBonusRangeForCommission = (commissionStart: Date) => {
     const monday = new Date(commissionStart);
@@ -202,8 +284,8 @@ interface CommissionSalespersonBlockProps {
     collectionsOptions?: number[];
     isKey: boolean;
     collectionsLocked?: boolean;
-    cashOverrides?: Record<string, string>;
-    onCashOverrideChange?: (rowKey: string, value: string) => void;
+    manualOverrides?: Record<string, string>;
+    onManualOverrideChange?: (rowKey: string, value: string) => void;
 }
 
 const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
@@ -217,9 +299,10 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
     collectionsOptions = [0, 50, 100],
     isKey,
     collectionsLocked = false,
-    cashOverrides = {},
-    onCashOverrideChange,
+    manualOverrides = {},
+    onManualOverrideChange,
 }) => {
+    const [commissionDrafts, setCommissionDrafts] = useState<Record<string, string>>({});
     const {
         salesperson,
         rows,
@@ -229,6 +312,31 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
         weeklySalesCountOverThreshold,
         weeklySalesBonus,
     } = snapshot;
+
+    const [activeCommissionEditKey, setActiveCommissionEditKey] = useState<string | null>(null);
+    const [activeNoteEditKey, setActiveNoteEditKey] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (activeCommissionEditKey && !rows.some(row => row.key === activeCommissionEditKey)) {
+            setActiveCommissionEditKey(null);
+        }
+        if (activeNoteEditKey && !rows.some(row => row.key === activeNoteEditKey)) {
+            setActiveNoteEditKey(null);
+        }
+    }, [rows, activeCommissionEditKey, activeNoteEditKey]);
+
+    useEffect(() => {
+        setCommissionDrafts(prev => {
+            const allowed = new Set(rows.map(row => row.key));
+            const next: Record<string, string> = {};
+            Object.entries(prev).forEach(([key, value]) => {
+                if (allowed.has(key)) {
+                    next[key] = value;
+                }
+            });
+            return next;
+        });
+    }, [rows]);
 
     const normalizedName = normalizeName(salesperson);
     const selectionNumber =
@@ -383,17 +491,66 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
                             const highlightClasses = row.overrideApplied
                                 ? 'text-lava-warm font-semibold'
                                 : 'text-secondary';
-                            const noteCellClasses = row.overrideApplied
-                                ? 'border border-lava-warm/60 bg-lava-warm/10 text-lava-warm font-semibold rounded-md'
-                                : 'text-secondary';
-                            const normalizedRowSaleType = normalizeSaleType(row.saleType);
-                            const isCashSaleRow =
-                                normalizedRowSaleType === 'cashsale' || normalizedRowSaleType === 'cash';
-                            const cashInputValue = cashOverrides[row.key] ?? '';
-                            const cashPreview =
-                                cashInputValue && Number.isFinite(Number(sanitizeCurrencyString(cashInputValue)))
-                                    ? formatCurrency(Number(sanitizeCurrencyString(cashInputValue)))
-                                    : '$0.00';
+                            const saleTypeCategory = getSaleTypeCategory(row.saleType);
+                            const saleBadge = SALE_TYPE_BADGES[saleTypeCategory];
+                            const canManuallyOverrideCommission = MANUAL_COMMISSION_TYPES.has(
+                                saleTypeCategory,
+                            );
+                            const existingManualValue = manualOverrides[row.key];
+                            const draftValue = commissionDrafts[row.key];
+                            const isCommissionEditing =
+                                editable && canManuallyOverrideCommission && activeCommissionEditKey === row.key;
+                            const isNotesEditing = editable && activeNoteEditKey === row.key;
+                            const noteDisplayClasses = row.overrideApplied
+                                ? 'border border-lava-warm/60 bg-lava-warm/10 text-lava-warm font-semibold'
+                                : 'border border-border-low bg-glass-panel text-primary';
+                            const displayNotes =
+                                currentNotes && currentNotes.trim() !== '' ? currentNotes : '—';
+
+                            const startCommissionEdit = () => {
+                                if (!editable || !canManuallyOverrideCommission) return;
+                                const initial = draftValue ?? existingManualValue ??
+                                    (Number.isFinite(row.adjustedCommission)
+                                        ? String(row.adjustedCommission)
+                                        : '');
+                                const sanitizedInitial = sanitizeCurrencyString(initial ?? '');
+                                setCommissionDrafts(prev => ({ ...prev, [row.key]: sanitizedInitial }));
+                                setActiveCommissionEditKey(row.key);
+                            };
+
+                            const cancelCommissionEdit = () => {
+                                setCommissionDrafts(prev => {
+                                    const next = { ...prev };
+                                    delete next[row.key];
+                                    return next;
+                                });
+                                setActiveCommissionEditKey(null);
+                            };
+
+                            const handleDraftChange = (nextValue: string) => {
+                                const sanitized = sanitizeCurrencyString(nextValue);
+                                setCommissionDrafts(prev => ({ ...prev, [row.key]: sanitized }));
+                            };
+
+                            const draftInputValue = (draftValue ?? existingManualValue ??
+                                (canManuallyOverrideCommission && Number.isFinite(row.adjustedCommission)
+                                    ? String(row.adjustedCommission)
+                                    : '')) ?? '';
+                            const sanitizedDraftValue = sanitizeCurrencyString(draftInputValue ?? '');
+                            const canSaveDraft = Boolean(
+                                sanitizedDraftValue && Number.isFinite(Number(sanitizedDraftValue)),
+                            );
+
+                            const saveCommissionDraft = () => {
+                                if (!onManualOverrideChange || !canSaveDraft) return;
+                                onManualOverrideChange(row.key, sanitizedDraftValue);
+                                setCommissionDrafts(prev => {
+                                    const next = { ...prev };
+                                    delete next[row.key];
+                                    return next;
+                                });
+                                setActiveCommissionEditKey(null);
+                            };
 
                             return (
                                 <tr key={row.key} className="hover:bg-glass-panel transition-colors">
@@ -404,55 +561,96 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
                                     <td className="py-2 pr-3 text-secondary">{row.vinLast4 || '--'}</td>
                                     <td className="py-2 pr-3 text-secondary">
                                         <div className="flex items-center justify-between gap-2">
-                                            <span className="text-right flex-1">{formatDownPayment(row.trueDownPayment)}</span>
-                                            {isCashSaleRow && (
-                                                <span className="px-2 py-0.5 rounded-full border border-[#c084fc] text-[11px] font-semibold text-[#e9d5ff] whitespace-nowrap">
-                                                    CASH
-                                                </span>
-                                            )}
+                                            <span className="text-right flex-1">
+                                                {formatDownPayment(row.trueDownPayment)}
+                                            </span>
+                                            <span
+                                                className={`px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap ${saleBadge.className}`}
+                                            >
+                                                {saleBadge.label}
+                                            </span>
                                         </div>
                                     </td>
                                     <td className="py-2 pr-3 text-right">
-                                        {isCashSaleRow && editable ? (
-                                            <div className="flex flex-col items-end gap-1">
+                                        {isCommissionEditing ? (
+                                            <div className="flex items-center justify-end gap-2">
                                                 <input
                                                     type="text"
                                                     inputMode="decimal"
-                                                    value={cashInputValue}
-                                                    onChange={event => onCashOverrideChange?.(row.key, event.target.value)}
-                                                    placeholder="Enter amount"
+                                                    value={draftInputValue}
+                                                    onChange={event => handleDraftChange(event.target.value)}
+                                                    onKeyDown={event => {
+                                                        if (event.key === 'Enter') {
+                                                            event.preventDefault();
+                                                            saveCommissionDraft();
+                                                        }
+                                                        if (event.key === 'Escape') {
+                                                            event.preventDefault();
+                                                            cancelCommissionEdit();
+                                                        }
+                                                    }}
+                                                    autoFocus
                                                     className="w-32 bg-[#111418] border border-border-low text-primary rounded-md px-2 py-1 text-right focus:border-lava-core focus:outline-none"
                                                 />
-                                                <span className="text-[11px] text-secondary italic">
-                                                    {cashInputValue ? cashPreview : '$0.00'}
-                                                </span>
+                                                <button
+                                                    type="button"
+                                                    onClick={saveCommissionDraft}
+                                                    disabled={!canSaveDraft}
+                                                    className="text-lava-core disabled:opacity-40 disabled:cursor-not-allowed"
+                                                >
+                                                    <CheckCircleIcon className="h-5 w-5" />
+                                                </button>
                                             </div>
                                         ) : (
-                                            <span className={highlightClasses}>
-                                                {formatCurrency(row.adjustedCommission)}
-                                            </span>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <span className={highlightClasses}>
+                                                    {formatCurrency(row.adjustedCommission)}
+                                                </span>
+                                                {editable && canManuallyOverrideCommission && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={startCommissionEdit}
+                                                        className="text-muted hover:text-primary transition"
+                                                    >
+                                                        <PencilSquareIcon className="h-4 w-4" />
+                                                    </button>
+                                                )}
+                                            </div>
                                         )}
                                     </td>
-                                    <td className="py-2 pr-3">
+                                    <td
+                                        className="py-2 pr-3"
+                                        onDoubleClick={() => {
+                                            if (!editable) return;
+                                            setActiveNoteEditKey(row.key);
+                                        }}
+                                    >
                                         {editable ? (
-                                            <textarea
-                                                value={currentNotes}
-                                                onChange={event =>
-                                                    onNotesChange?.(row.key, event.target.value)
-                                                }
-                                                rows={2}
-                                                className={`w-full bg-glass-panel border ${
-                                                    row.overrideApplied
-                                                        ? 'border-lava-warm text-lava-warm font-semibold bg-lava-warm/10'
-                                                        : 'border-border-low text-primary'
-                                                } rounded-md p-2 focus:outline-none focus:border-lava-core transition-colors resize-y`}
-                                                placeholder="Add notes or overrides"
-                                            />
+                                            isNotesEditing ? (
+                                                <textarea
+                                                    value={currentNotes}
+                                                    autoFocus
+                                                    onBlur={() => setActiveNoteEditKey(null)}
+                                                    onChange={event =>
+                                                        onNotesChange?.(row.key, event.target.value)
+                                                    }
+                                                    className={`w-full rounded-md p-2 focus:outline-none focus:border-lava-core transition-colors resize-y bg-glass-panel border ${
+                                                        row.overrideApplied
+                                                            ? 'border-lava-warm text-lava-warm font-semibold bg-lava-warm/10'
+                                                            : 'border-border-low text-primary'
+                                                    }`}
+                                                    placeholder="Add notes or overrides"
+                                                />
+                                            ) : (
+                                                <div
+                                                    className={`min-h-[48px] rounded-md px-2 py-2 whitespace-pre-wrap cursor-text ${noteDisplayClasses}`}
+                                                >
+                                                    {displayNotes}
+                                                </div>
+                                            )
                                         ) : (
-                                            <div className={`p-2 whitespace-pre-wrap ${noteCellClasses}`}>
-                                                {currentNotes && currentNotes.trim() !== ''
-                                                    ? currentNotes
-                                                    : '—'}
+                                            <div className={`p-2 whitespace-pre-wrap rounded-md ${noteDisplayClasses}`}>
+                                                {displayNotes}
                                             </div>
                                         )}
                                     </td>
@@ -493,7 +691,7 @@ const buildSnapshot = (
         collectionsSelections?: Record<string, number | ''>;
         collectionsLocks?: Record<string, boolean>;
         allSales?: Sale[];
-        cashCommissionOverrides?: Record<string, number>;
+        manualCommissionOverrides?: Record<string, number>;
     } = {},
 ): CommissionReportSnapshot => {
     const rowsBySalesperson = new Map<string, CommissionReportRowSnapshot[]>();
@@ -504,7 +702,7 @@ const buildSnapshot = (
     });
 
     const collectionsLocks = options.collectionsLocks ?? {};
-    const cashOverrideValues = options.cashCommissionOverrides ?? {};
+    const manualOverrideValues = options.manualCommissionOverrides ?? {};
     const normalizedCollectionsLocks = new Map<string, boolean>();
     Object.entries(collectionsLocks).forEach(([name, value]) => {
         normalizedCollectionsLocks.set(normalizeName(name), Boolean(value));
@@ -590,16 +788,18 @@ const buildSnapshot = (
                     ? manualNote
                     : defaultNotes;
 
-            const normalizedSaleType = normalizeSaleType(sale.saleType);
-            const isCashSale = normalizedSaleType === 'cashsale' || normalizedSaleType === 'cash';
-            const overrideValue = cashOverrideValues[rowKey];
-            const adjustedCommission = isCashSale
-                ? (typeof overrideValue === 'number' && Number.isFinite(overrideValue) ? overrideValue : 0)
+            const saleTypeCategory = getSaleTypeCategory(sale.saleType);
+            const manualOverrideValue = manualOverrideValues[rowKey];
+            const usesManualCommission = MANUAL_COMMISSION_TYPES.has(saleTypeCategory);
+            const adjustedCommission = usesManualCommission
+                ? (typeof manualOverrideValue === 'number' && Number.isFinite(manualOverrideValue)
+                      ? manualOverrideValue
+                      : 0)
                 : overrideResult.amount;
             const overrideAppliedFlag =
-                isCashSale || overrideResult.overrideApplied || normalizedSplits.length > 1;
-            const overrideDetails = isCashSale
-                ? 'Cash Sale manual entry'
+                usesManualCommission || overrideResult.overrideApplied || normalizedSplits.length > 1;
+            const overrideDetails = usesManualCommission
+                ? `${SALE_TYPE_BADGES[saleTypeCategory].label} manual entry`
                 : normalizedSplits.length > 1
                 ? `Split share ${split.share.toFixed(2)}%`
                 : overrideResult.details;
@@ -712,7 +912,7 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
         const [notesMap, setNotesMap] = useState<Record<string, string>>({});
         const [collectionsSelections, setCollectionsSelections] = useState<Record<string, number | ''>>({});
         const [collectionsLocks, setCollectionsLocks] = useState<Record<string, boolean>>({});
-        const [cashCommissionOverrides, setCashCommissionOverrides] = useState<Record<string, string>>({});
+        const [manualCommissionOverrides, setManualCommissionOverrides] = useState<Record<string, string>>({});
         const reportContainerRef = React.useRef<HTMLDivElement>(null);
         const latestWeekKeyRef = React.useRef<string | null>(null);
         const [activeWeekStartMs, setActiveWeekStartMs] = useState(() =>
@@ -776,15 +976,18 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
             if (!selectedWeekKey) return weekBuckets[0] ?? null;
             return weekBuckets.find(bucket => bucket.key === selectedWeekKey) ?? null;
         }, [weekBuckets, selectedWeekKey]);
-        const currentWeekKey = currentWeek?.key ?? null;
 
         useEffect(() => {
-            setCashCommissionOverrides({});
-        }, [currentWeekKey]);
+            if (!currentWeek) {
+                setManualCommissionOverrides({});
+                return;
+            }
+            setManualCommissionOverrides(loadManualOverrideState(currentWeek.key));
+        }, [currentWeek?.key]);
 
-        const numericCashOverrides = useMemo(() => {
+        const numericManualOverrides = useMemo(() => {
             const next: Record<string, number> = {};
-            Object.entries(cashCommissionOverrides).forEach(([key, value]) => {
+            Object.entries(manualCommissionOverrides).forEach(([key, value]) => {
                 if (value === undefined) return;
                 const numeric = Number(sanitizeCurrencyString(value));
                 if (Number.isFinite(numeric)) {
@@ -792,7 +995,12 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                 }
             });
             return next;
-        }, [cashCommissionOverrides]);
+        }, [manualCommissionOverrides]);
+
+        useEffect(() => {
+            if (!currentWeek) return;
+            persistManualOverrideState(currentWeek.key, manualCommissionOverrides);
+        }, [manualCommissionOverrides, currentWeek?.key]);
 
         useEffect(() => {
             if (weekBuckets.length === 0) {
@@ -854,9 +1062,9 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                 collectionsSelections,
                 collectionsLocks,
                 allSales: sales,
-                cashCommissionOverrides: numericCashOverrides,
+                manualCommissionOverrides: numericManualOverrides,
             });
-        }, [currentWeek, notesMap, collectionsSelections, collectionsLocks, sales, numericCashOverrides]);
+        }, [currentWeek, notesMap, collectionsSelections, collectionsLocks, sales, numericManualOverrides]);
 
         useImperativeHandle(
             ref,
@@ -899,8 +1107,8 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
             }
         };
 
-        const handleCashCommissionChange = (rowKey: string, value: string) => {
-            setCashCommissionOverrides(prev => {
+        const handleManualCommissionChange = (rowKey: string, value: string) => {
+            setManualCommissionOverrides(prev => {
                 const next = { ...prev };
                 const sanitized = value.replace(/[^0-9.]/g, '');
                 if (!sanitized) {
@@ -1000,8 +1208,8 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                                 collectionsOptions={[0, 50, 100]}
                                 isKey={isKey}
                                 collectionsLocked={locked}
-                                cashOverrides={cashCommissionOverrides}
-                                onCashOverrideChange={handleCashCommissionChange}
+                                manualOverrides={manualCommissionOverrides}
+                                onManualOverrideChange={handleManualCommissionChange}
                             />
                         );
                     })

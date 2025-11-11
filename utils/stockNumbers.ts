@@ -1,5 +1,5 @@
 import type { Sale } from '../types';
-import { filterAnalyticsSales, parseSaleDate } from './salesAnalytics';
+import { parseSaleDate } from './salesAnalytics';
 
 export type StockPrefix = 'N' | 'O' | 'D' | 'F' | 'CH';
 
@@ -71,8 +71,7 @@ export const computeNextAccountNumber = (sales: Sale[]): number | null => {
 };
 
 export const computeNextStockNumbers = (sales: Sale[]): NextStockNumbersResult => {
-    const analyticsSales = filterAnalyticsSales(sales);
-    const sortedSales = analyticsSales
+    const sortedSales = sales
         .map(sale => {
             const date = parseSaleDate(sale.saleDate);
             return { sale, date, time: date ? date.getTime() : -Infinity };
@@ -92,7 +91,10 @@ export const computeNextStockNumbers = (sales: Sale[]): NextStockNumbersResult =
         let stockSerial: number | null = null;
 
         if (stockNumberRaw) {
-            const match = stockNumberRaw.toUpperCase().match(/^([A-Z]{1,2})(\d{2})-(\d+)$/);
+            const match = stockNumberRaw
+                .toUpperCase()
+                .replace(/[^A-Z0-9-]/g, '')
+                .match(/^([A-Z]{1,2})(\d{2})-?(\d+)$/);
             if (match) {
                 const [, prefixPart, yearPart, serialPart] = match;
                 const normalizedPrefix = normalizeStockPrefixFromStockNumber(prefixPart);
@@ -117,12 +119,13 @@ export const computeNextStockNumbers = (sales: Sale[]): NextStockNumbersResult =
 
         const current = latestByPrefix[prefix];
         const saleTime = time;
-        if (
+        const isBetterCandidate =
             !current ||
             effectiveYear > current.year ||
-            (effectiveYear === current.year && saleTime > current.saleTime) ||
-            (effectiveYear === current.year && saleTime === current.saleTime && serial > current.serial)
-        ) {
+            (effectiveYear === current.year && serial > current.serial) ||
+            (effectiveYear === current.year && serial === current.serial && saleTime > current.saleTime);
+
+        if (isBetterCandidate) {
             latestByPrefix[prefix] = { year: effectiveYear, serial, saleTime };
         }
     });

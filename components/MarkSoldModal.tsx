@@ -184,29 +184,29 @@ const MarkSoldModal: React.FC<MarkSoldModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 transition-opacity">
-            <div className="bg-gunmetal-light rounded-lg shadow-xl w-full max-w-md">
-                 <div className="flex justify-between items-center p-4 border-b border-gunmetal">
-                     <h3 className="text-2xl font-bold text-white font-orbitron">{title}</h3>
+        <div className="fixed inset-0 bg-black/85 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-opacity">
+            <div className="bg-[#14171b] border border-border-low rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                 <div className="flex justify-between items-center p-5 border-b border-border-low">
+                     <h3 className="text-2xl font-bold text-primary font-orbitron tracking-tight-lg">{title}</h3>
                      <GlassButton size="icon" onClick={onClose}><XMarkIcon className="h-6 w-6" /></GlassButton>
                 </div>
-                <div className="p-6 space-y-4">
+                <div className="p-6 space-y-5 overflow-y-auto text-primary">
                     <p className="text-gray-300">Confirming sale for: <span className="font-bold text-white">{vehicle.year} {vehicle.make} {vehicle.model}</span></p>
 
                     {showStockNumberInput ? (
                         <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Stock Number</label>
+                            <label className="block text-sm font-medium text-muted mb-1 uppercase tracking-wide">Stock Number</label>
                             <input 
                                 type="text"
                                 value={stockNumber}
                                 onChange={(e) => setStockNumber(e.target.value)}
-                                className="w-full bg-gunmetal border border-gunmetal-light focus:border-accent-red text-white rounded-md p-2 focus:outline-none transition-colors"
+                                className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors"
                             />
                         </div>
                     ) : (
                         <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Stock Number</label>
-                            <div className="w-full bg-gunmetal border border-gunmetal-light text-gray-200 rounded-md p-2">
+                            <label className="block text-sm font-medium text-muted mb-1 uppercase tracking-wide">Stock Number</label>
+                            <div className="w-full bg-glass-panel border border-border-low text-secondary rounded-md p-2">
                                 {stockNumber || '—'}
                             </div>
                         </div>
@@ -214,31 +214,31 @@ const MarkSoldModal: React.FC<MarkSoldModalProps> = ({
 
                     {showAccountNumberInput ? (
                         <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Account Number</label>
+                            <label className="block text-sm font-medium text-muted mb-1 uppercase tracking-wide">Account Number</label>
                             <input 
                                 type="text"
                                 value={accountNumber}
                                 onChange={(e) => setAccountNumber(e.target.value)}
-                                className="w-full bg-gunmetal border border-gunmetal-light focus:border-accent-red text-white rounded-md p-2 focus:outline-none transition-colors"
+                                className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors"
                             />
                         </div>
                     ) : (
                         <div>
-                            <label className="block text-sm font-medium text-gray-400 mb-1">Account Number</label>
-                            <div className="w-full bg-gunmetal border border-gunmetal-light text-gray-200 rounded-md p-2">
+                            <label className="block text-sm font-medium text-muted mb-1 uppercase tracking-wide">Account Number</label>
+                            <div className="w-full bg-glass-panel border border-border-low text-secondary rounded-md p-2">
                                 {accountNumber || '—'}
                             </div>
                         </div>
                     )}
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-2">Salespeople</label>
+                        <label className="block text-sm font-medium text-muted mb-2 uppercase tracking-wide">Salespeople</label>
                         <div className="space-y-2">
                             {resolvedSalespeople.map(user => (
-                                <label key={user.id} className="flex items-center gap-2 text-sm text-gray-200">
+                                <label key={user.id} className="flex items-center gap-2 text-sm text-secondary">
                                     <input
                                         type="checkbox"
-                                        className="form-checkbox text-accent-red"
+                                        className="form-checkbox text-lava-core"
                                         checked={selectedSalespeople.includes(user.name)}
                                         onChange={() => toggleSalesperson(user.name)}
                                     />
@@ -247,8 +247,8 @@ const MarkSoldModal: React.FC<MarkSoldModalProps> = ({
                             ))}
                         </div>
                         {selectedSalespeople.length > 1 && (
-                            <div className="mt-4 bg-gunmetal border border-accent-orange/40 rounded-md p-3">
-                                <div className="flex justify-between text-xs uppercase tracking-wide text-gray-400 mb-2">
+                            <div className="mt-4 bg-glass-panel border border-border-low rounded-md p-3">
+                                <div className="flex justify-between text-xs uppercase tracking-wide text-muted mb-2">
                                     <span>{selectedSalespeople[0]}</span>
                                     <span>{selectedSalespeople[1]}</span>
                                 </div>
@@ -259,9 +259,9 @@ const MarkSoldModal: React.FC<MarkSoldModalProps> = ({
                                     step={1}
                                     value={splitPercentage}
                                     onChange={event => setSplitPercentage(Number(event.target.value))}
-                                    className="w-full accent-accent-orange"
+                                    className="w-full accent-lava-core"
                                 />
-                                <div className="flex justify-between text-sm text-gray-200 mt-2">
+                                <div className="flex justify-between text-sm text-secondary mt-2">
                                     <span>{splitPercentage.toFixed(0)}%</span>
                                     <span>{(100 - splitPercentage).toFixed(0)}%</span>
                                 </div>
@@ -270,7 +270,7 @@ const MarkSoldModal: React.FC<MarkSoldModalProps> = ({
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">Sale Type</label>
+                        <label className="block text-sm font-medium text-muted mb-1 uppercase tracking-wide">Sale Type</label>
                         <AppSelect
                             value={saleType}
                             onChange={next => setSaleType(next as typeof saleType)}
@@ -284,17 +284,17 @@ const MarkSoldModal: React.FC<MarkSoldModalProps> = ({
                     </div>
 
                      <div>
-                        <label className="block text-sm font-medium text-gray-400 mb-1">Actual Down Payment</label>
+                        <label className="block text-sm font-medium text-muted mb-1 uppercase tracking-wide">Actual Down Payment</label>
                         <input 
                             type="number"
                             value={downPayment}
                             onChange={(e) => setDownPayment(e.target.value)}
-                            className="w-full bg-gunmetal border border-gunmetal-light focus:border-accent-red text-white rounded-md p-2 focus:outline-none transition-colors"
+                            className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors"
                         />
                     </div>
 
                 </div>
-                <div className="mt-4 p-4 flex justify-end space-x-4 border-t border-gunmetal">
+                <div className="p-5 flex justify-end space-x-4 border-t border-border-low bg-[#111318] rounded-b-2xl">
                     <GlassButton onClick={onClose}>Cancel</GlassButton>
                     <GlassButton
                         onClick={handleConfirm}

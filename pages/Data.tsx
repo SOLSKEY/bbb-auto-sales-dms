@@ -84,6 +84,18 @@ const Data: React.FC = () => {
         }
     };
 
+    const sortedSalesDesc = useMemo(() => {
+        return [...sales].sort((a, b) => {
+            const getNumeric = (sale?: Sale) => {
+                if (!sale) return -Infinity;
+                const raw = sale.saleId ?? sale.accountNumber ?? '';
+                const numeric = Number.parseInt(String(raw).replace(/[^0-9]/g, ''), 10);
+                return Number.isFinite(numeric) ? numeric : -Infinity;
+            };
+            return getNumeric(b) - getNumeric(a);
+        });
+    }, [sales]);
+
     const tabConfig = useMemo(() => {
         let config: { columns: any[]; data: any[]; setData: (...args: any) => void; onDeleteRow?: (row: any) => void; tableName?: string; primaryKey?: string; fieldMap?: Record<string, string>; } = { columns: [], data: [], setData: () => {} };
 
@@ -143,7 +155,7 @@ const Data: React.FC = () => {
                         { key: 'downPayment', name: 'Down Payment' },
                         { key: 'vin', name: 'VIN' },
                     ],
-                    data: sales,
+                    data: sortedSalesDesc,
                     setData: setSales,
                     onDeleteRow: startRevertProcess,
                     tableName: 'Sales',
@@ -193,7 +205,7 @@ const Data: React.FC = () => {
                 config = { columns: [], data: [], setData: () => {} };
         }
         return config;
-    }, [activeTab, inventory, sales, collectionsData, auctionData, delinquencyData, setInventory, setSales, revertSale]);
+    }, [activeTab, inventory, sortedSalesDesc, collectionsData, auctionData, delinquencyData, setInventory, setSales, revertSale]);
 
     return (
         <div className="h-full flex flex-col">
