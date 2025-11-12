@@ -1,11 +1,11 @@
-import React, { useMemo } from 'react';
+import React, { useContext, useMemo } from 'react';
 import { CalendarDaysIcon, FireIcon, ChartBarIcon, TrophyIcon, HashtagIcon } from '@heroicons/react/24/solid';
 import YtdSalesComparison from '../components/YtdSalesComparison';
 import YtdCumulativeSalesChart from '../components/YtdCumulativeSalesChart';
 import YearOverYearComparison from '../components/YearOverYearComparison';
 import NextStockCard from '../components/NextStockCard';
 import MonthlySalesComparisonChart from '../components/MonthlySalesComparisonChart';
-import { useSupabaseSales } from '../hooks/useSupabaseSales';
+import { DataContext } from '../App';
 import { buildSalesAggregates, formatDateKey, getYtdCountForYear } from '../utils/salesAnalytics';
 import { computeNextAccountNumber, computeNextStockNumbers } from '../utils/stockNumbers';
 import { GlassButton } from '@/components/ui/glass-button';
@@ -58,7 +58,17 @@ const StatCard: React.FC<{
 };
 
 const SalesAnalytics: React.FC<{ layoutVariant?: 'classic' | 'compact' }> = ({ layoutVariant = 'compact' }) => {
-    const { data: salesData, loading, error, refresh } = useSupabaseSales();
+    const dataContext = useContext(DataContext);
+    
+    if (!dataContext) {
+        return (
+            <div className="glass-card p-6">
+                <p className="text-red-400">Data context not available</p>
+            </div>
+        );
+    }
+    
+    const { sales: salesData } = dataContext;
 
     const { years, kpis, monthlyChartData, currentYear, nextAccountNumber, nextStockNumbers, activeSaleYear } = useMemo(() => {
         const aggregates = buildSalesAggregates(salesData);
@@ -155,28 +165,6 @@ const SalesAnalytics: React.FC<{ layoutVariant?: 'classic' | 'compact' }> = ({ l
             activeSaleYear,
         };
     }, [salesData]);
-    
-    if (loading) {
-        return (
-            <div className="glass-card p-6">
-                <p className="text-secondary">Loading sales analytics from Supabase...</p>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="glass-card p-6 space-y-4">
-                <p className="text-red-400 font-semibold">Unable to load analytics data.</p>
-                <p className="text-secondary text-sm">{error}</p>
-                <GlassButton
-                    onClick={refresh}
-                >
-                    Retry
-                </GlassButton>
-            </div>
-        );
-    }
 
     const nextAccountNumberDisplay = nextAccountNumber !== null ? String(nextAccountNumber) : '—';
     const monthlyChartHeight = layoutVariant === 'compact' ? 360 : 420;
