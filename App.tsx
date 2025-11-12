@@ -22,6 +22,8 @@ import AdminCreateUserForm from './components/AdminCreateUserForm';
 import AdminUsers from './pages/AdminUsers';
 import AdminUserPermissions from './pages/AdminUserPermissions';
 import AccountSettings from './pages/AccountSettings';
+import { TwentyFirstToolbar } from '@21st-extension/toolbar-react';
+import { ReactPlugin } from '@21st-extension/react';
 
 const APP_PAGES: AppSectionKey[] = [
     'Dashboard',
@@ -497,6 +499,7 @@ const App: React.FC = () => {
     return (
         <UserContext.Provider value={userContextValue}>
             <DataContext.Provider value={dataContextValue}>
+                <TwentyFirstToolbar config={{ plugins: [ReactPlugin] }} />
                 <div className="flex h-screen spotlight-bg text-primary">
                     <Sidebar isAdmin={isAdmin} permissions={permissions} canViewPage={canViewPage} />
                     <div className="flex-1 flex flex-col overflow-hidden">
