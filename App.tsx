@@ -208,22 +208,55 @@ const App: React.FC = () => {
                     console.log('No inventory data returned from Supabase');
                 }
 
-                // Load sales
+                // Load sales with pagination to handle large datasets
                 console.log('Loading sales from Supabase...');
-                const { data: salesData, error: salesError } = await supabase
+                const { count: totalSalesCount, error: countError } = await supabase
                     .from('Sales')
-                    .select('*')
-                    .order('"Sale Date"', { ascending: false });
+                    .select('*', { count: 'exact', head: true });
 
-                if (salesError) {
-                    console.error('Error loading sales:', salesError);
-                    console.error('Error details:', JSON.stringify(salesError, null, 2));
-                } else if (salesData) {
-                    console.log(`Loaded ${salesData.length} sales from Supabase`);
-                    const mappedSales = fromSupabaseArray(salesData, SALE_FIELD_MAP);
+                if (countError) {
+                    console.error('Error retrieving sales count from Supabase:', countError);
+                }
+
+                const pageSize = 1000;
+                const allSalesRows: any[] = [];
+                let page = 0;
+                let hasMore = true;
+
+                while (hasMore) {
+                    const from = page * pageSize;
+                    const to = from + pageSize - 1;
+
+                    const { data: pageData, error: pageError } = await supabase
+                        .from('Sales')
+                        .select('*')
+                        .order('"Sale Date"', { ascending: false })
+                        .range(from, to);
+
+                    if (pageError) {
+                        console.error(`Error loading sales page starting at row ${from}:`, pageError);
+                        break;
+                    }
+
+                    if (!pageData || pageData.length === 0) {
+                        hasMore = false;
+                    } else {
+                        allSalesRows.push(...pageData);
+                        hasMore = pageData.length === pageSize;
+                        if (typeof totalSalesCount === 'number' && allSalesRows.length >= totalSalesCount) {
+                            hasMore = false;
+                        }
+                        page += 1;
+                    }
+                }
+
+                if (allSalesRows.length > 0) {
+                    console.log(`Loaded ${allSalesRows.length} sales from Supabase${typeof totalSalesCount === 'number' ? ` (total count: ${totalSalesCount})` : ''}`);
+                    const mappedSales = fromSupabaseArray(allSalesRows, SALE_FIELD_MAP);
                     setSales(mappedSales);
                 } else {
                     console.log('No sales data returned from Supabase');
+                    setSales([]);
                 }
 
                 console.log('Loading users from Supabase...');
