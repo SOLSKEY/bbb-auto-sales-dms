@@ -20,51 +20,16 @@ console.log("SERVICE_ROLE:", process.env.SUPABASE_SERVICE_ROLE_KEY ? "Configured
 
 const app = express();
 
-// Configure CORS to allow production domain and localhost
-const allowedOrigins = [
-  'https://bbbhq.app',
-  'http://localhost:3000',
-  'http://localhost:5173',
-  'http://127.0.0.1:3000',
-  'http://127.0.0.1:5173',
-];
-
+// Configure CORS - allow all origins since admin auth provides security
 const corsOptions = {
-  origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
-    
-    // Always allow requests from allowed origins
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      return callback(null, true);
-    }
-    
-    // For production, check if origin matches allowed patterns
-    // This allows subdomains and the main domain
-    const originHost = origin ? new URL(origin).hostname : '';
-    
-    // Allow https://bbbhq.app and its variants
-    if (originHost === 'bbbhq.app' || originHost.endsWith('.bbbhq.app')) {
-      return callback(null, true);
-    }
-    
-    // In development, allow any origin for convenience
-    if (process.env.NODE_ENV !== 'production') {
-      return callback(null, true);
-    }
-    
-    // For production, allow all origins since admin authentication is required anyway
-    // The verifyAdmin middleware ensures security
-    callback(null, true);
-  },
+  origin: true, // Allow all origins
   credentials: true,
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
+  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 };
 
-// Handle OPTIONS preflight requests FIRST, before any other middleware
-app.options('*', cors(corsOptions));
-
+// Apply CORS to all routes
 app.use(cors(corsOptions));
 app.use(express.json());
 
