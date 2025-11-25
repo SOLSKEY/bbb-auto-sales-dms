@@ -26,11 +26,20 @@ const corsOptions = {
   credentials: true,
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
-  optionsSuccessStatus: 200 // Some legacy browsers choke on 204
+  optionsSuccessStatus: 200, // Some legacy browsers choke on 204
+  preflightContinue: false
 };
 
-// Handle OPTIONS preflight requests BEFORE any other middleware
-app.options('*', cors(corsOptions));
+// Handle OPTIONS preflight requests FIRST - before CORS middleware
+app.options('*', (req, res) => {
+  const origin = req.headers.origin || '*';
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+  res.sendStatus(200);
+});
 
 // Apply CORS to all routes
 app.use(cors(corsOptions));
