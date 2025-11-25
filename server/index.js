@@ -292,6 +292,6 @@ app.delete("/admin/users/:userId", verifyAdmin, async (req, res) => {
 
 // START SERVER
 const PORT = process.env.PORT || 4100;
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`SERVER RUNNING ON PORT ${PORT}`);
 });
