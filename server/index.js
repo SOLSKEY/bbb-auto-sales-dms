@@ -42,18 +42,6 @@ const corsOptions = {
     // For production, check if origin matches allowed patterns
     // This allows subdomains and the main domain
     const originHost = origin ? new URL(origin).hostname : '';
-    const allowedHosts = allowedOrigins.map(url => {
-      try {
-        return new URL(url).hostname;
-      } catch {
-        return url;
-      }
-    });
-    
-    // Allow if origin host matches any allowed host
-    if (allowedHosts.some(host => originHost === host || originHost.endsWith('.' + host))) {
-      return callback(null, true);
-    }
     
     // Allow https://bbbhq.app and its variants
     if (originHost === 'bbbhq.app' || originHost.endsWith('.bbbhq.app')) {
@@ -65,8 +53,8 @@ const corsOptions = {
       return callback(null, true);
     }
     
-    // For production, be more lenient but still secure (admin auth is required anyway)
-    // Allow the request - the verifyAdmin middleware will ensure security
+    // For production, allow all origins since admin authentication is required anyway
+    // The verifyAdmin middleware ensures security
     callback(null, true);
   },
   credentials: true,
