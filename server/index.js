@@ -62,13 +62,13 @@ const corsOptions = {
   allowedHeaders: ['Content-Type', 'Authorization'],
 };
 
+// Handle OPTIONS preflight requests FIRST, before any other middleware
+app.options('*', cors(corsOptions));
+
 app.use(cors(corsOptions));
 app.use(express.json());
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
-
-// Allow preflight CORS requests to pass through without auth checks (Express 5)
-app.options(/.*/, cors(corsOptions), (_req, res) => res.sendStatus(204));
 
 // Middleware to verify the request is from an authenticated admin
 const verifyAdmin = async (req, res, next) => {
