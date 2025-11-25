@@ -80,6 +80,17 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", message: "Server is running", port: process.env.PORT || 4100 });
 });
 
+// Explicit OPTIONS handler for all admin routes to ensure CORS works
+app.options("/admin/*", (req, res) => {
+  const origin = req.headers.origin || '*';
+  res.setHeader('Access-Control-Allow-Origin', origin);
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  res.setHeader('Access-Control-Max-Age', '86400');
+  res.sendStatus(200);
+});
+
 // LIST ALL USERS (Admin only)
 app.get("/admin/users", verifyAdmin, async (req, res) => {
   try {
