@@ -80,8 +80,9 @@ app.get("/health", (req, res) => {
   res.json({ status: "ok", message: "Server is running", port: process.env.PORT || 4100 });
 });
 
-// Explicit OPTIONS handler for all admin routes to ensure CORS works
-app.options("/admin/*", (req, res) => {
+// Explicit OPTIONS handlers for each admin route to ensure CORS works
+// Express doesn't support wildcard routes like "/admin/*", so we handle each route explicitly
+const handleOptions = (req, res) => {
   const origin = req.headers.origin || '*';
   res.setHeader('Access-Control-Allow-Origin', origin);
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, DELETE, OPTIONS');
@@ -89,7 +90,13 @@ app.options("/admin/*", (req, res) => {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Max-Age', '86400');
   res.sendStatus(200);
-});
+};
+
+app.options("/admin/users", handleOptions);
+app.options("/admin/create-user", handleOptions);
+app.options("/admin/update-user-permissions", handleOptions);
+app.options("/admin/users/:userId", handleOptions);
+app.options("/admin/user-permissions/:userId", handleOptions);
 
 // LIST ALL USERS (Admin only)
 app.get("/admin/users", verifyAdmin, async (req, res) => {
