@@ -29,6 +29,9 @@ const corsOptions = {
   optionsSuccessStatus: 200 // Some legacy browsers choke on 204
 };
 
+// Handle OPTIONS preflight requests BEFORE any other middleware
+app.options('*', cors(corsOptions));
+
 // Apply CORS to all routes
 app.use(cors(corsOptions));
 app.use(express.json());
@@ -37,6 +40,7 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 
 // Middleware to verify the request is from an authenticated admin
 const verifyAdmin = async (req, res, next) => {
+  // OPTIONS requests should already be handled by CORS middleware above
   if (req.method === 'OPTIONS') {
     return res.sendStatus(204);
   }
