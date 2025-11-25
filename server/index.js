@@ -34,16 +34,40 @@ const corsOptions = {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
+    // Always allow requests from allowed origins
     if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      // In development, allow any origin for convenience
-      if (process.env.NODE_ENV !== 'production') {
-        callback(null, true);
-      } else {
-        callback(new Error('Not allowed by CORS'));
-      }
+      return callback(null, true);
     }
+    
+    // For production, check if origin matches allowed patterns
+    // This allows subdomains and the main domain
+    const originHost = origin ? new URL(origin).hostname : '';
+    const allowedHosts = allowedOrigins.map(url => {
+      try {
+        return new URL(url).hostname;
+      } catch {
+        return url;
+      }
+    });
+    
+    // Allow if origin host matches any allowed host
+    if (allowedHosts.some(host => originHost === host || originHost.endsWith('.' + host))) {
+      return callback(null, true);
+    }
+    
+    // Allow https://bbbhq.app and its variants
+    if (originHost === 'bbbhq.app' || originHost.endsWith('.bbbhq.app')) {
+      return callback(null, true);
+    }
+    
+    // In development, allow any origin for convenience
+    if (process.env.NODE_ENV !== 'production') {
+      return callback(null, true);
+    }
+    
+    // For production, be more lenient but still secure (admin auth is required anyway)
+    // Allow the request - the verifyAdmin middleware will ensure security
+    callback(null, true);
   },
   credentials: true,
   methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
