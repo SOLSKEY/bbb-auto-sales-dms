@@ -70,17 +70,32 @@ const YtdSalesComparison: React.FC<YtdSalesComparisonProps> = ({ salesData, comp
     const { currentYtdSales, results, today } = comparisonData;
 
     const containerClasses = compact
-        ? 'glass-card p-4 h-full flex flex-col'
-        : 'glass-card p-6';
+        ? 'glass-card-outline p-4 h-full flex flex-col'
+        : 'glass-card-outline p-6';
+
+    const getPercentClass = (percent: number) => {
+        if (percent > 0) return 'text-dynamic-green';
+        if (percent < 0) return 'text-dynamic-red';
+        return 'text-dynamic-yellow';
+    };
 
     return (
         <div className={containerClasses}>
             <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between mb-4">
-                 <h3 className="text-xl font-semibold text-primary tracking-tight-md">YTD Sales Pace Comparison</h3>
-                 <p className="text-sm text-muted">
+                <h3 className="text-xl font-semibold text-primary tracking-tight-md">YTD Sales Pace Comparison</h3>
+                <p className="text-sm text-muted">
                     Current YTD Sales:{' '}
-                    <span className="font-bold text-2xl text-lava-core font-orbitron tracking-tight-lg">{currentYtdSales}</span>
-                    <span className="ml-2">(as of {today.toLocaleDateString()})</span>
+                    <span 
+                        className="font-bold text-3xl font-orbitron tracking-tight-lg inline-block"
+                        style={{
+                            background: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 50%, #3b82f6 100%)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            backgroundClip: 'text',
+                        }}
+                    >
+                        {currentYtdSales}
+                    </span>
                 </p>
             </div>
             <div className={`${compact ? 'flex-1 overflow-y-auto' : ''}`}>
@@ -95,8 +110,8 @@ const YtdSalesComparison: React.FC<YtdSalesComparisonProps> = ({ salesData, comp
                     </thead>
                     <tbody className="divide-y divide-border-low">
                         {results.map(item => {
-                             const isAhead = item.status === 'Ahead';
-                             const changeText = isFinite(item.change)
+                            const isAhead = item.status === 'Ahead';
+                            const changeText = isFinite(item.change)
                                 ? `${item.change > 0 ? '+' : ''}${item.change.toFixed(1)}%`
                                 : 'N/A';
                             return (
@@ -108,7 +123,7 @@ const YtdSalesComparison: React.FC<YtdSalesComparisonProps> = ({ salesData, comp
                                         </div>
                                     </td>
                                     <td className="p-4 text-right font-mono text-secondary">{item.count}</td>
-                                    <td className={`p-4 text-right font-mono font-bold ${isAhead ? 'text-green-400' : 'text-red-400'}`}>
+                                    <td className={`p-4 text-right font-mono font-bold ${getPercentClass(item.change)}`}>
                                         {changeText}
                                     </td>
                                     <td className="p-4 whitespace-nowrap text-center">

@@ -53,6 +53,14 @@ const formatCurrency = (value: number) =>
 const formatCurrencyCompact = (value: number) =>
     `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+// Green gradient for Actual bars - matches the green color theme
+const actualBarGradient = {
+    id: 'gradient-actual-green',
+    from: '#10b981', // Emerald green (current color)
+    to: '#059669',   // Darker emerald green
+    base: '#10b981',
+};
+
 const normalizeDowKey = (value?: string | null): DowKey | null => {
     if (!value) return null;
     const lower = value.toLowerCase();
@@ -222,8 +230,8 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
             const dow =
                 normalizeDowKey(
                     (entry as any).dow ??
-                        (entry as any).day ??
-                        null
+                    (entry as any).day ??
+                    null
                 ) ?? getDowFromDate(date);
             return {
                 date,
@@ -464,7 +472,7 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
         : ArrowTrendingDownIcon;
 
     return (
-        <div className={`glass-card ${compact ? 'p-5' : 'p-6'} relative overflow-hidden`}>
+        <div className={`glass-card-outline ${compact ? 'p-5' : 'p-6'} relative overflow-hidden`}>
             <div className={`flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 ${compact ? 'mb-4' : 'mb-6'}`}>
                 <div>
                     <h3 className="text-xl font-semibold text-primary tracking-tight-md">
@@ -488,10 +496,28 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
                         Week Total vs Avg
                     </p>
                     <div className="flex items-baseline justify-end gap-2">
-                        <span className="text-sm uppercase tracking-wide text-green-400">
+                        <span 
+                            className="text-sm uppercase tracking-wide"
+                            style={{
+                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                backgroundClip: 'text',
+                                color: 'transparent',
+                            }}
+                        >
                             Actual
                         </span>
-                        <span className={`${compact ? 'text-2xl' : 'text-3xl'} font-bold text-green-400 font-orbitron tracking-tight-lg`}>
+                        <span 
+                            className={`${compact ? 'text-2xl' : 'text-3xl'} font-bold font-orbitron tracking-tight-lg`}
+                            style={{
+                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                backgroundClip: 'text',
+                                color: 'transparent',
+                            }}
+                        >
                             {formatCurrency(actualSoFar)}
                         </span>
                     </div>
@@ -503,18 +529,33 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
                             {formatCurrency(expectedSoFar)}
                         </span>
                     </div>
-                    <div
-                        className={`flex items-center justify-end gap-2 text-sm font-semibold ${
-                            differencePositive ? 'text-green-400' : 'text-red-400'
-                        }`}
-                    >
-                        <DifferenceIcon className="h-4 w-4" />
-                        <span>
+                    <div className="flex items-center justify-end gap-2 text-sm font-semibold">
+                        <DifferenceIcon 
+                            className="h-4 w-4"
+                            style={{
+                                color: differencePositive ? '#10b981' : '#ef4444',
+                            }}
+                        />
+                        <span
+                            style={differencePositive ? {
+                                background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                backgroundClip: 'text',
+                                color: 'transparent',
+                            } : {
+                                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                backgroundClip: 'text',
+                                color: 'transparent',
+                            }}
+                        >
                             {differencePositive ? '+' : ''}
                             {formatCurrencyCompact(difference)}
                         </span>
-                        <span className="text-xs text-muted ml-1">
-                            actual vs expected
+                        <span className="text-xs text-white ml-1">
+                            Actual vs Expected
                         </span>
                     </div>
                     <p className="text-xs text-muted">
@@ -543,7 +584,21 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
             <div className={compact ? 'h-56' : 'h-64'}>
                 <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={chartData}>
-                        <CartesianGrid strokeDasharray="4 4" stroke="#2c2f33" />
+                        <defs>
+                            <linearGradient
+                                id={actualBarGradient.id}
+                                x1="0"
+                                y1="0"
+                                x2="0"
+                                y2="1"
+                            >
+                                <stop offset="0%" stopColor={actualBarGradient.from} stopOpacity={0.7} />
+                                <stop offset="30%" stopColor={actualBarGradient.to} stopOpacity={0.6} />
+                                <stop offset="70%" stopColor={actualBarGradient.to} stopOpacity={0.5} />
+                                <stop offset="100%" stopColor={actualBarGradient.to} stopOpacity={0.4} />
+                            </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="4 4" stroke="rgba(255, 255, 255, 0.1)" />
                         <XAxis
                             type="number"
                             dataKey="position"
@@ -563,9 +618,13 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
                         />
                         <Tooltip
                             contentStyle={{
-                                backgroundColor: '#1f2933',
-                                border: '1px solid #374151',
+                                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                                border: '1px solid rgba(6, 182, 212, 0.3)',
+                                borderRadius: '8px',
+                                backdropFilter: 'blur(8px)',
                             }}
+                            labelStyle={{ color: '#fff', fontWeight: 'bold' }}
+                            cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
                             labelFormatter={value => tickFormatter(Number(value))}
                             formatter={(value, _name, props) => [
                                 formatCurrencyCompact(Number(value)),
@@ -588,8 +647,11 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
                         <Bar
                             dataKey="actual"
                             name="Actual"
-                            fill="#10b981"
+                            fill={`url(#${actualBarGradient.id})`}
                             barSize={20}
+                            radius={[4, 4, 0, 0]}
+                            stroke={actualBarGradient.from}
+                            strokeWidth={1}
                         />
                     </ComposedChart>
                 </ResponsiveContainer>

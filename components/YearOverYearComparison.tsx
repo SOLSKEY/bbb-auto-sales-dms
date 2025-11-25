@@ -28,7 +28,7 @@ const YearOverYearComparison: React.FC<YearOverYearComparisonProps> = ({ salesDa
 
     const comparisonData = useMemo(() => {
         const monthNames = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-        
+
         const monthlyData = monthNames.map(month => ({
             month,
             [comparisonYear]: 0,
@@ -56,7 +56,7 @@ const YearOverYearComparison: React.FC<YearOverYearComparisonProps> = ({ salesDa
 
 
     return (
-        <div className={`glass-card ${compact ? 'p-4' : 'p-6'} h-full flex flex-col`}>
+        <div className={`glass-card-outline ${compact ? 'p-4' : 'p-6'} h-full flex flex-col`}>
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between mb-3">
                 <h3 className="text-xl font-semibold text-primary tracking-tight-md">Year-over-Year</h3>
                 <div className="w-36 sm:w-44">

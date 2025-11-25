@@ -1,5 +1,6 @@
 import React, { useContext, useMemo } from 'react';
 import { CalendarDaysIcon, FireIcon, ChartBarIcon, TrophyIcon, HashtagIcon } from '@heroicons/react/24/solid';
+import { PrinterIcon } from '@heroicons/react/24/outline';
 import YtdSalesComparison from '../components/YtdSalesComparison';
 import YtdCumulativeSalesChart from '../components/YtdCumulativeSalesChart';
 import YearOverYearComparison from '../components/YearOverYearComparison';
@@ -9,6 +10,7 @@ import { DataContext } from '../App';
 import { buildSalesAggregates, formatDateKey, getYtdCountForYear } from '../utils/salesAnalytics';
 import { computeNextAccountNumber, computeNextStockNumbers } from '../utils/stockNumbers';
 import { GlassButton } from '@/components/ui/glass-button';
+import ShortcutButton from '../components/ShortcutButton';
 
 const StatCard: React.FC<{
     title: string;
@@ -22,35 +24,49 @@ const StatCard: React.FC<{
 }> = ({ title, value, icon: Icon, variant = 'default', compact = false, className, titleClassName, valueClassName }) => {
     const isAccent = variant === 'accent';
     const containerClasses = isAccent
-        ? 'bg-gradient-to-r from-lava-warm via-lava-core to-lava-cool text-white border border-border-high'
-        : 'glass-card text-primary';
-    const iconWrapperClasses = isAccent ? 'bg-white/15' : 'bg-glass-panel';
+        ? 'glass-card-accent text-white relative overflow-hidden'
+        : 'glass-card-outline text-primary';
+    const iconWrapperClasses = isAccent ? 'bg-cyan-500/20 border border-cyan-500/30' : 'bg-glass-panel';
     const baseTitleClasses = isAccent
         ? compact
-            ? 'text-xs text-white/80 uppercase tracking-wide'
-            : 'text-xs text-white/80 uppercase tracking-wide'
+            ? 'text-xs text-cyan-200 uppercase tracking-wide'
+            : 'text-xs text-cyan-200 uppercase tracking-wide'
         : compact
-        ? 'text-xs text-muted uppercase tracking-wide'
-        : 'text-sm text-muted';
+            ? 'text-xs text-muted uppercase tracking-wide'
+            : 'text-sm text-muted';
     const baseValueClasses = isAccent
         ? compact
-            ? 'text-2xl font-bold text-white font-orbitron tracking-tight-lg'
-            : 'text-2xl font-bold text-white font-orbitron tracking-tight-lg'
+            ? 'text-2xl font-bold font-orbitron tracking-tight-lg'
+            : 'text-2xl font-bold font-orbitron tracking-tight-lg'
         : compact
-        ? 'text-3xl font-bold text-primary font-orbitron tracking-tight-lg'
-        : 'text-2xl font-bold text-primary font-orbitron tracking-tight-lg';
+            ? 'text-3xl font-bold text-primary font-orbitron tracking-tight-lg'
+            : 'text-2xl font-bold text-primary font-orbitron tracking-tight-lg';
     const titleClasses = `${baseTitleClasses} ${titleClassName ?? ''}`.trim();
     const valueClasses = `${baseValueClasses} ${valueClassName ?? ''}`.trim();
 
     return (
-        <div className={`${containerClasses} p-3.5 rounded-lg shadow ${className ?? ''}`}>
+        <div className={`${containerClasses} p-3.5 ${className ?? ''}`}>
             <div className="flex items-center gap-3">
                 <div className={`p-2.5 rounded-lg ${iconWrapperClasses}`}>
-                    <Icon className={`h-5 w-5 ${isAccent ? 'text-white' : 'text-lava-core'}`} />
+                    <Icon className={`h-5 w-5 icon-neon`} />
                 </div>
                 <div>
                     <h4 className={titleClasses}>{title}</h4>
-                    <p className={valueClasses}>{value}</p>
+                    {isAccent ? (
+                        <span
+                            className={`${valueClasses} inline-block`}
+                            style={{
+                                background: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 50%, #3b82f6 100%)',
+                                WebkitBackgroundClip: 'text',
+                                WebkitTextFillColor: 'transparent',
+                                backgroundClip: 'text',
+                            }}
+                        >
+                            {value}
+                        </span>
+                    ) : (
+                        <p className={valueClasses}>{value}</p>
+                    )}
                 </div>
             </div>
         </div>
@@ -59,7 +75,7 @@ const StatCard: React.FC<{
 
 const SalesAnalytics: React.FC<{ layoutVariant?: 'classic' | 'compact' }> = ({ layoutVariant = 'compact' }) => {
     const dataContext = useContext(DataContext);
-    
+
     if (!dataContext) {
         return (
             <div className="glass-card p-6">
@@ -67,7 +83,7 @@ const SalesAnalytics: React.FC<{ layoutVariant?: 'classic' | 'compact' }> = ({ l
             </div>
         );
     }
-    
+
     const { sales: salesData } = dataContext;
 
     const { years, kpis, monthlyChartData, currentYear, nextAccountNumber, nextStockNumbers, activeSaleYear } = useMemo(() => {
@@ -99,7 +115,7 @@ const SalesAnalytics: React.FC<{ layoutVariant?: 'classic' | 'compact' }> = ({ l
         const diffInMs = today.getTime() - startOfYear.getTime();
         const oneDayInMs = 1000 * 60 * 60 * 24;
         const dayOfYear = Math.floor(diffInMs / oneDayInMs);
-        
+
         const recordDaySales = Object.values(totalsByDate || {}).length > 0 ? Math.max(...Object.values(totalsByDate || {})) : 0;
 
         let recordMonthSales = 0;
@@ -114,31 +130,31 @@ const SalesAnalytics: React.FC<{ layoutVariant?: 'classic' | 'compact' }> = ({ l
             todaysSales: todaysSales.toLocaleString(),
             thisWeeksSales: thisWeeksSales.toLocaleString(),
             dayOfYear: dayOfYear.toLocaleString(),
-            recordDaySales: `${recordDaySales} units`,
-            recordMonthSales: `${recordMonthSales} units`,
+            recordDaySales: recordDaySales.toLocaleString(),
+            recordMonthSales: recordMonthSales.toLocaleString(),
         };
-        
+
         const yearsInData = years;
         const latestYear = yearsInData.length > 0 ? Math.max(...yearsInData) : new Date().getFullYear();
-        
+
         const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         const dataByMonth: { [month: string]: { [key: string]: string | number | undefined } } = {};
-        
+
         monthNames.forEach(name => {
             dataByMonth[name] = { month: name };
         });
-        
+
         parsedSales.forEach(({ date }) => {
             const year = date.getFullYear();
             const monthIndex = date.getMonth();
             const monthName = monthNames[monthIndex];
-            
+
             if (dataByMonth[monthName]) {
                 dataByMonth[monthName][String(year)] = (Number(dataByMonth[monthName][String(year)]) || 0) + 1;
             }
         });
 
-        if (latestYear >= today.getFullYear()) { 
+        if (latestYear >= today.getFullYear()) {
             const currentMonthIndex = today.getMonth();
             monthNames.forEach((name, index) => {
                 if (index <= currentMonthIndex) {
@@ -148,7 +164,7 @@ const SalesAnalytics: React.FC<{ layoutVariant?: 'classic' | 'compact' }> = ({ l
                 }
             });
         }
-        
+
         const finalMonthlyData = monthNames.map(name => dataByMonth[name]);
 
         const nextAccountNumber = computeNextAccountNumber(salesData);
@@ -170,8 +186,20 @@ const SalesAnalytics: React.FC<{ layoutVariant?: 'classic' | 'compact' }> = ({ l
     const monthlyChartHeight = layoutVariant === 'compact' ? 360 : 420;
     const useCompactStatCards = layoutVariant === 'compact';
 
+    // Get current date in Central Standard Time (CST/CDT)
+    const currentDateCST = useMemo(() => {
+        const now = new Date();
+        // Use America/Chicago timezone which automatically handles CST/CDT transitions
+        return now.toLocaleDateString('en-US', {
+            month: 'long',
+            day: 'numeric',
+            year: 'numeric',
+            timeZone: 'America/Chicago',
+        });
+    }, []); // Empty dependency array - date updates on page refresh/component mount
+
     const renderStatCards = () => (
-        <div className="border-t border-border-low pt-6">
+        <div className="pt-6">
             <div
                 className={
                     useCompactStatCards
@@ -239,23 +267,100 @@ const SalesAnalytics: React.FC<{ layoutVariant?: 'classic' | 'compact' }> = ({ l
 
     return (
         <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-[minmax(0,200px)_1fr] gap-6 items-stretch">
-                <div className="h-full">
-                    <StatCard
-                        title="Next Account Number"
-                        value={nextAccountNumberDisplay}
-                        icon={HashtagIcon}
-                        variant="accent"
-                        className="h-full flex flex-col justify-center"
-                        titleClassName={layoutVariant === 'compact' ? 'text-sm tracking-tight uppercase' : undefined}
-                        valueClassName={layoutVariant === 'compact' ? 'text-4xl sm:text-5xl' : undefined}
-                    />
+            {/* First Container: Header, Next Account Number, Next Stock Numbers, and Divider */}
+            <div className="space-y-6">
+                <div className="flex justify-between items-center print:mb-6">
+                    <h1 className="text-3xl font-bold text-primary hidden print:block font-orbitron tracking-tight-lg">Sales Analytics</h1>
+                    <div className="flex items-center gap-2 ml-auto">
+                        <ShortcutButton />
+                    </div>
                 </div>
-                <NextStockCard stockNumbers={nextStockNumbers} year={activeSaleYear} />
+
+                <div className="grid grid-cols-1 md:grid-cols-[minmax(0,200px)_1fr] gap-6 items-stretch pdf-hide">
+                    <div className="h-full">
+                        <StatCard
+                            title="Next Account Number"
+                            value={nextAccountNumberDisplay}
+                            icon={HashtagIcon}
+                            variant="accent"
+                            className="h-full flex flex-col justify-center"
+                            titleClassName={layoutVariant === 'compact' ? 'text-sm tracking-tight uppercase' : undefined}
+                            valueClassName={layoutVariant === 'compact' ? 'text-4xl sm:text-5xl' : undefined}
+                        />
+                    </div>
+                    <NextStockCard stockNumbers={nextStockNumbers} year={activeSaleYear} />
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-border-low"></div>
             </div>
 
-            {renderStatCards()}
-            {layoutVariant === 'compact' ? compactLayout : classicLayout}
+            {/* Second Container: Stat Cards and Charts */}
+            <div className="space-y-6 p-12" style={{ backgroundColor: 'var(--background)', isolation: 'isolate', position: 'relative' }}>
+                {/* Header: Title on left, Date on right */}
+                <div className="glass-card-accent flex justify-between items-center print:mb-6 mb-6 p-4">
+                    <h1 
+                        className="font-bold font-orbitron tracking-tight-lg text-white"
+                        style={{
+                            fontSize: '38px',
+                        }}
+                    >
+                        SMYRNA SALES REPORT
+                    </h1>
+                    <p className="text-lg text-secondary font-semibold">{currentDateCST}</p>
+                </div>
+                {renderStatCards()}
+                {/* Export Container - Charts Only */}
+                <div id="sales-analytics-export-container" className="space-y-6">
+                    {layoutVariant === 'compact' ? (
+                        <>
+                            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-stretch">
+                                <div className="col-span-1 h-full">
+                                    <YtdSalesComparison salesData={salesData} compact />
+                                </div>
+                                <div className="pdf-hide col-span-1 xl:col-span-2 h-full">
+                                    <YtdCumulativeSalesChart salesData={salesData} compactHeight />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 items-stretch">
+                                <div className="col-span-1 h-full">
+                                    <YearOverYearComparison salesData={salesData} compact />
+                                </div>
+                                <div className="pdf-hide col-span-1 xl:col-span-2 h-full">
+                                    <MonthlySalesComparisonChart
+                                        data={monthlyChartData}
+                                        years={years}
+                                        currentYear={currentYear}
+                                        height={monthlyChartHeight}
+                                    />
+                                </div>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 items-stretch">
+                                <div className="xl:col-span-2 h-full">
+                                    <YtdSalesComparison salesData={salesData} />
+                                </div>
+                                <div className="pdf-hide xl:col-span-3 h-full">
+                                    <YtdCumulativeSalesChart salesData={salesData} />
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+                                <YearOverYearComparison salesData={salesData} />
+                                <div className="pdf-hide">
+                                    <MonthlySalesComparisonChart
+                                        data={monthlyChartData}
+                                        years={years}
+                                        currentYear={currentYear}
+                                        height={monthlyChartHeight}
+                                    />
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
         </div>
     );
 };

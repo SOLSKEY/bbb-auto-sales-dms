@@ -273,9 +273,10 @@ const TeamChat: React.FC = () => {
     };
 
     return (
-        <div className="flex flex-col h-full glass-card overflow-hidden">
+        <div className="flex flex-col h-full apple-glass overflow-hidden">
+            <div className="apple-glass-texture" />
             <div className="border-b border-border-low p-4 flex flex-col gap-3 md:flex-row md:items-center">
-                <div className="flex items-center gap-3 flex-grow min-w-[250px] bg-glass-panel border border-border-low rounded-xl px-3 py-2.5 focus-within:border-lava-core transition-colors">
+                <div className="flex items-center gap-3 flex-grow min-w-[250px] apple-glass-panel border border-border-low rounded-xl px-3 py-2.5 focus-within:border-lava-core transition-colors">
                     <MagnifyingGlassIcon className="h-5 w-5 text-muted" />
                     <input
                         type="text"
@@ -285,7 +286,7 @@ const TeamChat: React.FC = () => {
                         className="flex-1 bg-transparent text-sm text-primary focus:outline-none placeholder:text-secondary"
                     />
                 </div>
-                <div className="flex items-center gap-3 w-full md:w-auto bg-glass-panel border border-border-low rounded-xl px-3 py-2.5 focus-within:border-lava-core transition-colors">
+                <div className="flex items-center gap-3 w-full md:w-auto apple-glass-panel border border-border-low rounded-xl px-3 py-2.5 focus-within:border-lava-core transition-colors">
                     <CalendarIcon className="h-5 w-5 text-muted" />
                     <input
                         type="date"
@@ -320,21 +321,19 @@ const TeamChat: React.FC = () => {
                         >
                             {!ownMessage && (
                                 <div
-                                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
-                                        msg.isAI
+                                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${msg.isAI
                                             ? 'bg-gradient-to-br from-lava-warm to-lava-cool'
-                                            : 'bg-glass-panel border border-border-low'
-                                    }`}
+                                            : 'apple-glass-panel border border-border-low'
+                                        }`}
                                 >
                                     {msg.isAI ? 'AI' : msg.sender.charAt(0)}
                                 </div>
                             )}
                             <div
-                                className={`p-4 rounded-lg max-w-lg ${
-                                    ownMessage
+                                className={`p-4 rounded-lg max-w-lg ${ownMessage
                                         ? 'bg-gradient-to-br from-lava-warm to-lava-core text-white rounded-br-none'
-                                        : 'bg-glass-panel text-secondary rounded-bl-none border border-border-low'
-                                }`}
+                                        : 'apple-glass-panel text-secondary rounded-bl-none border border-border-low'
+                                    }`}
                             >
                                 <div className="flex items-baseline gap-2">
                                     <p className="font-bold text-sm">{msg.sender}</p>
@@ -350,7 +349,7 @@ const TeamChat: React.FC = () => {
                         <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white bg-gradient-to-br from-lava-warm to-lava-cool animate-pulse">
                             AI
                         </div>
-                        <div className="p-4 rounded-lg max-w-lg bg-glass-panel text-secondary rounded-bl-none border border-border-low">
+                        <div className="p-4 rounded-lg max-w-lg apple-glass-panel text-secondary rounded-bl-none border border-border-low">
                             <p className="text-muted italic">AI is thinking...</p>
                         </div>
                     </div>
@@ -366,7 +365,7 @@ const TeamChat: React.FC = () => {
                         onChange={event => setInput(event.target.value)}
                         onKeyPress={handleKeyPress}
                         placeholder="Type message... use @AI to ask a question"
-                        className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-lg p-3 pr-12 focus:outline-none transition-colors"
+                        className="w-full apple-glass-panel border border-border-low focus:border-lava-core text-primary rounded-lg p-3 pr-12 focus:outline-none transition-colors"
                     />
                     <GlassButton size="icon" onClick={handleSend} className="absolute right-3 top-1/2 -translate-y-1/2">
                         <PaperAirplaneIcon className="h-5 w-5" />

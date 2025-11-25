@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { PlusCircleIcon, TrashIcon, PencilSquareIcon } from '@heroicons/react/24/outline';
+import React, { useState, useRef, useEffect } from 'react';
+import { PlusCircleIcon, TrashIcon, PencilSquareIcon, CheckIcon } from '@heroicons/react/24/solid';
 import { supabase } from '../supabaseClient';
 import { toSupabase, quoteSupabaseColumn } from '../supabaseMapping';
 import { GlassButton } from '@/components/ui/glass-button';
@@ -29,13 +29,34 @@ interface DataGridProps {
 const prepareValueForDb = (value: any, columnKey: string) => {
     // List of numeric columns that should be NULL if empty
     const numericColumns = ['year', 'mileage', 'price', 'downPayment', 'salePrice', 'saleDownPayment',
-                           'payments', 'lateFees', 'total', 'boaZelle', 'totalAmount', 'amountPaid',
-                           'overdueAccounts', 'openAccounts', 'overdueRate'];
+        'payments', 'lateFees', 'total', 'boaZelle', 'totalAmount', 'amountPaid',
+        'overdueAccounts', 'openAccounts', 'overdueRate'];
 
     if (numericColumns.includes(columnKey) && (value === '' || value === null || value === undefined)) {
         return null;
     }
     return value;
+};
+
+// Helper to format VIN last 4 with zero-padding
+const formatVinLast4 = (value: any): string => {
+    if (value === null || value === undefined || value === '') return '';
+    const str = String(value);
+    // If it's numeric or can be converted to numeric, pad it
+    if (/^\d+$/.test(str)) {
+        return str.padStart(4, '0').slice(-4);
+    }
+    // If it already has 4+ characters, take last 4 and pad if needed
+    if (str.length >= 4) {
+        return str.slice(-4).padStart(4, '0');
+    }
+    return str.padStart(4, '0');
+};
+
+// Helper to check if a column is a VIN last 4 column
+const isVinLast4Column = (columnKey: string): boolean => {
+    const normalized = columnKey.toLowerCase().replace(/[\s_-]/g, '');
+    return normalized === 'vinlast4' || normalized === 'vinlastfour' || normalized.includes('vinlast4');
 };
 
 const DataGrid: React.FC<DataGridProps> = ({
@@ -54,34 +75,106 @@ const DataGrid: React.FC<DataGridProps> = ({
     fieldMap,
 }) => {
     const [editingCell, setEditingCell] = useState<{ row: number; col: string } | null>(null);
+    const [editingValue, setEditingValue] = useState<string>('');
+    const [isSaving, setIsSaving] = useState(false);
+    const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+    const inputRef = useRef<HTMLInputElement>(null);
+    const saveButtonRef = useRef<HTMLButtonElement>(null);
+    const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-    const handleCellChange = async (e: React.ChangeEvent<HTMLInputElement>, rowIndex: number, columnKey: string) => {
-        const newValue = e.target.value;
-        const newData = [...data];
-        const updatedRow = { ...newData[rowIndex], [columnKey]: newValue };
-        newData[rowIndex] = updatedRow;
-        setData(newData);
-
-        // Sync to Supabase if table info is provided
-        if (tableName && primaryKey && updatedRow[primaryKey]) {
-            try {
-                const valueForDb = prepareValueForDb(newValue, columnKey);
-                const supabaseColumnRaw = fieldMap?.[columnKey] ?? columnKey;
-                const supabasePrimaryKeyRaw = fieldMap?.[primaryKey] ?? primaryKey;
-                const supabaseColumn = quoteSupabaseColumn(supabaseColumnRaw);
-                const supabasePrimaryKey = quoteSupabaseColumn(supabasePrimaryKeyRaw);
-                const { error } = await supabase
-                    .from(tableName)
-                    .update({ [supabaseColumn]: valueForDb })
-                    .eq(supabasePrimaryKey, updatedRow[primaryKey]);
-
-                if (error) {
-                    console.error('Error updating cell:', error);
-                }
-            } catch (error) {
-                console.error('Error syncing cell change:', error);
-            }
+    // Reset save status after showing success/error
+    useEffect(() => {
+        if (saveStatus === 'success' || saveStatus === 'error') {
+            const timer = setTimeout(() => {
+                setSaveStatus('idle');
+            }, 2000);
+            return () => clearTimeout(timer);
         }
+    }, [saveStatus]);
+
+    const handleStartEdit = (rowIndex: number, columnKey: string) => {
+        if (!editable) return;
+        const currentValue = data[rowIndex]?.[columnKey] ?? '';
+        // Use formatted value for VIN last 4 columns to preserve leading zeros
+        const valueToEdit = isVinLast4Column(columnKey) ? formatVinLast4(currentValue) : String(currentValue);
+        setEditingCell({ row: rowIndex, col: columnKey });
+        setEditingValue(valueToEdit);
+        setSaveStatus('idle');
+    };
+
+    const handleSaveCell = async (rowIndex: number, columnKey: string) => {
+        if (!tableName || !primaryKey || !data[rowIndex]?.[primaryKey]) {
+            setEditingCell(null);
+            return;
+        }
+
+        setIsSaving(true);
+        setSaveStatus('saving');
+
+        try {
+            let valueToSave = editingValue;
+            
+            // Apply VIN last 4 formatting if applicable
+            if (isVinLast4Column(columnKey)) {
+                valueToSave = formatVinLast4(editingValue);
+            }
+
+            const valueForDb = prepareValueForDb(valueToSave, columnKey);
+            const supabaseColumnRaw = fieldMap?.[columnKey] ?? columnKey;
+            const supabasePrimaryKeyRaw = fieldMap?.[primaryKey] ?? primaryKey;
+            // Use unquoted column names for update object keys (Supabase handles column names with spaces)
+            const supabaseColumn = supabaseColumnRaw;
+            const supabasePrimaryKey = supabasePrimaryKeyRaw;
+
+            // Update local state
+            const newData = [...data];
+            const updatedRow = { ...newData[rowIndex], [columnKey]: valueToSave };
+            newData[rowIndex] = updatedRow;
+            setData(newData);
+
+            // Sync to Supabase
+            // For update payload, use unquoted column names directly (Supabase client handles spaces)
+            // The issue is that quoteSupabaseColumn is meant for SQL queries, not object keys
+            const updatePayload: Record<string, any> = {};
+            // Strip any quotes that might have been added
+            const unquotedColumn = supabaseColumn.startsWith('"') && supabaseColumn.endsWith('"')
+                ? supabaseColumn.slice(1, -1).replace(/""/g, '"')
+                : supabaseColumn;
+            updatePayload[unquotedColumn] = valueForDb;
+            
+            // For .eq() filter, we need to use the actual column name (Supabase handles it)
+            const unquotedPrimaryKey = supabasePrimaryKey.startsWith('"') && supabasePrimaryKey.endsWith('"')
+                ? supabasePrimaryKey.slice(1, -1).replace(/""/g, '"')
+                : supabasePrimaryKey;
+            const primaryKeyValue = updatedRow[primaryKey];
+
+            const { error } = await supabase
+                .from(tableName)
+                .update(updatePayload)
+                .eq(unquotedPrimaryKey, primaryKeyValue);
+
+            if (error) {
+                console.error('Error updating cell:', error);
+                setSaveStatus('error');
+                // Revert local state on error
+                setData(data);
+            } else {
+                setSaveStatus('success');
+                setEditingCell(null);
+            }
+        } catch (error) {
+            console.error('Error syncing cell change:', error);
+            setSaveStatus('error');
+            setData(data); // Revert on error
+        } finally {
+            setIsSaving(false);
+        }
+    };
+
+    const handleCancelEdit = () => {
+        setEditingCell(null);
+        setEditingValue('');
+        setSaveStatus('idle');
     };
 
     const handleAddRow = async () => {
@@ -124,7 +217,7 @@ const DataGrid: React.FC<DataGridProps> = ({
     };
 
     return (
-        <div className="h-full flex flex-col glass-card overflow-hidden">
+        <div className="h-full flex flex-col glass-card-outline overflow-hidden">
             <div className="overflow-auto flex-grow">
                 <table className="min-w-full text-sm">
                     <thead className="sticky top-0 bg-glass-panel border-b border-border-low z-10 backdrop-blur-glass">
@@ -144,27 +237,89 @@ const DataGrid: React.FC<DataGridProps> = ({
                     <tbody className="divide-y divide-border-low">
                         {data.map((row, rowIndex) => (
                             <tr key={row.id || rowIndex} className="hover:bg-glass-panel transition-colors">
-                                {columns.map((col) => (
-                                    <td key={col.key} className="p-0 whitespace-nowrap">
-                                        {editable && editingCell?.row === rowIndex && editingCell?.col === col.key ? (
-                                            <input
-                                                type="text"
-                                                value={row[col.key]}
-                                                onChange={(e) => handleCellChange(e, rowIndex, col.key)}
-                                                onBlur={() => setEditingCell(null)}
-                                                autoFocus
-                                                className="w-full h-full p-3 bg-glass-panel border-2 border-lava-core text-primary outline-none"
-                                            />
-                                        ) : (
-                                            <div
-                                                className="p-3 h-full text-secondary"
-                                                onClick={() => editable && setEditingCell({ row: rowIndex, col: col.key })}
-                                            >
-                                                {row[col.key]}
-                                            </div>
-                                        )}
-                                    </td>
-                                ))}
+                                {columns.map((col) => {
+                                    const isEditing = editable && editingCell?.row === rowIndex && editingCell?.col === col.key;
+                                    const displayValue = isVinLast4Column(col.key) && !isEditing 
+                                        ? formatVinLast4(row[col.key])
+                                        : (row[col.key] ?? '');
+                                    
+                                    return (
+                                        <td key={col.key} className="p-0 whitespace-nowrap relative">
+                                            {isEditing ? (
+                                                <div className="flex items-center">
+                                                    <input
+                                                        ref={inputRef}
+                                                        type="text"
+                                                        value={editingValue}
+                                                        onChange={(e) => setEditingValue(e.target.value)}
+                                                        onKeyDown={(e) => {
+                                                            if (e.key === 'Enter') {
+                                                                e.preventDefault();
+                                                                handleSaveCell(rowIndex, col.key);
+                                                            } else if (e.key === 'Escape') {
+                                                                e.preventDefault();
+                                                                handleCancelEdit();
+                                                            }
+                                                        }}
+                                                        onBlur={(e) => {
+                                                            // Check if focus is moving to the save button
+                                                            const relatedTarget = e.relatedTarget as HTMLElement;
+                                                            if (relatedTarget && saveButtonRef.current?.contains(relatedTarget)) {
+                                                                return; // Don't save on blur if clicking save button
+                                                            }
+                                                            // Small delay to allow save button click
+                                                            if (saveTimeoutRef.current) {
+                                                                clearTimeout(saveTimeoutRef.current);
+                                                            }
+                                                            saveTimeoutRef.current = setTimeout(() => {
+                                                                if (saveStatus !== 'saving' && !saveButtonRef.current?.matches(':hover')) {
+                                                                    handleSaveCell(rowIndex, col.key);
+                                                                }
+                                                            }, 150);
+                                                        }}
+                                                        autoFocus
+                                                        className="flex-1 p-3 bg-glass-panel border-2 border-lava-core text-primary outline-none"
+                                                        disabled={isSaving}
+                                                    />
+                                                    <button
+                                                        ref={saveButtonRef}
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            e.stopPropagation();
+                                                            if (saveTimeoutRef.current) {
+                                                                clearTimeout(saveTimeoutRef.current);
+                                                            }
+                                                            handleSaveCell(rowIndex, col.key);
+                                                        }}
+                                                        onMouseDown={(e) => {
+                                                            e.preventDefault(); // Prevent input blur
+                                                        }}
+                                                        disabled={isSaving}
+                                                        className={`p-2 mx-1 rounded transition-colors ${
+                                                            saveStatus === 'success'
+                                                                ? 'bg-green-500 text-white'
+                                                                : saveStatus === 'error'
+                                                                ? 'bg-red-500 text-white'
+                                                                : isSaving
+                                                                ? 'bg-gray-500 text-white cursor-not-allowed'
+                                                                : 'bg-green-500 hover:bg-green-600 text-white'
+                                                        }`}
+                                                        title="Save changes"
+                                                    >
+                                                        <CheckIcon className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <div
+                                                    className="p-3 h-full text-secondary cursor-pointer hover:bg-glass-panel/50"
+                                                    onDoubleClick={() => handleStartEdit(rowIndex, col.key)}
+                                                >
+                                                    {displayValue}
+                                                </div>
+                                            )}
+                                        </td>
+                                    );
+                                })}
                                 {(onDeleteRow || onEditRow) && (
                                     <td className="p-3">
                                         <div className="flex items-center gap-3">

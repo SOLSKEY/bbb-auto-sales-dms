@@ -15,75 +15,47 @@ const formatDateLabel = (date: Date) =>
     });
 
 const DashboardPlannerCard: React.FC<DashboardPlannerCardProps> = ({ events }) => {
-    const { todayEvents, upcomingEvents, todayLabel } = useMemo(() => {
+    const { upcomingEvents } = useMemo(() => {
         const today = toUtcMidnight(new Date());
-        const sorted = [...events]
-            .map(event => ({ ...event, date: new Date(event.date) }))
-            .sort((a, b) => a.date.getTime() - b.date.getTime());
-
-        const normalizedTodayEvents = sorted.filter(event => toUtcMidnight(event.date).getTime() === today.getTime());
-        const normalizedUpcoming = sorted
-            .filter(event => toUtcMidnight(event.date).getTime() > today.getTime())
-            .slice(0, 4);
+        const processedEvents = events
+            .map(event => ({ ...event, date: new Date(event.date) })) // Ensure date is a Date object
+            .filter(event => toUtcMidnight(event.date).getTime() >= today.getTime()) // Filter for today and upcoming
+            .sort((a, b) => a.date.getTime() - b.date.getTime())
+            .map(event => ({
+                ...event,
+                time: event.date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' }) // Add time property
+            }));
 
         return {
-            todayEvents: normalizedTodayEvents,
-            upcomingEvents: normalizedUpcoming,
-            todayLabel: formatDateLabel(today),
+            upcomingEvents: processedEvents,
         };
     }, [events]);
 
     return (
-        <div className="glass-card p-4 h-full flex flex-col">
-            <div className="flex items-center gap-3 mb-4">
-                <CalendarDaysIcon className="h-6 w-6 text-lava-core" />
-                <div>
-                    <p className="text-xs uppercase tracking-wide text-muted">Today's Appointments</p>
-                    <p className="text-lg font-semibold text-primary">{todayLabel}</p>
+        <div className="glass-card-outline p-4 h-full flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-medium text-muted-contrast uppercase tracking-wider">Upcoming Events</h3>
+                <div className="p-2 rounded-lg bg-white/5">
+                    <CalendarDaysIcon className="h-5 w-5 icon-neon" />
                 </div>
             </div>
 
-            <div className="space-y-3 flex-1">
-                {todayEvents.length > 0 ? (
-                    todayEvents.map(event => (
-                        <div key={`today-${event.id}`} className="rounded-lg border border-border-low p-3 bg-glass-panel/60">
-                            <p className="text-sm font-semibold text-primary">{event.title}</p>
-                            <p className="text-xs text-secondary">
-                                {event.customer} • {event.salesperson}
-                            </p>
-                            <p className="text-xs text-muted mt-1">
-                                {event.date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}
-                            </p>
+            <div className="flex-1 overflow-y-auto pr-2 space-y-3 custom-scrollbar">
+                {upcomingEvents.length === 0 ? (
+                    <p className="text-sm text-muted-contrast text-center py-4">No upcoming events</p>
+                ) : (
+                    upcomingEvents.map((event) => (
+                        <div key={event.id} className="flex gap-3 p-3 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 transition-colors">
+                            <div className="flex-shrink-0 w-12 text-center bg-black/20 rounded p-1 flex flex-col justify-center">
+                                <span className="text-xs text-muted-contrast uppercase">{event.date.toLocaleString('default', { month: 'short' })}</span>
+                                <span className="text-lg font-bold text-primary-contrast">{event.date.getDate()}</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-primary-contrast truncate">{event.title}</p>
+                                <p className="text-xs text-muted-contrast mt-0.5">{event.time}</p>
+                            </div>
                         </div>
                     ))
-                ) : (
-                    <p className="text-sm text-secondary border border-dashed border-border-low rounded-lg p-3">
-                        No appointments scheduled for today.
-                    </p>
-                )}
-            </div>
-
-            <div className="border-t border-border-low mt-4 pt-4">
-                <p className="text-xs uppercase tracking-wide text-muted mb-3">Upcoming</p>
-                {upcomingEvents.length > 0 ? (
-                    <div className="space-y-2">
-                        {upcomingEvents.map(event => (
-                            <div key={`upcoming-${event.id}`} className="flex items-center justify-between gap-3">
-                                <div>
-                                    <p className="text-sm font-semibold text-primary">{event.title}</p>
-                                    <p className="text-xs text-secondary">
-                                        {event.customer} • {event.salesperson}
-                                    </p>
-                                </div>
-                                <div className="text-xs text-muted text-right">
-                                    <p>{formatDateLabel(event.date)}</p>
-                                    <p>{event.date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</p>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                ) : (
-                    <p className="text-sm text-secondary">No upcoming appointments on the calendar.</p>
                 )}
             </div>
         </div>

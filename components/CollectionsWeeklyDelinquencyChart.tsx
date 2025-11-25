@@ -11,10 +11,21 @@ import {
 } from 'recharts';
 import { getWeekStartUtc, addUtcDays, formatDateKey } from '../utils/date';
 import { GlassButton } from '@/components/ui/glass-button';
+import { ChevronDownIcon } from '@heroicons/react/24/solid';
 
 const MS_IN_DAY = 24 * 60 * 60 * 1000;
 
-const COLORS = ['#f87171', '#ef4444', '#dc2626', '#b91c1c', '#991b1b', '#7f1d1d'];
+// Red gradient palette - different shades of red for each year, all maintaining red theme
+const redGradients = [
+    { from: '#ff6b6b', to: '#ff5252', base: '#ff5252' }, // Bright Red
+    { from: '#ff5252', to: '#f44336', base: '#f44336' }, // Red
+    { from: '#f44336', to: '#e53935', base: '#e53935' }, // Darker Red
+    { from: '#e53935', to: '#d32f2f', base: '#d32f2f' }, // Deep Red
+    { from: '#d32f2f', to: '#c62828', base: '#c62828' }, // Dark Red
+    { from: '#c62828', to: '#b71c1c', base: '#b71c1c' }, // Very Dark Red
+    { from: '#ff8a80', to: '#ff5252', base: '#ff5252' }, // Light Red
+    { from: '#ff5252', to: '#d32f2f', base: '#d32f2f' }, // Medium Red
+];
 
 const getYearFirstWeekStart = (year: number) => getWeekStartUtc(new Date(year, 0, 1));
 
@@ -208,13 +219,18 @@ const CollectionsWeeklyDelinquencyChart: React.FC<CollectionsWeeklyDelinquencyCh
         setVisibleYears(defaultVisibleYears);
     }, [defaultVisibleYears]);
 
-    const colorMap = useMemo(() => {
-        const map: Record<string, string> = {};
-        barKeys.forEach((key, idx) => {
-            map[key] = COLORS[idx % COLORS.length];
+    // Generate gradient definitions for each year (using sorted years to maintain color consistency)
+    const gradientDefs = useMemo(() => {
+        const sortedYears = [...years].sort((a, b) => a - b);
+        return sortedYears.map((year, index) => {
+            const gradient = redGradients[index % redGradients.length];
+            return {
+                year,
+                id: `gradient-${year}`,
+                ...gradient,
+            };
         });
-        return map;
-    }, [barKeys]);
+    }, [years]);
 
     const activeKeys = barKeys.filter(key => visibleYears[key]);
     const currentYear = activeKeys.length ? Math.max(...activeKeys.map(Number)) : Math.max(...barKeys.map(Number));
@@ -233,20 +249,23 @@ const CollectionsWeeklyDelinquencyChart: React.FC<CollectionsWeeklyDelinquencyCh
     };
 
     return (
-        <div className="glass-card p-6">
+        <div className="glass-card-outline p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                 <div>
                     <h3 className="text-xl font-semibold text-primary tracking-tight-md">Weekly Delinquency Percentage</h3>
                     <p className="text-sm text-muted">Average overdue vs open accounts (Monday – Sunday).</p>
                 </div>
                 <div className="relative">
-                    <GlassButton
-                        size="sm"
+                    <button
+                        type="button"
                         onClick={() => setFilterOpen(prev => !prev)}
-                        className="flex items-center gap-2 bg-glass-panel hover:bg-glass-panel/80 text-primary text-sm font-semibold py-2 px-4 rounded-md transition-colors border border-border-low"
+                        className="glass-select text-xs cursor-pointer pr-8"
                     >
                         Filter Years
-                    </GlassButton>
+                    </button>
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <ChevronDownIcon className={`h-4 w-4 text-muted transition-transform ${filterOpen ? 'rotate-180' : ''}`} />
+                    </div>
                     {filterOpen && (
                         <div className="absolute right-0 mt-2 w-44 bg-glass-panel border border-border-high rounded-lg shadow-xl z-20 p-2 backdrop-blur-glass">
                             {barKeys.map(year => (
@@ -270,7 +289,24 @@ const CollectionsWeeklyDelinquencyChart: React.FC<CollectionsWeeklyDelinquencyCh
 
             <ResponsiveContainer width="100%" height={360}>
                 <BarChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#2c2f33" />
+                    <defs>
+                        {gradientDefs.map(gradient => (
+                            <linearGradient
+                                key={gradient.id}
+                                id={gradient.id}
+                                x1="0"
+                                y1="0"
+                                x2="0"
+                                y2="1"
+                            >
+                                <stop offset="0%" stopColor={gradient.from} stopOpacity={0.7} />
+                                <stop offset="30%" stopColor={gradient.to} stopOpacity={0.6} />
+                                <stop offset="70%" stopColor={gradient.to} stopOpacity={0.5} />
+                                <stop offset="100%" stopColor={gradient.to} stopOpacity={0.4} />
+                            </linearGradient>
+                        ))}
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
                     <XAxis
                         dataKey="week"
                         stroke="#9ca3af"
@@ -289,22 +325,31 @@ const CollectionsWeeklyDelinquencyChart: React.FC<CollectionsWeeklyDelinquencyCh
                         allowDecimals
                     />
                     <Tooltip
-                        contentStyle={{ backgroundColor: '#1f2933', border: '1px solid #374151' }}
-                        labelStyle={{ color: '#ffffff', fontWeight: 'bold' }}
+                        contentStyle={{
+                            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                            border: '1px solid rgba(6, 182, 212, 0.3)',
+                            borderRadius: '8px',
+                            backdropFilter: 'blur(8px)',
+                        }}
+                        labelStyle={{ color: '#fff', fontWeight: 'bold' }}
+                        cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
                         formatter={(value, name) => [formatPercent(Number(value)), name]}
                     />
                     <Legend verticalAlign="bottom" height={36} wrapperStyle={{ color: '#d1d5db' }} />
                     {barKeys.map(year => {
                         if (!visibleYears[year]) return null;
-                        const fill = colorMap[year];
+                        const gradient = gradientDefs.find(g => g.year === Number(year));
+                        if (!gradient) return null;
                         return (
                             <Bar
                                 key={year}
                                 dataKey={year}
                                 name={year === String(currentYear) ? `${year} (Current)` : year}
-                                fill={fill}
+                                fill={`url(#${gradient.id})`}
                                 barSize={18}
                                 radius={[4, 4, 0, 0]}
+                                stroke={gradient.from}
+                                strokeWidth={1}
                             />
                         );
                     })}

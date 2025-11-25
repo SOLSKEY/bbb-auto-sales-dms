@@ -14,7 +14,6 @@ import {
     UserGroupIcon,
 } from '@heroicons/react/24/outline';
 import type { AppSectionKey, UserAccessPolicy } from '@/types';
-import { GlassButton } from '@/components/ui/glass-button';
 
 type NavItem = {
     name: string;
@@ -80,9 +79,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isAdmin = false, permissions, canView
     }, [isAdmin, permissions, canViewPage]);
 
     return (
-        <nav className="w-64 bg-glass-panel backdrop-blur-glass flex flex-col p-4 border-r border-border-low">
+        <nav className="floating-sidebar-outline w-64 flex flex-col p-4 h-[calc(100vh-32px)]">
             <div className="flex items-center justify-center p-4 mb-8">
-                 <div className="flex flex-col items-center">
+                <div className="flex flex-col items-center">
                     <BbbLogo />
                 </div>
             </div>
@@ -92,38 +91,30 @@ const Sidebar: React.FC<SidebarProps> = ({ isAdmin = false, permissions, canView
                         <button
                             type="button"
                             onClick={() => navigate(item.path)}
-                            className={`flex w-full items-center p-3 text-left rounded-lg transition-smooth group relative ${
-                                normalizedPath === item.path || (item.path !== '/' && normalizedPath.startsWith(`${item.path}/`))
-                                    ? 'bg-glass-panel text-primary shadow-lava border border-border-high'
-                                    : 'text-secondary hover:bg-glass-panel hover:text-primary hover:border hover:border-border-low'
-                            }`}
+                            className={`flex w-full items-center p-3 text-left rounded-r-xl transition-smooth group relative ${normalizedPath === item.path || (item.path !== '/' && normalizedPath.startsWith(`${item.path}/`))
+                                ? 'nav-item-active'
+                                : 'text-secondary-contrast hover:bg-white/5 hover:text-primary-contrast'
+                                }`}
                         >
-                            <item.icon className={`h-6 w-6 mr-3 transition-smooth ${
-                                normalizedPath === item.path || (item.path !== '/' && normalizedPath.startsWith(`${item.path}/`))
-                                    ? 'text-lava-core'
-                                    : 'text-muted group-hover:text-secondary'
-                            }`} />
+                            <item.icon className={`h-6 w-6 mr-3 transition-smooth ${normalizedPath === item.path || (item.path !== '/' && normalizedPath.startsWith(`${item.path}/`))
+                                ? 'icon-neon'
+                                : 'text-slate-500 group-hover:icon-neon'
+                                }`} />
                             <span className="font-medium">{item.name}</span>
-                             {(
-                                normalizedPath === item.path ||
-                                (item.path !== '/' && normalizedPath.startsWith(`${item.path}/`))
-                            ) && (
-                                <div className="absolute left-0 w-1.5 h-8 bg-gradient-to-b from-lava-warm via-lava-core to-lava-cool rounded-r-full" />
-                            )}
                         </button>
                     </li>
                 ))}
             </ul>
             <div className="mt-auto">
                 {(isAdmin || (canViewPage && canViewPage('Settings')) || (permissions && permissions['Settings']?.canView)) && (
-                    <GlassButton
+                    <button
                         type="button"
-                        size="sm"
                         onClick={() => navigate('/settings')}
+                        className="flex w-full items-center p-3 text-left rounded-xl transition-smooth text-secondary-contrast hover:bg-white/5 hover:text-primary-contrast"
                     >
-                        <Cog6ToothIcon className="h-6 w-6 mr-3" />
+                        <Cog6ToothIcon className="h-6 w-6 mr-3 text-slate-500 hover:icon-neon" />
                         <span className="font-medium">Settings</span>
-                    </GlassButton>
+                    </button>
                 )}
             </div>
         </nav>

@@ -95,40 +95,47 @@ const DashboardStatCard: React.FC<{
     value: string;
     icon?: React.ElementType;
     subtitle?: string;
-}> = ({ title, value, icon: Icon, subtitle }) => (
-    <div className="glass-card p-4 flex flex-col gap-2 h-full">
+    trend?: 'up' | 'down' | 'neutral';
+}> = ({ title, value, icon: Icon, subtitle, trend }) => (
+    <div className="glass-card-outline p-4 flex flex-col gap-2 h-full">
         <div className="flex items-center justify-between gap-3">
-            <p className="text-xs uppercase tracking-wide text-muted">{title}</p>
-            {Icon ? <Icon className="h-5 w-5 text-lava-core" /> : null}
+            <p className="text-xs uppercase tracking-wide text-muted-contrast">{title}</p>
+            {Icon ? <Icon className="h-5 w-5 icon-neon" /> : null}
         </div>
-        <p className="text-3xl font-bold text-primary font-orbitron tracking-tight-lg">{value}</p>
-        {subtitle ? <p className="text-xs text-secondary">{subtitle}</p> : null}
+        <p className="text-3xl font-bold text-primary-contrast tracking-tight">{value}</p>
+        {subtitle ? <p className="text-xs text-secondary-contrast">{subtitle}</p> : null}
     </div>
 );
 
 const InventorySummaryCard: React.FC<{ total: number; bhph: number; cash: number }> = ({ total, bhph, cash }) => (
-    <div className="glass-card border border-border-low/80 px-4 py-3 shadow-lg h-full flex flex-col gap-4">
+    <div className="glass-card-outline p-4 flex flex-col gap-4 h-full">
         <div>
-            <p className="text-[11px] uppercase tracking-[0.3em] text-muted">Inventory Count</p>
-            <p className="text-3xl font-orbitron font-bold mt-1 bg-gradient-to-r from-lava-core via-lava-warm to-lava-core/80 text-transparent bg-clip-text">
+            <p className="text-[11px] uppercase tracking-[0.3em] text-muted-contrast">Inventory Count</p>
+            <p className="text-3xl font-bold mt-1 text-primary-contrast text-glow">
                 {total.toLocaleString()}
             </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
-            <div className="flex-1 bg-glass-panel/60 border border-border-low/60 rounded-lg px-3 py-2">
-                <p className="text-[11px] uppercase tracking-wide text-muted">BHPH</p>
-                <p className="text-base font-semibold text-primary mt-1">{bhph.toLocaleString()}</p>
+            <div
+                className="glass-card-outline-colored flex-1 p-2 flex flex-col justify-center"
+                style={{ '--outline-color': '#06b6d4' } as React.CSSProperties}
+            >
+                <p className="text-[11px] uppercase tracking-wide text-muted-contrast">BHPH</p>
+                <p className="text-base font-semibold text-primary-contrast mt-1">{bhph.toLocaleString()}</p>
             </div>
-            <div className="flex-1 bg-glass-panel/60 border border-border-low/60 rounded-lg px-3 py-2">
-                <p className="text-[11px] uppercase tracking-wide text-muted">Cash</p>
-                <p className="text-base font-semibold text-primary mt-1">{cash.toLocaleString()}</p>
+            <div
+                className="glass-card-outline-colored flex-1 p-2 flex flex-col justify-center"
+                style={{ '--outline-color': '#10b981' } as React.CSSProperties}
+            >
+                <p className="text-[11px] uppercase tracking-wide text-muted-contrast">Cash</p>
+                <p className="text-base font-semibold text-primary-contrast mt-1">{cash.toLocaleString()}</p>
             </div>
         </div>
     </div>
 );
 
 const CollectionsPlaceholder: React.FC<{ message: string }> = ({ message }) => (
-    <div className="glass-card p-6 h-full flex items-center justify-center text-secondary text-sm border border-border-low">
+    <div className="glass-card-outline p-6 h-full flex items-center justify-center text-secondary-contrast text-sm">
         {message}
     </div>
 );
@@ -319,8 +326,8 @@ const Dashboard: React.FC = () => {
                         collectionsLoading
                             ? 'Loading…'
                             : collectionsSnapshot.openAccounts !== null
-                            ? collectionsSnapshot.openAccounts.toLocaleString()
-                            : '—'
+                                ? collectionsSnapshot.openAccounts.toLocaleString()
+                                : '—'
                     }
                     icon={ChartBarIcon}
                     subtitle={collectionsLoading ? undefined : openAccountsSubtitle}

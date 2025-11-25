@@ -23,12 +23,14 @@ const formatPercent = (value: number) =>
     `${value.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 
 const CollectionsWeeklyPaymentMix: React.FC<CollectionsWeeklyPaymentMixProps> = ({ data, total, compact = false }) => {
+    // Cyan blue gradient for Cash, Hot pink gradient for BOA
     const gradients = data.map((entry, index) => {
         const isCash = entry.label.toLowerCase() === 'cash';
         return {
             id: `payment-mix-${index}`,
-            from: isCash ? '#4ade80' : '#fca5a5',
-            to: isCash ? '#15803d' : '#b91c1c',
+            from: isCash ? '#22d3ee' : '#ec4899', // Light cyan or hot pink
+            to: isCash ? '#06b6d4' : '#db2777',   // Cyan or darker pink
+            base: isCash ? '#06b6d4' : '#ec4899', // Base color for legend
         };
     });
 
@@ -44,7 +46,7 @@ const CollectionsWeeklyPaymentMix: React.FC<CollectionsWeeklyPaymentMixProps> = 
     }
 
     return (
-        <div className={`glass-card ${compact ? 'p-4' : 'p-6'} w-full h-full flex flex-col`}>
+        <div className={`glass-card-outline ${compact ? 'p-4' : 'p-6'} w-full h-full flex flex-col`}>
             <h3 className={`${compact ? 'text-base' : 'text-lg'} font-semibold text-primary mb-2 tracking-tight-md`}>
                 Week-to-Date Payment Mix
             </h3>
@@ -57,8 +59,9 @@ const CollectionsWeeklyPaymentMix: React.FC<CollectionsWeeklyPaymentMixProps> = 
                         <defs>
                             {gradients.map(gradient => (
                                 <linearGradient key={gradient.id} id={gradient.id} x1="0%" y1="0%" x2="0%" y2="100%">
-                                    <stop offset="5%" stopColor={gradient.from} />
-                                    <stop offset="95%" stopColor={gradient.to} />
+                                    <stop offset="0%" stopColor={gradient.from} stopOpacity={0.8} />
+                                    <stop offset="50%" stopColor={gradient.to} stopOpacity={0.7} />
+                                    <stop offset="100%" stopColor={gradient.to} stopOpacity={0.6} />
                                 </linearGradient>
                             ))}
                         </defs>
@@ -69,15 +72,31 @@ const CollectionsWeeklyPaymentMix: React.FC<CollectionsWeeklyPaymentMixProps> = 
                             innerRadius={0}
                             outerRadius={88}
                             paddingAngle={2}
-                            stroke="#0f172a"
-                            strokeWidth={2}
+                            stroke="rgba(255, 255, 255, 0.1)"
+                            strokeWidth={1}
                             isAnimationActive
                         >
-                            {data.map((entry, index) => (
-                                <Cell key={entry.label} fill={`url(#${gradients[index].id})`} />
-                            ))}
+                            {data.map((entry, index) => {
+                                const gradient = gradients[index];
+                                return (
+                                    <Cell 
+                                        key={entry.label} 
+                                        fill={`url(#${gradient.id})`}
+                                        stroke={gradient.from}
+                                        strokeWidth={1.5}
+                                    />
+                                );
+                            })}
                         </Pie>
                         <Tooltip
+                            contentStyle={{
+                                backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                                border: '1px solid rgba(6, 182, 212, 0.3)',
+                                borderRadius: '8px',
+                                backdropFilter: 'blur(8px)',
+                            }}
+                            labelStyle={{ color: '#fff', fontWeight: 'bold' }}
+                            cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
                             formatter={(value: number, name: string) => [
                                 `$${Number(value).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`,
                                 name,
@@ -86,10 +105,21 @@ const CollectionsWeeklyPaymentMix: React.FC<CollectionsWeeklyPaymentMixProps> = 
                         <Legend
                             verticalAlign="bottom"
                             height={60}
-                            formatter={(value, entry, index) => {
+                            wrapperStyle={{ color: '#d1d5db' }}
+                            iconType="circle"
+                            formatter={(value, entry: any, index) => {
                                 const record = data[index];
                                 return `${value} • ${formatPercent(record.percentage)}`;
                             }}
+                            payload={data.map((entry, index) => {
+                                const gradient = gradients[index];
+                                return {
+                                    value: entry.label,
+                                    type: 'circle',
+                                    id: entry.label,
+                                    color: gradient.base,
+                                };
+                            })}
                         />
                     </PieChart>
                 </ResponsiveContainer>

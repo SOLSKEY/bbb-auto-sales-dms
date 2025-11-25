@@ -22,6 +22,8 @@ import AdminCreateUserForm from './components/AdminCreateUserForm';
 import AdminUsers from './pages/AdminUsers';
 import AdminUserPermissions from './pages/AdminUserPermissions';
 import AccountSettings from './pages/AccountSettings';
+import PrintDailyClosing from './pages/PrintDailyClosing';
+import { usePrintView } from './hooks/usePrintView';
 
 const APP_PAGES: AppSectionKey[] = [
     'Dashboard',
@@ -98,6 +100,14 @@ const App: React.FC = () => {
     const [permissionsLoading, setPermissionsLoading] = useState(true);
     const location = useLocation();
     const navigate = useNavigate();
+    const { isPrintView } = usePrintView();
+
+    // Bypass auth and layout for print route
+    if (location.pathname === '/print/daily-closing') {
+        return <PrintDailyClosing />;
+    }
+
+
 
     const normalizeVehicle = (vehicle: Vehicle): Vehicle => {
         const numericFields: Array<keyof Vehicle> = ['year', 'mileage', 'price', 'downPayment'];
@@ -120,6 +130,46 @@ const App: React.FC = () => {
         let mounted = true;
 
         const initSession = async () => {
+            // Check for injected data from Puppeteer (Export Mode)
+            const injectedSalesData = (window as any).SALES_EXPORT_DATA;
+            const isExportMode = (window as any).IS_EXPORT_MODE;
+
+            if (isExportMode || injectedSalesData) {
+                console.log('Export mode detected, hydrating from injected data...');
+
+                // Set dummy session to bypass auth
+                setSession({
+                    access_token: 'dummy',
+                    refresh_token: 'dummy',
+                    expires_in: 3600,
+                    token_type: 'bearer',
+                    user: {
+                        id: 'export-user',
+                        aud: 'authenticated',
+                        role: 'authenticated',
+                        email: 'export@example.com',
+                        email_confirmed_at: new Date().toISOString(),
+                        phone: '',
+                        confirmed_at: new Date().toISOString(),
+                        last_sign_in_at: new Date().toISOString(),
+                        app_metadata: { provider: 'email', providers: ['email'] },
+                        user_metadata: { role: 'admin' }, // Give admin role to ensure access
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                    }
+                } as Session);
+
+                // Hydrate data
+                if (injectedSalesData) {
+                    // Use data as is, since Sale interface uses strings for dates
+                    setSales(injectedSalesData);
+                }
+
+                setAuthChecking(false);
+                setIsLoading(false);
+                return;
+            }
+
             const {
                 data: { session },
             } = await supabase.auth.getSession();
@@ -146,11 +196,11 @@ const App: React.FC = () => {
         if (session?.user) {
             // Use user_metadata.role (set by admin) or default to 'user'
             const derivedRole = (session.user.user_metadata?.role as Role | undefined) ?? 'user';
-            setUser(prev => ({ 
-                ...prev, 
+            setUser(prev => ({
+                ...prev,
                 id: session.user.id,
-                name: session.user.email ?? 'Dealer User', 
-                role: derivedRole 
+                name: session.user.email ?? 'Dealer User',
+                role: derivedRole
             }));
         } else {
             setUser({ id: '', name: '', role: 'user' });
@@ -180,6 +230,11 @@ const App: React.FC = () => {
 
     // Load initial data from Supabase
     useEffect(() => {
+        // Skip loading data if in export mode (already hydrated)
+        if ((window as any).IS_EXPORT_MODE) {
+            return;
+        }
+
         if (!session) {
             setInventory([]);
             setSales([]);
@@ -412,25 +467,25 @@ const App: React.FC = () => {
         if (authChecking || permissionsLoading || !session) {
             return;
         }
-        
+
         // Don't redirect admin routes - they're handled separately
         if (normalizedPath.startsWith('/admin')) return;
-        
+
         // Don't redirect from login page
         if (normalizedPath === '/login') return;
-        
+
         const permissionKey = routeToPermissionKey[normalizedPath];
         if (permissionKey) {
             // Check if user has access (only check if permissions are loaded)
             const hasAccess = canViewPage(permissionKey);
-            
+
             if (!hasAccess) {
                 console.log(`Access denied for ${permissionKey} at ${normalizedPath} - redirecting to dashboard`);
-                console.log('Current permissions state:', { 
-                    permissions, 
-                    permissionKey, 
+                console.log('Current permissions state:', {
+                    permissions,
+                    permissionKey,
                     hasPermission: permissions[permissionKey],
-                    isAdmin 
+                    isAdmin
                 });
                 // Only redirect if trying to access a restricted page
                 // Don't redirect if already on dashboard (to avoid loops)
@@ -442,12 +497,12 @@ const App: React.FC = () => {
     }, [normalizedPath, canViewPage, authChecking, permissionsLoading, session, navigate, isAdmin, permissions]);
 
     const NotAuthorized = (
-        <div className="rounded-2xl border border-border-low bg-glass-panel/70 p-8 text-center text-secondary">
-            <h2 className="text-xl font-bold text-primary mb-2">Access Denied</h2>
+        <div className="rounded-2xl border border-slate-700 bg-slate-800/70 p-8 text-center text-slate-400">
+            <h2 className="text-xl font-bold text-slate-100 mb-2">Access Denied</h2>
             <p>You do not have permission to view this page.</p>
             <button
                 onClick={() => navigate('/dashboard')}
-                className="mt-4 rounded-lg bg-lava-core px-4 py-2 text-sm font-semibold text-white transition hover:bg-lava-warm"
+                className="mt-4 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
             >
                 Go to Dashboard
             </button>
@@ -456,7 +511,7 @@ const App: React.FC = () => {
 
     if (authChecking) {
         return (
-            <div className="flex h-screen items-center justify-center bg-slate-950 text-primary">
+            <div className="flex h-screen items-center justify-center bg-slate-950 text-slate-100">
                 Checking session…
             </div>
         );
@@ -474,10 +529,10 @@ const App: React.FC = () => {
 
     if (!isAdmin && permissionsLoading) {
         return (
-            <div className="flex h-screen items-center justify-center spotlight-bg text-primary">
+            <div className="flex h-screen items-center justify-center bg-slate-950 text-slate-100">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-lava-core mx-auto"></div>
-                    <p className="mt-4 text-lg text-secondary">Loading your permissions...</p>
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-cyan-500 mx-auto"></div>
+                    <p className="mt-4 text-lg text-slate-400">Loading your permissions...</p>
                 </div>
             </div>
         );
@@ -485,10 +540,10 @@ const App: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="flex h-screen items-center justify-center spotlight-bg text-primary">
+            <div className="flex h-screen items-center justify-center bg-slate-950 text-slate-100">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-lava-core mx-auto"></div>
-                    <p className="mt-4 text-lg text-secondary">Loading data...</p>
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-cyan-500 mx-auto"></div>
+                    <p className="mt-4 text-lg text-slate-400">Loading data...</p>
                 </div>
             </div>
         );
@@ -497,71 +552,75 @@ const App: React.FC = () => {
     return (
         <UserContext.Provider value={userContextValue}>
             <DataContext.Provider value={dataContextValue}>
-                <div className="flex h-screen spotlight-bg text-primary">
-                    <Sidebar isAdmin={isAdmin} permissions={permissions} canViewPage={canViewPage} />
-                    <div className="flex-1 flex flex-col overflow-hidden">
-                        <Header title={currentTitle} onLogout={handleLogout} />
-                        <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
-                            <Routes>
-                                {/* Redirect /login to /dashboard if already authenticated (handled by session check above) */}
-                                <Route path="/login" element={<Navigate to="/dashboard" replace />} />
-                                <Route path="/dashboard" element={
-                                    !permissionsLoading && !canViewPage('Dashboard') ? NotAuthorized : <Dashboard />
-                                } />
-                                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                                <Route path="/inventory" element={
-                                    !permissionsLoading && !canViewPage('Inventory') ? NotAuthorized : <Inventory />
-                                } />
-                                <Route path="/sales" element={
-                                    !permissionsLoading && !canViewPage('Sales') ? NotAuthorized : <Sales />
-                                } />
-                                <Route path="/collections" element={
-                                    !permissionsLoading && !canViewPage('Collections') ? NotAuthorized : <Collections />
-                                } />
-                                <Route path="/reports" element={
-                                    !permissionsLoading && !canViewPage('Reports') ? NotAuthorized : <Reports />
-                                } />
-                                <Route path="/data" element={
-                                    !permissionsLoading && !canViewPage('Data') ? NotAuthorized : <Data />
-                                } />
-                                <Route path="/calendar" element={
-                                    !permissionsLoading && !canViewPage('Calendar') ? NotAuthorized : <Calendar />
-                                } />
-                                <Route path="/team-chat" element={
-                                    !permissionsLoading && !canViewPage('Team Chat') ? NotAuthorized : <TeamChat />
-                                } />
-                                <Route path="/settings" element={
-                                    !permissionsLoading && !canViewPage('Settings') ? NotAuthorized : <Settings />
-                                } />
-                                {/* Account Settings - accessible to all authenticated users */}
-                                <Route path="/account-settings" element={<AccountSettings />} />
-                                {/* Admin routes - only accessible by admins */}
-                                <Route
-                                    path="/admin"
-                                    element={isAdmin ? <AdminUsers /> : <Navigate to="/dashboard" replace />}
-                                />
-                                <Route
-                                    path="/admin/create-user"
-                                    element={isAdmin ? <AdminCreateUserForm /> : <Navigate to="/dashboard" replace />}
-                                />
-                                <Route
-                                    path="/admin/users"
-                                    element={isAdmin ? <AdminUsers /> : <Navigate to="/dashboard" replace />}
-                                />
-                                <Route
-                                    path="/admin/user/:id/edit"
-                                    element={isAdmin ? <AdminUserPermissions /> : <Navigate to="/dashboard" replace />}
-                                />
-                                {/* Legacy route for backwards compatibility */}
-                                <Route
-                                    path="/admin/users/:id"
-                                    element={isAdmin ? <AdminUserPermissions /> : <Navigate to="/dashboard" replace />}
-                                />
-                                <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                            </Routes>
-                        </main>
+                {location.pathname === '/print/daily-closing' ? (
+                    <PrintDailyClosing />
+                ) : (
+                    <div className={`flex ${isPrintView ? 'h-auto min-h-screen' : 'h-screen'} animated-bg text-slate-100`}>
+                        {!isPrintView && <Sidebar isAdmin={isAdmin} permissions={permissions} canViewPage={canViewPage} />}
+                        <div className={`flex-1 flex flex-col ${isPrintView ? '' : 'overflow-hidden'}`}>
+                            {!isPrintView && <Header title={currentTitle} onLogout={handleLogout} />}
+                            <main className={`flex-1 ${isPrintView ? '' : 'overflow-y-auto'} p-4 md:p-6 lg:p-8`}>
+                                <Routes>
+                                    {/* Redirect /login to /dashboard if already authenticated (handled by session check above) */}
+                                    <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+                                    <Route path="/dashboard" element={
+                                        !permissionsLoading && !canViewPage('Dashboard') ? NotAuthorized : <Dashboard />
+                                    } />
+                                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                                    <Route path="/inventory" element={
+                                        !permissionsLoading && !canViewPage('Inventory') ? NotAuthorized : <Inventory />
+                                    } />
+                                    <Route path="/sales" element={
+                                        !permissionsLoading && !canViewPage('Sales') ? NotAuthorized : <Sales />
+                                    } />
+                                    <Route path="/collections" element={
+                                        !permissionsLoading && !canViewPage('Collections') ? NotAuthorized : <Collections />
+                                    } />
+                                    <Route path="/reports" element={
+                                        !permissionsLoading && !canViewPage('Reports') ? NotAuthorized : <Reports />
+                                    } />
+                                    <Route path="/data" element={
+                                        !permissionsLoading && !canViewPage('Data') ? NotAuthorized : <Data />
+                                    } />
+                                    <Route path="/calendar" element={
+                                        !permissionsLoading && !canViewPage('Calendar') ? NotAuthorized : <Calendar />
+                                    } />
+                                    <Route path="/team-chat" element={
+                                        !permissionsLoading && !canViewPage('Team Chat') ? NotAuthorized : <TeamChat />
+                                    } />
+                                    <Route path="/settings" element={
+                                        !permissionsLoading && !canViewPage('Settings') ? NotAuthorized : <Settings />
+                                    } />
+                                    {/* Account Settings - accessible to all authenticated users */}
+                                    <Route path="/account-settings" element={<AccountSettings />} />
+                                    {/* Admin routes - only accessible by admins */}
+                                    <Route
+                                        path="/admin"
+                                        element={isAdmin ? <AdminUsers /> : <Navigate to="/dashboard" replace />}
+                                    />
+                                    <Route
+                                        path="/admin/create-user"
+                                        element={isAdmin ? <AdminCreateUserForm /> : <Navigate to="/dashboard" replace />}
+                                    />
+                                    <Route
+                                        path="/admin/users"
+                                        element={isAdmin ? <AdminUsers /> : <Navigate to="/dashboard" replace />}
+                                    />
+                                    <Route
+                                        path="/admin/user/:id/edit"
+                                        element={isAdmin ? <AdminUserPermissions /> : <Navigate to="/dashboard" replace />}
+                                    />
+                                    {/* Legacy route for backwards compatibility */}
+                                    <Route
+                                        path="/admin/users/:id"
+                                        element={isAdmin ? <AdminUserPermissions /> : <Navigate to="/dashboard" replace />}
+                                    />
+                                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                                </Routes>
+                            </main>
+                        </div>
                     </div>
-                </div>
+                )}
             </DataContext.Provider>
         </UserContext.Provider>
     );

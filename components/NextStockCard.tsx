@@ -4,13 +4,13 @@ import { STOCK_PREFIXES, StockPrefix, NextStockNumberEntry } from '../utils/stoc
 
 const prefixDisplayConfig: Record<
     StockPrefix,
-    { label: string; bg: string; text: string; border: string; description: string }
+    { label: string; color: string; description: string }
 > = {
-    N: { label: 'N', bg: 'bg-sky-500/20', text: 'text-sky-200', border: 'border-sky-500/30', description: 'Nissan' },
-    O: { label: 'O', bg: 'bg-yellow-500/20', text: 'text-yellow-200', border: 'border-yellow-500/30', description: 'Other' },
-    D: { label: 'D', bg: 'bg-pink-500/20', text: 'text-pink-200', border: 'border-pink-500/30', description: 'Dodge' },
-    F: { label: 'F', bg: 'bg-orange-500/20', text: 'text-orange-200', border: 'border-orange-500/30', description: 'Ford' },
-    CH: { label: 'CH', bg: 'bg-emerald-500/20', text: 'text-emerald-200', border: 'border-emerald-500/30', description: 'Chevrolet' },
+    N: { label: 'N', color: '#0ea5e9', description: 'Nissan' }, // Sky-500
+    O: { label: 'O', color: '#eab308', description: 'Other' }, // Yellow-500
+    D: { label: 'D', color: '#ec4899', description: 'Dodge' }, // Pink-500
+    F: { label: 'F', color: '#f97316', description: 'Ford' }, // Orange-500
+    CH: { label: 'CH', color: '#10b981', description: 'Chevrolet' }, // Emerald-500
 };
 
 interface NextStockCardProps {
@@ -20,17 +20,17 @@ interface NextStockCardProps {
 }
 
 const NextStockCard: React.FC<NextStockCardProps> = ({ stockNumbers, year, className }) => (
-    <div className={`glass-card p-3.5 h-full flex flex-col gap-3 ${className ?? ''}`}>
+    <div className={`glass-card-outline p-4 h-full flex flex-col gap-4 ${className ?? ''}`}>
         <div className="flex items-center gap-3">
-            <div className="p-2.5 bg-glass-panel rounded-lg">
-                <TagIcon className="h-5 w-5 text-lava-warm" />
+            <div className="p-2 rounded-lg">
+                <TagIcon className="h-6 w-6 icon-neon" />
             </div>
             <div>
-                <h4 className="text-xs uppercase tracking-wide text-muted">Next Stock Numbers</h4>
-                <p className="text-base font-semibold text-primary">For {year}</p>
+                <h4 className="text-xs uppercase tracking-wide text-muted-contrast">Next Stock Numbers</h4>
+                <p className="text-xl font-bold text-primary-contrast">For {year}</p>
             </div>
         </div>
-        <div className="flex flex-wrap gap-2 w-full">
+        <div className="flex flex-row gap-3 w-full overflow-x-auto pb-2">
             {STOCK_PREFIXES.map(prefix => {
                 const config = prefixDisplayConfig[prefix];
                 const entry = stockNumbers[prefix];
@@ -38,13 +38,14 @@ const NextStockCard: React.FC<NextStockCardProps> = ({ stockNumbers, year, class
                 return (
                     <div
                         key={prefix}
-                        className={`rounded-md border ${config.border} ${config.bg} px-3 py-2 flex flex-col gap-1 min-w-[120px] flex-1`}
+                        className="glass-card-outline-colored p-3 flex flex-col justify-between min-w-[140px] flex-1 relative group"
+                        style={{ '--outline-color': config.color } as React.CSSProperties}
                     >
-                        <div className="flex items-center justify-between gap-2">
-                            <span className={`text-xs font-semibold ${config.text}`}>{config.label}</span>
-                            <span className="text-[11px] text-secondary">{config.description}</span>
+                        <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-bold text-primary-contrast">{config.label}</span>
+                            <span className="text-[10px] text-secondary-contrast uppercase tracking-wider opacity-80">{config.description}</span>
                         </div>
-                        <p className="mt-1 text-sm font-mono text-primary">{value}</p>
+                        <p className="text-lg font-mono font-bold text-primary-contrast text-glow tracking-wide">{value}</p>
                     </div>
                 );
             })}

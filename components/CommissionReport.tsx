@@ -286,6 +286,7 @@ interface CommissionSalespersonBlockProps {
     collectionsLocked?: boolean;
     manualOverrides?: Record<string, string>;
     onManualOverrideChange?: (rowKey: string, value: string) => void;
+    bonusRange?: { start: Date; end: Date } | null;
 }
 
 const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
@@ -301,6 +302,7 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
     collectionsLocked = false,
     manualOverrides = {},
     onManualOverrideChange,
+    bonusRange = null,
 }) => {
     const [commissionDrafts, setCommissionDrafts] = useState<Record<string, string>>({});
     const {
@@ -343,8 +345,8 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
         typeof collectionsSelection === 'number'
             ? collectionsSelection
             : typeof collectionsBonus === 'number'
-            ? collectionsBonus
-            : 0;
+                ? collectionsBonus
+                : 0;
     const collectionSelectionIsNumber = typeof collectionsSelection === 'number';
     const selectionValue = collectionSelectionIsNumber
         ? String(collectionsSelection)
@@ -362,16 +364,117 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
     const collectionsStatusLabel = collectionsLocked
         ? 'Locked for this period'
         : collectionSelectionIsNumber
-        ? 'Unlocked'
-        : 'No bonus selected';
+            ? 'Unlocked'
+            : 'No bonus selected';
 
     return (
-        <section className="mb-6 glass-card p-4 border border-border-low overflow-visible">
-            <header className="flex flex-col gap-4 pb-4 border-b border-border-low">
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                    <h3 className="text-3xl font-bold text-primary tracking-tight-lg">
-                        {salesperson || 'Unassigned'}
-                    </h3>
+        <section className="mb-6 glass-card-outline p-4 border border-border-low overflow-visible">
+            <header className="flex flex-col gap-3 pb-3 border-b border-border-low">
+                <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+                    <div className="flex-1">
+                        <h3 
+                            className="text-3xl font-bold tracking-tight-lg"
+                            style={
+                                salesperson?.toLowerCase() === 'key'
+                                    ? {
+                                        background: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 50%, #3b82f6 100%)',
+                                        WebkitBackgroundClip: 'text',
+                                        WebkitTextFillColor: 'transparent',
+                                        backgroundClip: 'text',
+                                        color: 'transparent',
+                                    }
+                                    : salesperson?.toLowerCase() === 'timo' || salesperson?.toLowerCase() === 'temo'
+                                    ? {
+                                        background: 'linear-gradient(135deg, #ec4899 0%, #db2777 100%)',
+                                        WebkitBackgroundClip: 'text',
+                                        WebkitTextFillColor: 'transparent',
+                                        backgroundClip: 'text',
+                                        color: 'transparent',
+                                    }
+                                    : {}
+                            }
+                        >
+                            {salesperson || 'Unassigned'}
+                        </h3>
+                        {isKey && (
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-secondary mt-3">
+                                <div className="bg-glass-panel/40 border border-border-low rounded-md p-2.5">
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <p className="text-xs uppercase tracking-wide text-muted">Collections Bonus</p>
+                                        <p className="text-base font-semibold text-primary">{formatCurrency(effectiveCollectionsBonus)}</p>
+                                    </div>
+                                    {editable && (
+                                        <div className="pdf-hide space-y-1.5">
+                                            <div className="flex items-center gap-2">
+                                                <AppSelect
+                                                    value={selectionValue}
+                                                    onChange={selected =>
+                                                        onCollectionsBonusChange?.(
+                                                            normalizedName,
+                                                            selected === '' ? '' : Number(selected)
+                                                        )
+                                                    }
+                                                    disabled={collectionsLocked}
+                                                    options={[
+                                                        { value: '', label: 'Select bonus' },
+                                                        ...collectionsOptions.map(option => ({
+                                                            value: String(option),
+                                                            label: formatCurrency(option),
+                                                        })),
+                                                    ]}
+                                                    className="flex-1"
+                                                />
+                                                <GlassButton
+                                                    type="button"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        onCollectionsBonusLockToggle?.(
+                                                            normalizedName,
+                                                            !collectionsLocked
+                                                        )
+                                                    }
+                                                    disabled={lockDisabled}
+                                                    className={`px-2.5 py-1 rounded text-[11px] font-semibold transition-colors whitespace-nowrap ${!lockDisabled
+                                                            ? collectionsLocked
+                                                                ? 'bg-glass-panel border border-white/20 text-white hover:bg-glass-panel/80'
+                                                                : ''
+                                                            : 'bg-glass-panel border border-border-low text-muted cursor-not-allowed'
+                                                        }`}
+                                                >
+                                                    {lockButtonLabel}
+                                                </GlassButton>
+                                            </div>
+                                            {isCollectionsMissing && (
+                                                <p className="text-[10px] text-lava-warm leading-tight">Required before export/log</p>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="bg-glass-panel/10 border border-border-low rounded-md p-2.5">
+                                    <p className="text-xs uppercase tracking-wide text-muted mb-1.5">Weekly Sales</p>
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-secondary">Total</span>
+                                        <span className="font-semibold text-primary">{weeklySalesCount ?? 0}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm mt-1">
+                                        <span className="text-secondary">Over 5</span>
+                                        <span className="font-semibold text-primary">{weeklySalesCountOverThreshold ?? 0}</span>
+                                    </div>
+                                </div>
+                                <div className="bg-glass-panel/10 border border-border-low rounded-md p-2.5">
+                                    <div className="flex items-center justify-between">
+                                        <p className="text-xs uppercase tracking-wide text-muted">Weekly Bonus</p>
+                                        <p className="text-base font-semibold text-lava-warm">{formatCurrency(effectiveWeeklyBonus)}</p>
+                                    </div>
+                                    {bonusRange && (
+                                        <p className="text-xs text-secondary mt-1.5">
+                                            {formatCommissionWeekLabel(bonusRange.start, bonusRange.end)}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+                    </div>
                     <div className="bg-gradient-to-r from-lava-warm/30 via-lava-core/30 to-lava-warm/30 border border-lava-core/40 rounded-lg px-4 py-3 text-white shadow-lg min-w-[220px]">
                         <p className="text-xs uppercase tracking-wide text-white/70">Total Commission Payout</p>
                         <p className="text-2xl sm:text-3xl font-bold font-orbitron tracking-tight-lg">
@@ -395,78 +498,6 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
                         ) : null}
                     </div>
                 </div>
-                {isKey && (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm text-secondary">
-                        <div className="bg-glass-panel/40 border border-border-low rounded-md p-3">
-                            <p className="text-xs uppercase tracking-wide text-muted mb-1">Collections Bonus</p>
-                            <p className="text-lg font-semibold text-primary">{formatCurrency(effectiveCollectionsBonus)}</p>
-                            {editable && (
-                                <div className="pdf-hide">
-                                    <AppSelect
-                                        value={selectionValue}
-                                        onChange={selected =>
-                                            onCollectionsBonusChange?.(
-                                                normalizedName,
-                                                selected === '' ? '' : Number(selected)
-                                            )
-                                        }
-                                        disabled={collectionsLocked}
-                                        options={[
-                                            { value: '', label: 'Select bonus' },
-                                            ...collectionsOptions.map(option => ({
-                                                value: String(option),
-                                                label: formatCurrency(option),
-                                            })),
-                                        ]}
-                                    />
-                                    {isCollectionsMissing && (
-                                        <p className="text-[11px] text-lava-warm mt-1">Required before export/log</p>
-                                    )}
-                                    <div className="mt-3 flex flex-wrap items-center gap-2">
-                                        <GlassButton
-                                            type="button"
-                                            size="sm"
-                                            onClick={() =>
-                                                onCollectionsBonusLockToggle?.(
-                                                    normalizedName,
-                                                    !collectionsLocked
-                                                )
-                                            }
-                                            disabled={lockDisabled}
-                                            className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                                                !lockDisabled
-                                                    ? collectionsLocked
-                                                        ? 'bg-glass-panel border border-white/20 text-white hover:bg-glass-panel/80'
-                                                        : ''
-                                                    : 'bg-glass-panel border border-border-low text-muted cursor-not-allowed'
-                                            }`}
-                                        >
-                                            {lockButtonLabel}
-                                        </GlassButton>
-                                        <span className="text-[11px] text-secondary ml-auto">
-                                            {collectionsStatusLabel}
-                                        </span>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-                        <div className="bg-glass-panel/10 border border-border-low rounded-md p-3">
-                            <p className="text-xs uppercase tracking-wide text-muted mb-1">Weekly Sales</p>
-                            <div className="flex items-center justify-between text-sm">
-                                <span className="text-secondary">Total</span>
-                                <span className="font-semibold text-primary">{weeklySalesCount ?? 0}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-sm mt-1">
-                                <span className="text-secondary">Over 5</span>
-                                <span className="font-semibold text-primary">{weeklySalesCountOverThreshold ?? 0}</span>
-                            </div>
-                        </div>
-                        <div className="bg-glass-panel/10 border border-border-low rounded-md p-3">
-                            <p className="text-xs uppercase tracking-wide text-muted mb-1">Weekly Bonus</p>
-                            <p className="text-lg font-semibold text-lava-warm">{formatCurrency(effectiveWeeklyBonus)}</p>
-                        </div>
-                    </div>
-                )}
             </header>
             <div className="overflow-x-auto mt-4">
                 <table className="min-w-full text-sm text-left">
@@ -558,7 +589,11 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
                                     <td className="py-2 pr-3 text-secondary">{row.saleDateDisplay}</td>
                                     <td className="py-2 pr-3 text-secondary">{row.accountNumber || '--'}</td>
                                     <td className="py-2 pr-3 text-secondary">{row.vehicle || '--'}</td>
-                                    <td className="py-2 pr-3 text-secondary">{row.vinLast4 || '--'}</td>
+                                    <td className="py-2 pr-3 text-secondary">
+                                        {row.vinLast4 
+                                            ? String(row.vinLast4).padStart(4, '0').slice(-4)
+                                            : '--'}
+                                    </td>
                                     <td className="py-2 pr-3 text-secondary">
                                         <div className="flex items-center justify-between gap-2">
                                             <span className="text-right flex-1">
@@ -634,11 +669,10 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
                                                     onChange={event =>
                                                         onNotesChange?.(row.key, event.target.value)
                                                     }
-                                                    className={`w-full rounded-md p-2 focus:outline-none focus:border-lava-core transition-colors resize-y bg-glass-panel border ${
-                                                        row.overrideApplied
+                                                    className={`w-full rounded-md p-2 focus:outline-none focus:border-lava-core transition-colors resize-y bg-glass-panel border ${row.overrideApplied
                                                             ? 'border-lava-warm text-lava-warm font-semibold bg-lava-warm/10'
                                                             : 'border-border-low text-primary'
-                                                    }`}
+                                                        }`}
                                                     placeholder="Add notes or overrides"
                                                 />
                                             ) : (
@@ -674,12 +708,15 @@ interface WeekBucket {
 
 interface CommissionReportLiveProps {
     sales: Sale[];
+    selectedWeekKey?: string | null;
+    onWeekChange?: (weekKey: string | null) => void;
 }
 
 export interface CommissionReportHandle {
     getSnapshot: () => CommissionReportSnapshot | null;
     getWeekLabel: () => string | null;
     getReportContainer: () => HTMLElement | null;
+    getWeekBuckets: () => Array<{ key: string; label: string }>;
 }
 
 const buildSnapshot = (
@@ -755,8 +792,14 @@ const buildSnapshot = (
         });
 
         const vehicle = [sale.year, sale.make, sale.model].filter(Boolean).join(' ');
-        const vinLast4 =
-            sale.vinLast4 || (sale.vin && sale.vin.length >= 4 ? sale.vin.slice(-4) : '');
+        // Extract VIN last 4 and ensure it's a string with leading zeros preserved
+        const vinLast4Raw = sale.vinLast4 
+            ? String(sale.vinLast4)
+            : (sale.vin && sale.vin.length >= 4 
+                ? sale.vin.slice(-4)
+                : '');
+        // Pad to 4 digits with leading zeros and ensure exactly 4 characters
+        const vinLast4 = vinLast4Raw ? String(vinLast4Raw).padStart(4, '0').slice(-4) : '';
 
         const displayDate = parsedSaleDate.toLocaleDateString(undefined, {
             month: '2-digit',
@@ -793,16 +836,16 @@ const buildSnapshot = (
             const usesManualCommission = MANUAL_COMMISSION_TYPES.has(saleTypeCategory);
             const adjustedCommission = usesManualCommission
                 ? (typeof manualOverrideValue === 'number' && Number.isFinite(manualOverrideValue)
-                      ? manualOverrideValue
-                      : 0)
+                    ? manualOverrideValue
+                    : 0)
                 : overrideResult.amount;
             const overrideAppliedFlag =
                 usesManualCommission || overrideResult.overrideApplied || normalizedSplits.length > 1;
             const overrideDetails = usesManualCommission
                 ? `${SALE_TYPE_BADGES[saleTypeCategory].label} manual entry`
                 : normalizedSplits.length > 1
-                ? `Split share ${split.share.toFixed(2)}%`
-                : overrideResult.details;
+                    ? `Split share ${split.share.toFixed(2)}%`
+                    : overrideResult.details;
 
             const row: CommissionReportRowSnapshot = {
                 key: rowKey,
@@ -862,11 +905,11 @@ const buildSnapshot = (
             const weeklyStats = isKey
                 ? weeklyBonusData.global
                 : weeklyBonusData.perSalesperson.get(normalizedName) ?? {
-                      deals: new Set<string>(),
-                      count: 0,
-                      over: 0,
-                      bonus: 0,
-                  };
+                    deals: new Set<string>(),
+                    count: 0,
+                    over: 0,
+                    bonus: 0,
+                };
             return {
                 salesperson: normalizedName,
                 rows: enumeratedRows,
@@ -907,8 +950,16 @@ const buildSnapshot = (
 };
 
 export const CommissionReportLive = forwardRef<CommissionReportHandle, CommissionReportLiveProps>(
-    ({ sales }, ref) => {
-        const [selectedWeekKey, setSelectedWeekKey] = useState<string | null>(null);
+    ({ sales, selectedWeekKey: externalSelectedWeekKey, onWeekChange }, ref) => {
+        const [internalSelectedWeekKey, setInternalSelectedWeekKey] = useState<string | null>(null);
+        const selectedWeekKey = externalSelectedWeekKey !== undefined ? externalSelectedWeekKey : internalSelectedWeekKey;
+        const setSelectedWeekKey = (value: string | null) => {
+            if (onWeekChange) {
+                onWeekChange(value);
+            } else {
+                setInternalSelectedWeekKey(value);
+            }
+        };
         const [notesMap, setNotesMap] = useState<Record<string, string>>({});
         const [collectionsSelections, setCollectionsSelections] = useState<Record<string, number | ''>>({});
         const [collectionsLocks, setCollectionsLocks] = useState<Record<string, boolean>>({});
@@ -1073,8 +1124,9 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                 getWeekLabel: () =>
                     currentWeek ? formatCommissionWeekLabel(currentWeek.start, currentWeek.end) : null,
                 getReportContainer: () => reportContainerRef.current,
+                getWeekBuckets: () => weekBuckets.map(bucket => ({ key: bucket.key, label: bucket.label })),
             }),
-            [snapshot, currentWeek],
+            [snapshot, currentWeek, weekBuckets],
         );
 
         const handleNotesChange = (key: string, value: string) => {
@@ -1152,34 +1204,24 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
         const bonusRange = currentWeek ? getBonusRangeForCommission(currentWeek.start) : null;
 
         return (
-            <div ref={reportContainerRef} className="space-y-6">
-                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 glass-card p-4 border border-border-low overflow-visible">
-                    <div className="space-y-2">
-                        <h3 className="text-xs uppercase tracking-wide text-muted">
+            <div id="commission-report-content" ref={reportContainerRef} className="space-y-6 p-12">
+                {/* Header: Title on left, Reporting Window on right */}
+                <div className="glass-card-accent flex justify-between items-center print:mb-6 mb-6 p-4">
+                    <h1 
+                        className="font-bold font-orbitron tracking-tight-lg text-white"
+                        style={{
+                            fontSize: '38px',
+                        }}
+                    >
+                        COMMISSION REPORT
+                    </h1>
+                    <div className="text-right">
+                        <p className="text-xs uppercase tracking-wide text-muted">
                             Reporting Window (Fri → Thu)
-                        </h3>
-                        <p className="text-lg font-semibold text-primary">
+                        </p>
+                        <p className="text-lg font-semibold text-secondary">
                             {currentWeek ? formatCommissionWeekLabel(currentWeek.start, currentWeek.end) : '—'}
                         </p>
-                        {bonusRange && (
-                            <div className="text-sm text-secondary">
-                                <p className="text-xs uppercase tracking-wide text-muted">Bonus Week (Mon → Sun)</p>
-                                <p>{formatCommissionWeekLabel(bonusRange.start, bonusRange.end)}</p>
-                            </div>
-                        )}
-                    </div>
-                    <div className="flex items-center gap-3 pdf-hide">
-                        <label className="text-xs uppercase tracking-wide text-muted">Select Week</label>
-                        <div className="w-56">
-                            <AppSelect
-                                value={selectedWeekKey ?? ''}
-                                onChange={value => setSelectedWeekKey(value || null)}
-                                options={weekBuckets.map(bucket => ({
-                                    value: bucket.key,
-                                    label: bucket.label,
-                                }))}
-                            />
-                        </div>
                     </div>
                 </div>
 
@@ -1210,6 +1252,7 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                                 collectionsLocked={locked}
                                 manualOverrides={manualCommissionOverrides}
                                 onManualOverrideChange={handleManualCommissionChange}
+                                bonusRange={bonusRange}
                             />
                         );
                     })
@@ -1241,7 +1284,7 @@ export const CommissionReportViewer: React.FC<CommissionReportViewerProps> = ({ 
     const combinedPayout = totalCommissionValue + totalCollectionsBonus + totalWeeklyBonus;
 
     return (
-        <div className="space-y-6">
+        <div id="commission-report-content" className="space-y-6 p-12">
             <div className="grid gap-4 lg:grid-cols-3">
                 <div className="lg:col-span-2 bg-gradient-to-r from-lava-warm via-lava-core to-lava-warm rounded-xl border border-white/10 shadow-2xl px-6 py-6 text-white relative overflow-hidden">
                     <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_top,_var(--tw-gradient-stops))]"></div>

@@ -19,10 +19,19 @@ import {
     formatDateKey,
 } from '../utils/date';
 import { GlassButton } from '@/components/ui/glass-button';
+import { ChevronDownIcon } from '@heroicons/react/24/solid';
 
 const MS_IN_DAY = 24 * 60 * 60 * 1000;
 
-const COLORS = ['#f97316', '#38bdf8', '#a855f7', '#22c55e', '#facc15', '#f472b6'];
+// Neon cyan blue gradient palette - darker to lighter (left to right)
+const cyanGradients = [
+    { from: '#0891b2', to: '#06b6d4', base: '#06b6d4' }, // Darker cyan to cyan
+    { from: '#06b6d4', to: '#22d3ee', base: '#22d3ee' }, // Cyan to light cyan
+    { from: '#22d3ee', to: '#67e8f9', base: '#67e8f9' }, // Light cyan to lighter cyan
+    { from: '#67e8f9', to: '#a5f3fc', base: '#a5f3fc' }, // Lighter cyan to very light cyan
+    { from: '#06b6d4', to: '#00d4ff', base: '#00d4ff' }, // Cyan to bright cyan
+    { from: '#00d4ff', to: '#00ffff', base: '#00ffff' }, // Bright cyan to brightest cyan
+];
 
 const parseNumeric = (value: unknown): number => {
     if (value === null || value === undefined) return 0;
@@ -274,13 +283,27 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
         };
     }, [chartData, activeLineKeys]);
 
+    // Generate gradient definitions for each year (using sorted years to maintain color consistency)
+    const gradientDefs = useMemo(() => {
+        const sortedYears = [...years].sort((a, b) => a - b);
+        return sortedYears.map((year, index) => {
+            const gradient = cyanGradients[index % cyanGradients.length];
+            return {
+                year,
+                id: `lineGradient-${year}`,
+                ...gradient,
+            };
+        });
+    }, [years]);
+
     const lineColors = useMemo(() => {
         const map: Record<string, string> = {};
         lineKeys.forEach((year, idx) => {
-            map[year] = COLORS[idx % COLORS.length];
+            const gradient = gradientDefs.find(g => g.year === Number(year));
+            map[year] = gradient?.base || '#06b6d4';
         });
         return map;
-    }, [lineKeys]);
+    }, [lineKeys, gradientDefs]);
 
     if (!chartData.length) {
         return (
@@ -298,20 +321,23 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
     const currentYear = activeLineKeys.length ? Math.max(...activeLineKeys.map(Number)) : Math.max(...lineKeys.map(Number));
 
     return (
-        <div className="glass-card p-6">
+        <div className="glass-card-outline p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                 <div>
                     <h3 className="text-xl font-semibold text-primary tracking-tight-md">Weekly Total Payments</h3>
                     <p className="text-sm text-muted">Sum of payments and late fees per week (Monday – Sunday).</p>
                 </div>
                 <div className="relative">
-                    <GlassButton
-                        size="sm"
+                    <button
+                        type="button"
                         onClick={() => setFilterOpen(prev => !prev)}
-                        className="flex items-center gap-2 bg-glass-panel hover:bg-glass-panel/80 text-primary text-sm font-semibold py-2 px-4 rounded-md transition-colors border border-border-low"
+                        className="glass-select text-xs cursor-pointer pr-8"
                     >
                         Filter Years
-                    </GlassButton>
+                    </button>
+                    <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none">
+                        <ChevronDownIcon className={`h-4 w-4 text-muted transition-transform ${filterOpen ? 'rotate-180' : ''}`} />
+                    </div>
                     {filterOpen && (
                         <div className="absolute right-0 mt-2 w-44 bg-glass-panel border border-border-high rounded-lg shadow-xl z-20 p-2 backdrop-blur-glass">
                             {lineKeys.map(year => (
@@ -335,7 +361,22 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
 
             <ResponsiveContainer width="100%" height={360}>
                 <LineChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#2c2f33" />
+                    <defs>
+                        {gradientDefs.map(gradient => (
+                            <linearGradient
+                                key={gradient.id}
+                                id={gradient.id}
+                                x1="0%"
+                                y1="0%"
+                                x2="100%"
+                                y2="0%"
+                            >
+                                <stop offset="0%" stopColor={gradient.from} />
+                                <stop offset="100%" stopColor={gradient.to} />
+                            </linearGradient>
+                        ))}
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="rgba(255, 255, 255, 0.1)" />
                     <XAxis
                         dataKey="week"
                         stroke="#9ca3af"
@@ -354,8 +395,14 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
                         allowDecimals={false}
                     />
                     <Tooltip
-                        contentStyle={{ backgroundColor: '#1f2933', border: '1px solid #374151' }}
-                        labelStyle={{ color: '#ffffff', fontWeight: 'bold' }}
+                        contentStyle={{
+                            backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                            border: '1px solid rgba(6, 182, 212, 0.3)',
+                            borderRadius: '8px',
+                            backdropFilter: 'blur(8px)',
+                        }}
+                        labelStyle={{ color: '#fff', fontWeight: 'bold' }}
+                        cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
                         formatter={(value, name) => [formatCurrency(Number(value)), name]}
                     />
                     <Legend
@@ -365,17 +412,25 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
                     />
                     {lineKeys.map(year => {
                         if (!visibleYears[year]) return null;
-                        const color = lineColors[year];
+                        const gradient = gradientDefs.find(g => g.year === Number(year));
+                        const isCurrentYear = year === String(currentYear);
+                        const strokeColor = gradient ? `url(#${gradient.id})` : lineColors[year];
+                        
                         return (
                             <Line
                                 key={year}
                                 type="monotone"
                                 dataKey={year}
                                 name={year === String(currentYear) ? `${year} (Current)` : year}
-                                stroke={color}
-                                strokeWidth={year === String(currentYear) ? 3 : 2}
-                                dot={{ r: year === String(currentYear) ? 4 : 2 } as DotProps}
-                                activeDot={{ r: 6 }}
+                                stroke={strokeColor}
+                                strokeWidth={isCurrentYear ? 3 : 2}
+                                dot={{ r: isCurrentYear ? 4 : 2 } as DotProps}
+                                activeDot={{ 
+                                    r: 6,
+                                    fill: gradient?.base || lineColors[year],
+                                    stroke: '#fff',
+                                    strokeWidth: 2,
+                                }}
                                 connectNulls
                             />
                         );

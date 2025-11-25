@@ -26,6 +26,16 @@ const STATUS_BADGE_CLASSES: Record<string, string> = {
     'Sold': 'bg-gray-600/20 text-gray-300 border-gray-600/35',
 };
 
+// Status to outline color mapping for inventory card borders
+const STATUS_OUTLINE_COLORS: Record<string, string> = {
+    'Available': 'rgba(16, 185, 129, 0.8)',           // emerald-500 - Green
+    'Available (Pending Title)': 'rgba(6, 182, 212, 0.8)', // cyan-500 - Cyan Blue (keep current)
+    'Deposit': 'rgba(245, 158, 11, 0.8)',             // amber-500 - Yellow
+    'Repairs': 'rgba(249, 115, 22, 0.8)',             // orange-500 - Orange
+    'Cash': 'rgba(168, 85, 247, 0.8)',                // purple-500 - Purple
+    'Sold': 'rgba(107, 114, 128, 0.8)',               // gray-500 - Gray (fallback)
+};
+
 const ACTIVE_RETAIL_STATUSES = new Set(
     INVENTORY_STATUS_VALUES.filter(status => status !== 'Repairs'),
 );
@@ -97,10 +107,16 @@ const VehicleCard: React.FC<{
     };
     const badgeClasses = STATUS_BADGE_CLASSES[vehicle.status] || STATUS_BADGE_CLASSES['Sold'] || 'bg-gray-500/20 text-gray-300 border-gray-600/30';
 
+    // Get outline color for the card border based on vehicle status
+    const outlineColor = STATUS_OUTLINE_COLORS[vehicle.status] || STATUS_OUTLINE_COLORS['Sold'] || 'rgba(107, 114, 128, 0.8)';
+
     const isSold = vehicle.status === 'Sold';
 
     return (
-        <div className={`glass-card overflow-hidden glass-card-hover flex flex-col ${isSold ? 'opacity-50' : ''}`}>
+        <div 
+            className={`glass-card-outline-colored overflow-hidden glass-card-hover flex flex-col ${isSold ? 'opacity-50' : ''}`}
+            style={{ '--outline-color': outlineColor } as React.CSSProperties}
+        >
             <div className="relative h-48 bg-glass-panel flex items-center justify-center">
                  {images.length > 0 ? (
                     <img

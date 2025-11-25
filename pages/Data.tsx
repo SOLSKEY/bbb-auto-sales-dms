@@ -1,9 +1,9 @@
-import React, { useState, useContext, useMemo, useEffect } from 'react';
+import React, { useState, useContext, useMemo, useEffect, useRef } from 'react';
 import { DATA_TABS } from '../constants';
 import DataGrid from '../components/DataGrid';
 import { UserContext, DataContext } from '../App';
 import type { Vehicle, Sale, DailyCollectionSummary, DailyDelinquencySummary } from '../types';
-import { VEHICLE_FIELD_MAP, SALE_FIELD_MAP } from '../supabaseMapping';
+import { VEHICLE_FIELD_MAP, SALE_FIELD_MAP, PAYMENTS_FIELD_MAP, DELINQUENCY_FIELD_MAP } from '../supabaseMapping';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AlertModal from '../components/AlertModal';
 import { supabase } from '../supabaseClient';
@@ -68,6 +68,30 @@ const Data: React.FC = () => {
     // State for modals
     const [saleToRevert, setSaleToRevert] = useState<Sale | null>(null);
     const [isAlertOpen, setIsAlertOpen] = useState(false);
+
+    // Tab indicator state and ref
+    const tabContainerRef = useRef<HTMLDivElement>(null);
+    const [tabIndicatorStyle, setTabIndicatorStyle] = useState<React.CSSProperties>({});
+
+    // Update tab indicator position when active tab changes
+    useEffect(() => {
+        if (!tabContainerRef.current) return;
+
+        const activeButton = tabContainerRef.current.querySelector(
+            `[data-tab="${activeTab}"]`
+        ) as HTMLElement;
+        
+        if (activeButton) {
+            const containerRect = tabContainerRef.current.getBoundingClientRect();
+            const buttonRect = activeButton.getBoundingClientRect();
+            
+            setTabIndicatorStyle({
+                left: `${buttonRect.left - containerRect.left}px`,
+                width: `${buttonRect.width}px`,
+                opacity: 1,
+            });
+        }
+    }, [activeTab]);
 
     if (!dataContext) return null;
     const { inventory, setInventory, sales, setSales, revertSale } = dataContext;
@@ -175,6 +199,7 @@ const Data: React.FC = () => {
                     setData: setCollectionsData,
                     tableName: 'Payments',
                     primaryKey: 'Date',
+                    fieldMap: PAYMENTS_FIELD_MAP,
                  };
                  break;
             case 'Delinquency':
@@ -188,6 +213,7 @@ const Data: React.FC = () => {
                     setData: setDelinquencyData,
                     tableName: 'Delinquency',
                     primaryKey: 'Date',
+                    fieldMap: DELINQUENCY_FIELD_MAP,
                 };
                 break;
             case 'Auction':
@@ -209,18 +235,42 @@ const Data: React.FC = () => {
 
     return (
         <div className="h-full flex flex-col">
-            <div className="border-b border-border-low mb-4">
-                <nav className="-mb-px flex space-x-6" aria-label="Tabs">
+            {/* Tab Navigation - Horizontal with Sliding Indicator */}
+            <div className="glass-card-outline p-2 mb-6 print:hidden relative overflow-x-auto overflow-y-hidden w-full flex-shrink-0">
+                <div 
+                    ref={tabContainerRef}
+                    className="flex flex-nowrap items-center gap-2 relative"
+                    style={{ minWidth: 'max-content' }}
+                >
+                    {/* Sliding Indicator */}
+                    <div
+                        className="absolute bg-gradient-to-r from-cyan-500/30 via-blue-500/30 to-cyan-500/30 border border-cyan-400/50 rounded-lg transition-all duration-300 ease-out pointer-events-none"
+                        style={{
+                            ...tabIndicatorStyle,
+                            top: '1px',
+                            bottom: '1px',
+                            height: 'auto',
+                            boxShadow: '0 0 10px rgba(6, 182, 212, 0.5), inset 0 0 10px rgba(59, 130, 246, 0.3)',
+                        }}
+                    />
                     {DATA_TABS.map((tab) => (
                         <GlassButton
                             key={tab}
+                            data-tab={tab}
                             onClick={() => setActiveTab(tab)}
-                            className="whitespace-nowrap"
+                            size="sm"
+                            className={`relative z-10 transition-colors flex-shrink-0 ${
+                                activeTab === tab 
+                                    ? 'glass-button-active pointer-events-none' 
+                                    : 'hover:opacity-80'
+                            }`}
+                            contentClassName={activeTab === tab ? 'text-white' : undefined}
+                            disabled={activeTab === tab}
                         >
                             {tab}
                         </GlassButton>
                     ))}
-                </nav>
+                </div>
             </div>
             <div className="flex-1 overflow-hidden">
                 <DataGrid
