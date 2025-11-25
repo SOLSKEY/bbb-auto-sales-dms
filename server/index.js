@@ -74,9 +74,10 @@ const verifyAdmin = async (req, res, next) => {
   }
 };
 
-// Health check endpoint
+// Health check endpoint (no auth required)
 app.get("/health", (req, res) => {
-  res.json({ status: "ok", message: "Server is running" });
+  res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
+  res.json({ status: "ok", message: "Server is running", port: process.env.PORT || 4100 });
 });
 
 // LIST ALL USERS (Admin only)
