@@ -24,6 +24,8 @@ import AdminUserPermissions from './pages/AdminUserPermissions';
 import AccountSettings from './pages/AccountSettings';
 import PrintDailyClosing from './pages/PrintDailyClosing';
 import { usePrintView } from './hooks/usePrintView';
+import { TwentyFirstToolbar } from '@21st-extension/toolbar-react';
+import { ReactPlugin } from '@21st-extension/react';
 
 const APP_PAGES: AppSectionKey[] = [
     'Dashboard',
@@ -552,6 +554,7 @@ const App: React.FC = () => {
     return (
         <UserContext.Provider value={userContextValue}>
             <DataContext.Provider value={dataContextValue}>
+                <TwentyFirstToolbar config={{ plugins: [ReactPlugin] }} />
                 {location.pathname === '/print/daily-closing' ? (
                     <PrintDailyClosing />
                 ) : (
