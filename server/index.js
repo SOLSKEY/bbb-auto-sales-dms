@@ -313,6 +313,22 @@ app.delete("/admin/users/:userId", verifyAdmin, async (req, res) => {
 
 // START SERVER
 const PORT = process.env.PORT || 4100;
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`SERVER RUNNING ON PORT ${PORT}`);
+  console.log(`Server listening on 0.0.0.0:${PORT}`);
+});
+
+// Handle server errors
+server.on('error', (error) => {
+  console.error('Server error:', error);
+  process.exit(1);
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received, shutting down gracefully');
+  server.close(() => {
+    console.log('Server closed');
+    process.exit(0);
+  });
 });
