@@ -6,6 +6,7 @@ import AppSelect from './AppSelect';
 import { INVENTORY_STATUS_VALUES } from '../constants';
 import { supabase } from '../supabaseClient';
 import { GlassButton } from '@/components/ui/glass-button';
+import StatusChangeModal from './StatusChangeModal';
 
 const CAPITALIZED_FIELDS: Array<keyof Vehicle> = [
     'make',
@@ -45,7 +46,7 @@ const normalizeVehicleDisplayFields = <T extends Partial<Vehicle>>(vehicle: T, s
 interface EditVehicleModalProps {
     vehicle: Vehicle;
     onClose: () => void;
-    onSave: (vehicle: Vehicle) => void;
+    onSave: (vehicle: Vehicle, isOfficialStatusChange?: boolean, previousStatus?: string) => void;
     isNewVehicle?: boolean;
     onImagesUpdated?: (vehicleId: number, urls: string[]) => void;
 }
@@ -75,6 +76,19 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
     const [vinError, setVinError] = useState<string | null>(null);
     const [isUploadingImages, setIsUploadingImages] = useState(false);
     const [isResolvingId, setIsResolvingId] = useState(false);
+    const [statusChangeModal, setStatusChangeModal] = useState<{
+        isOpen: boolean;
+        previousStatus: string;
+        newStatus: string;
+    }>({
+        isOpen: false,
+        previousStatus: '',
+        newStatus: '',
+    });
+    const [pendingStatusChange, setPendingStatusChange] = useState<{
+        isOfficial: boolean;
+        previousStatus: string;
+    } | null>(null);
 
     const deriveVinLast4 = (vin?: string) => {
         if (!vin) return '';
@@ -380,12 +394,48 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
         setEditedVehicle(normalizedVehicle);
         const trimmedVehicleId = normalizedVehicle.vehicleId ? normalizedVehicle.vehicleId.trim() : '';
         const trimmedVinLast4 = normalizedVehicle.vinLast4 ? normalizedVehicle.vinLast4.trim().toUpperCase() : '';
+        
+        // Check if there's a pending status change
+        const isOfficialStatusChange = pendingStatusChange?.isOfficial ?? false;
+        
         onSave({
             ...normalizedVehicle,
             vehicleId: trimmedVehicleId,
             vinLast4: trimmedVinLast4,
             images: imagePreviews,
+        }, isOfficialStatusChange, pendingStatusChange?.previousStatus);
+        
+        // Clear pending status change after save
+        setPendingStatusChange(null);
+    };
+
+    const handleStatusChangeOfficial = () => {
+        // Update the status in the form
+        setEditedVehicle(prev => ({ ...prev, status: statusChangeModal.newStatus }));
+        // Remember that this is an official change
+        setPendingStatusChange({
+            isOfficial: true,
+            previousStatus: statusChangeModal.previousStatus,
         });
+        setStatusChangeModal({ isOpen: false, previousStatus: '', newStatus: '' });
+    };
+
+    const handleStatusChangeTesting = () => {
+        // Update the status in the form
+        setEditedVehicle(prev => ({ ...prev, status: statusChangeModal.newStatus }));
+        // Remember that this is a testing change (not official)
+        setPendingStatusChange({
+            isOfficial: false,
+            previousStatus: statusChangeModal.previousStatus,
+        });
+        setStatusChangeModal({ isOpen: false, previousStatus: '', newStatus: '' });
+    };
+
+    const handleStatusChangeCancel = () => {
+        // Revert to previous status
+        setEditedVehicle(prev => ({ ...prev, status: statusChangeModal.previousStatus }));
+        setStatusChangeModal({ isOpen: false, previousStatus: '', newStatus: '' });
+        setPendingStatusChange(null);
     };
 
     const vehicleStatusOptions = useMemo(() => {
@@ -468,7 +518,20 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
                                 value={editedVehicle.status ?? ''}
                                 onChange={value => {
                                     const normalized = normalizeStatus(value);
-                                    setEditedVehicle(prev => ({ ...prev, status: normalized }));
+                                    const previousStatus = editedVehicle.status || vehicle.status || '';
+                                    
+                                    // If status actually changed and this is not a new vehicle, show the confirmation modal
+                                    if (!isNewVehicle && previousStatus !== normalized && previousStatus !== '') {
+                                        setStatusChangeModal({
+                                            isOpen: true,
+                                            previousStatus,
+                                            newStatus: normalized,
+                                        });
+                                    } else {
+                                        // For new vehicles or if status hasn't changed, just update normally
+                                        setEditedVehicle(prev => ({ ...prev, status: normalized }));
+                                        setPendingStatusChange(null); // Clear any pending status change
+                                    }
                                 }}
                                 options={vehicleStatusOptions}
                             />
@@ -490,7 +553,7 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
                                         onBlur={handleFieldBlur}
                                         placeholder={field.placeholder}
                                         maxLength={field.maxLength}
-                                        className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors"
+                                        className="w-full bg-[rgba(35,35,40,0.9)] border border-border-low focus:border-lava-core text-primary placeholder:text-[#D5D5D5] rounded-md p-2 focus:outline-none transition-colors"
                                     />
                                 </div>
                             );
@@ -557,6 +620,15 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
                     <GlassButton onClick={handleSave}>Save Changes</GlassButton>
                 </div>
             </div>
+            
+            <StatusChangeModal
+                isOpen={statusChangeModal.isOpen}
+                onClose={handleStatusChangeCancel}
+                onOfficial={handleStatusChangeOfficial}
+                onTesting={handleStatusChangeTesting}
+                previousStatus={statusChangeModal.previousStatus}
+                newStatus={statusChangeModal.newStatus}
+            />
         </div>
     );
 };

@@ -16,6 +16,7 @@ export type AppSectionKey =
   | 'Data'
   | 'Calendar'
   | 'Team Chat'
+  | 'CRM'
   | 'Settings';
 
 export interface UserAccessPolicy {
@@ -53,6 +54,7 @@ export interface Vehicle {
   downPayment: number;
   vin: string;
   images: string[];
+  binNumber?: number | null;
 }
 
 

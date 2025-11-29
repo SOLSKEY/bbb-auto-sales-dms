@@ -159,7 +159,7 @@ const AccountSettings: React.FC = () => {
                                 type="email"
                                 value={email}
                                 disabled
-                                className="w-full bg-glass-panel border border-border-low text-secondary rounded-md p-3 cursor-not-allowed opacity-60"
+                                className="w-full bg-[rgba(35,35,40,0.9)] border border-border-low text-secondary rounded-md p-3 cursor-not-allowed opacity-60"
                             />
                             <p className="text-xs text-muted mt-1">Email cannot be changed</p>
                         </div>
@@ -181,7 +181,7 @@ const AccountSettings: React.FC = () => {
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 placeholder="Enter your username"
-                                className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-3 focus:outline-none transition-colors"
+                                className="w-full bg-[rgba(35,35,40,0.9)] border border-border-low focus:border-lava-core text-primary placeholder:text-[#D5D5D5] rounded-md p-3 focus:outline-none transition-colors"
                                 minLength={3}
                                 maxLength={30}
                             />
@@ -231,7 +231,7 @@ const AccountSettings: React.FC = () => {
                                 value={newPassword}
                                 onChange={(e) => setNewPassword(e.target.value)}
                                 placeholder="Enter new password"
-                                className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-3 focus:outline-none transition-colors"
+                                className="w-full bg-[rgba(35,35,40,0.9)] border border-border-low focus:border-lava-core text-primary placeholder:text-[#D5D5D5] rounded-md p-3 focus:outline-none transition-colors"
                                 minLength={6}
                             />
                         </div>
@@ -245,7 +245,7 @@ const AccountSettings: React.FC = () => {
                                 value={confirmPassword}
                                 onChange={(e) => setConfirmPassword(e.target.value)}
                                 placeholder="Confirm new password"
-                                className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-3 focus:outline-none transition-colors"
+                                className="w-full bg-[rgba(35,35,40,0.9)] border border-border-low focus:border-lava-core text-primary placeholder:text-[#D5D5D5] rounded-md p-3 focus:outline-none transition-colors"
                                 minLength={6}
                             />
                         </div>

@@ -30,7 +30,7 @@ const SummaryCard: React.FC<{ title: string; children: React.ReactNode; classNam
 const Input = (props: React.InputHTMLAttributes<HTMLInputElement>) => (
     <input
         {...props}
-        className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors disabled:bg-glass-panel/50 disabled:text-muted"
+        className="w-full bg-[rgba(35,35,40,0.9)] border border-border-low focus:border-lava-core text-primary placeholder:text-[#D5D5D5] rounded-md p-2 focus:outline-none transition-colors disabled:bg-[rgba(35,35,40,0.5)] disabled:text-muted"
     />
 );
 
@@ -80,7 +80,7 @@ const DynamicListCard = <T extends { id: number } & Record<string, any>>(
                                             value={item[col.key]}
                                             onChange={e => onUpdate(item.id, col.key, e.target.value)}
                                             rows={1}
-                                            className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors resize-y"
+                                            className="w-full bg-[rgba(35,35,40,0.9)] border border-border-low focus:border-lava-core text-primary placeholder:text-[#D5D5D5] rounded-md p-2 focus:outline-none transition-colors resize-y"
                                         />
                                     );
                                 }

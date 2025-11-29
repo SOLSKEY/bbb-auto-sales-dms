@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 
+const EXPORT_SERVER_URL = import.meta.env.VITE_EXPORT_SERVER_URL || 'http://localhost:3001';
+
 export const ExportPuppeteerButton: React.FC = () => {
   const [isExporting, setIsExporting] = useState(false);
 
@@ -9,7 +11,7 @@ export const ExportPuppeteerButton: React.FC = () => {
 
     try {
       // Call the export server endpoint
-      const response = await fetch('http://localhost:3001/api/export-sales-report', {
+      const response = await fetch(`${EXPORT_SERVER_URL}/api/export-sales-report`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -60,11 +62,9 @@ export const ExportPuppeteerButton: React.FC = () => {
       
       // Check if it's a connection error
       if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
-        alert(
+            alert(
           '❌ Cannot connect to export server.\n\n' +
-          'Make sure the export server is running:\n' +
-          '  npm run export-server\n\n' +
-          'The export server should be running on http://localhost:3001'
+          'The export server may be temporarily unavailable. Please try again later.'
         );
       } else if (errorMessage.includes('Development server is not running')) {
         alert(

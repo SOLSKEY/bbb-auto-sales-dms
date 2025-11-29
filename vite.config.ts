@@ -10,6 +10,11 @@ export default defineConfig(({ mode }) => {
       server: {
         port: Number.isFinite(preferredPort) ? preferredPort : 3000,
         host: preferredHost,
+        allowedHosts: [
+          '.ngrok.io',
+          '.ngrok-free.app',
+          '.ngrok.app',
+        ],
       },
       plugins: [react()],
       define: {

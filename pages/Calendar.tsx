@@ -68,19 +68,19 @@ const EventModal: React.FC<{
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-muted mb-1">Title</label>
-                        <input name="title" value={formData.title} onChange={handleChange} className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors" />
+                        <input name="title" value={formData.title} onChange={handleChange} className="w-full bg-[rgba(35,35,40,0.9)] border border-border-low focus:border-lava-core text-primary placeholder:text-[#D5D5D5] rounded-md p-2 focus:outline-none transition-colors" />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-muted mb-1">Customer</label>
-                        <input name="customer" value={formData.customer} onChange={handleChange} className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors" />
+                        <input name="customer" value={formData.customer} onChange={handleChange} className="w-full bg-[rgba(35,35,40,0.9)] border border-border-low focus:border-lava-core text-primary placeholder:text-[#D5D5D5] rounded-md p-2 focus:outline-none transition-colors" />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-muted mb-1">Salesperson</label>
-                        <input name="salesperson" value={formData.salesperson} onChange={handleChange} className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors" />
+                        <input name="salesperson" value={formData.salesperson} onChange={handleChange} className="w-full bg-[rgba(35,35,40,0.9)] border border-border-low focus:border-lava-core text-primary placeholder:text-[#D5D5D5] rounded-md p-2 focus:outline-none transition-colors" />
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-muted mb-1">Date & Time</label>
-                        <input type="datetime-local" name="date" value={formatDateForInput(formData.date)} onChange={handleDateChange} className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors" />
+                        <input type="datetime-local" name="date" value={formatDateForInput(formData.date)} onChange={handleDateChange} className="w-full bg-[rgba(35,35,40,0.9)] border border-border-low focus:border-lava-core text-primary placeholder:text-[#D5D5D5] rounded-md p-2 focus:outline-none transition-colors" />
                     </div>
                 </div>
                 <div className="mt-8 flex justify-between items-center">

@@ -479,7 +479,7 @@ const CollectionsOverview: React.FC<{
                                         <input
                                             ref={dateInputRef}
                                             type="date"
-                                            className="w-full rounded-md bg-glass-panel border border-border-low py-2.5 pl-3 pr-12 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-lava-core/60"
+                                            className="w-full rounded-md bg-[rgba(35,35,40,0.9)] border border-border-low py-2.5 pl-3 pr-12 text-sm text-primary placeholder:text-[#D5D5D5] focus:outline-none focus:ring-2 focus:ring-lava-core/60"
                                             value={logForm.date}
                                             onChange={event => handleLogInputChange('date', event.target.value)}
                                             required
@@ -509,7 +509,7 @@ const CollectionsOverview: React.FC<{
                                         <input
                                             type="number"
                                             step="0.01"
-                                            className="w-full rounded-md bg-glass-panel border border-border-low py-2.5 px-3 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-lava-core/60"
+                                            className="w-full rounded-md bg-[rgba(35,35,40,0.9)] border border-border-low py-2.5 px-3 text-sm text-primary placeholder:text-[#D5D5D5] focus:outline-none focus:ring-2 focus:ring-lava-core/60"
                                             value={logForm.payments}
                                             onChange={event => handleLogInputChange('payments', event.target.value)}
                                             placeholder="0.00"
@@ -522,7 +522,7 @@ const CollectionsOverview: React.FC<{
                                         <input
                                             type="number"
                                             step="0.01"
-                                            className="w-full rounded-md bg-glass-panel border border-border-low py-2.5 px-3 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-lava-core/60"
+                                            className="w-full rounded-md bg-[rgba(35,35,40,0.9)] border border-border-low py-2.5 px-3 text-sm text-primary placeholder:text-[#D5D5D5] focus:outline-none focus:ring-2 focus:ring-lava-core/60"
                                             value={logForm.lateFees}
                                             onChange={event => handleLogInputChange('lateFees', event.target.value)}
                                             placeholder="0.00"
@@ -535,7 +535,7 @@ const CollectionsOverview: React.FC<{
                                         <input
                                             type="number"
                                             step="0.01"
-                                            className="w-full rounded-md bg-glass-panel border border-border-low py-2.5 px-3 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-lava-core/60"
+                                            className="w-full rounded-md bg-[rgba(35,35,40,0.9)] border border-border-low py-2.5 px-3 text-sm text-primary placeholder:text-[#D5D5D5] focus:outline-none focus:ring-2 focus:ring-lava-core/60"
                                             value={logForm.boa}
                                             onChange={event => handleLogInputChange('boa', event.target.value)}
                                             placeholder="0.00"
@@ -548,7 +548,7 @@ const CollectionsOverview: React.FC<{
                                         <input
                                             type="number"
                                             step="1"
-                                            className="w-full rounded-md bg-glass-panel border border-border-low py-2.5 px-3 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-lava-core/60"
+                                            className="w-full rounded-md bg-[rgba(35,35,40,0.9)] border border-border-low py-2.5 px-3 text-sm text-primary placeholder:text-[#D5D5D5] focus:outline-none focus:ring-2 focus:ring-lava-core/60"
                                             value={logForm.overdueAccounts}
                                             onChange={event => handleLogInputChange('overdueAccounts', event.target.value)}
                                             placeholder="0"
@@ -561,7 +561,7 @@ const CollectionsOverview: React.FC<{
                                         <input
                                             type="number"
                                             step="1"
-                                            className="w-full rounded-md bg-glass-panel border border-border-low py-2.5 px-3 text-sm text-primary focus:outline-none focus:ring-2 focus:ring-lava-core/60"
+                                            className="w-full rounded-md bg-[rgba(35,35,40,0.9)] border border-border-low py-2.5 px-3 text-sm text-primary placeholder:text-[#D5D5D5] focus:outline-none focus:ring-2 focus:ring-lava-core/60"
                                             value={logForm.openAccounts}
                                             onChange={event => handleLogInputChange('openAccounts', event.target.value)}
                                             placeholder="0"

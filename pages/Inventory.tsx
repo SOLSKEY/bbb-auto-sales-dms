@@ -1,11 +1,12 @@
 import React, { useState, useContext, useMemo, useEffect } from 'react';
 import type { Vehicle, Sale } from '../types';
 import { UserContext, DataContext } from '../App';
-import { PhotoIcon, PencilSquareIcon, CheckCircleIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, XCircleIcon, ChevronLeftIcon, ChevronRightIcon, XMarkIcon } from '@heroicons/react/24/solid';
+import { PhotoIcon, PencilSquareIcon, CheckCircleIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, XCircleIcon, ChevronLeftIcon, ChevronRightIcon, XMarkIcon, ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/solid';
 import EditVehicleModal from '../components/EditVehicleModal';
 import MarkSoldModal from '../components/MarkSoldModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AppSelect from '../components/AppSelect';
+import NightlyReportWidget from '../components/NightlyReportWidget';
 import { supabase } from '../supabaseClient';
 import { computeNextAccountNumber, computeNextStockNumbers, getStockPrefix } from '../utils/stockNumbers';
 import { toSupabase, fromSupabase, SALE_FIELD_MAP, VEHICLE_FIELD_MAP, quoteSupabaseColumn } from '../supabaseMapping';
@@ -90,6 +91,8 @@ const VehicleCard: React.FC<{
 }> = ({ vehicle, onEdit, onSold, onTrash, onView, canEdit, canMarkSold, canDelete }) => {
     const images = vehicle.images ?? [];
     const [activeImageIndex, setActiveImageIndex] = useState(0);
+    const [binCopied, setBinCopied] = useState(false);
+    const [vinCopied, setVinCopied] = useState(false);
 
     useEffect(() => {
         setActiveImageIndex(prev => {
@@ -159,17 +162,72 @@ const VehicleCard: React.FC<{
                         type="button"
                         onClick={onView}
                     >
-                        {vehicle.year} {vehicle.make} {vehicle.model}
+                        {vehicle.year} {vehicle.make} {vehicle.model}{vehicle.trim ? ` ${vehicle.trim}` : ''}
                     </GlassButton>
                     <div className={`flex-shrink-0 px-3 py-1 text-xs font-semibold rounded-full border whitespace-nowrap ${badgeClasses}`}>
                         {vehicle.status}
                     </div>
                 </div>
-                <p className="text-muted text-sm">{vehicle.trim}</p>
                  <div className="mt-4 space-y-2 text-sm text-secondary">
                     <div className="flex justify-between"><span>Mileage:</span> <span className="font-semibold">{formatNumberDisplay(vehicle.mileage)} mi</span></div>
                     <div className="flex justify-between"><span>Exterior:</span> <span className="font-semibold">{vehicle.exterior}</span></div>
                     <div className="flex justify-between"><span>Drivetrain:</span> <span className="font-semibold">{vehicle.driveTrain}</span></div>
+                    {vehicle.vin && (
+                        <div className="flex justify-between items-center">
+                            <span>VIN:</span>
+                            <div className="flex items-center gap-2">
+                                <span className="font-semibold">{vehicle.vin}</span>
+                                <button
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        try {
+                                            await navigator.clipboard.writeText(vehicle.vin);
+                                            setVinCopied(true);
+                                            setTimeout(() => setVinCopied(false), 2000);
+                                        } catch (error) {
+                                            console.error('Failed to copy VIN:', error);
+                                        }
+                                    }}
+                                    className="p-1 transition-colors group"
+                                    title="Copy VIN"
+                                >
+                                    {vinCopied ? (
+                                        <CheckIcon className="h-4 w-4 text-sky-300" />
+                                    ) : (
+                                        <ClipboardDocumentIcon className="h-4 w-4 text-sky-300 group-hover:text-sky-200" />
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    )}
+                    {vehicle.binNumber !== null && vehicle.binNumber !== undefined && (
+                        <div className="flex justify-between items-center">
+                            <span>Bin Number:</span>
+                            <div className="flex items-center gap-2">
+                                <span className="font-semibold">{vehicle.binNumber}</span>
+                                <button
+                                    onClick={async (e) => {
+                                        e.stopPropagation();
+                                        try {
+                                            await navigator.clipboard.writeText(String(vehicle.binNumber));
+                                            setBinCopied(true);
+                                            setTimeout(() => setBinCopied(false), 2000);
+                                        } catch (error) {
+                                            console.error('Failed to copy bin number:', error);
+                                        }
+                                    }}
+                                    className="p-1 text-cyan-400 hover:text-cyan-300 transition-colors"
+                                    title="Copy bin number"
+                                >
+                                    {binCopied ? (
+                                        <CheckIcon className="h-4 w-4" />
+                                    ) : (
+                                        <ClipboardDocumentIcon className="h-4 w-4" />
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
             <div className="bg-glass-panel p-4 mt-auto border-t border-border-low">
@@ -518,7 +576,7 @@ const Inventory: React.FC = () => {
     return query.eq(VEHICLE_FIELD_MAP.vin, vehicle.vin);
 };
 
-    const handleSaveVehicle = async (updatedVehicle: Vehicle) => {
+    const handleSaveVehicle = async (updatedVehicle: Vehicle, isOfficialStatusChange?: boolean, previousStatus?: string) => {
         if (!canEditInventory) {
             alert('You do not have permission to edit vehicles.');
             return;
@@ -540,6 +598,27 @@ const Inventory: React.FC = () => {
                 console.error('Error updating vehicle:', error);
                 alert('Failed to update vehicle. Please try again.');
                 return;
+            }
+
+            // If this is an official status change, log it to status_logs
+            if (isOfficialStatusChange && previousStatus && previousStatus !== normalizedVehicle.status) {
+                const vehicleId = normalizedVehicle.vehicleId || normalizedVehicle.vin;
+                if (vehicleId) {
+                    const { error: logError } = await supabase
+                        .from('status_logs')
+                        .insert({
+                            vehicle_id: vehicleId,
+                            previous_status: previousStatus,
+                            new_status: normalizedVehicle.status,
+                            changed_at: new Date().toISOString(),
+                        });
+
+                    if (logError) {
+                        console.error('Error logging status change:', logError);
+                        // Don't fail the whole operation if logging fails, just warn
+                        console.warn('Vehicle updated but status change was not logged.');
+                    }
+                }
             }
 
             // Update local state
@@ -828,14 +907,14 @@ const Inventory: React.FC = () => {
 
             {/* Filter and Search Bar */}
             <div className="mb-6 glass-card p-4 flex flex-wrap items-center gap-4">
-                <div className="flex items-center gap-3 flex-grow min-w-[250px] bg-glass-panel border border-border-low rounded-md px-3 py-2 focus-within:border-lava-core transition-colors">
+                <div className="flex items-center gap-3 flex-grow min-w-[250px] bg-[rgba(35,35,40,0.9)] border border-border-low rounded-md px-3 py-2 focus-within:border-lava-core transition-colors">
                     <MagnifyingGlassIcon className="h-5 w-5 text-muted" />
                     <input
                         type="text"
                         placeholder="Search Make, Model, Year, VIN..."
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
-                        className="flex-1 bg-transparent text-primary focus:outline-none placeholder:text-secondary"
+                        className="flex-1 bg-transparent text-primary focus:outline-none placeholder:text-[#D5D5D5]"
                     />
                 </div>
                 <div className="min-w-[150px]">
@@ -947,6 +1026,9 @@ const Inventory: React.FC = () => {
                     onClose={() => setViewingVehicle(null)}
                 />
             )}
+            
+            {/* Nightly Report Widget - Only visible on Inventory page */}
+            <NightlyReportWidget />
         </div>
     );
 };

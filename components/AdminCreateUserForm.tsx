@@ -19,6 +19,7 @@ const AdminCreateUserForm: React.FC<AdminCreateUserFormProps> = ({ onUserCreated
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [username, setUsername] = useState('');
     const [role, setRole] = useState<'user' | 'admin'>('user');
     const [access, setAccess] = useState<AccessRecord>(defaultAccess);
     const [submitting, setSubmitting] = useState(false);
@@ -46,6 +47,7 @@ const AdminCreateUserForm: React.FC<AdminCreateUserFormProps> = ({ onUserCreated
             const result = await adminApi.createUser({
                 email,
                 password,
+                username: username.trim() || undefined,
                 role,
                 access,
             });
@@ -54,6 +56,7 @@ const AdminCreateUserForm: React.FC<AdminCreateUserFormProps> = ({ onUserCreated
                 setSuccess("User created successfully.");
                 setEmail("");
                 setPassword("");
+                setUsername("");
                 setRole('user');
                 setAccess(defaultAccess);
                 onUserCreated?.();
@@ -101,6 +104,16 @@ const AdminCreateUserForm: React.FC<AdminCreateUserFormProps> = ({ onUserCreated
                             onChange={event => setPassword(event.target.value)}
                             className="mt-1 w-full rounded-lg border border-border-low bg-transparent px-3 py-2 text-primary focus:border-lava-core focus:outline-none"
                             placeholder="Enter initial password"
+                        />
+                    </label>
+                    <label className="text-sm font-semibold text-secondary">
+                        Username (optional, must be unique)
+                        <input
+                            type="text"
+                            value={username}
+                            onChange={event => setUsername(event.target.value)}
+                            className="mt-1 w-full rounded-lg border border-border-low bg-[rgba(35,35,40,0.9)] px-3 py-2 text-primary placeholder:text-[#D5D5D5] focus:border-lava-core focus:outline-none"
+                            placeholder="Enter username"
                         />
                     </label>
                     <label className="text-sm font-semibold text-secondary">

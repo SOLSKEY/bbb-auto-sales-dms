@@ -12,7 +12,9 @@ import Reports from './pages/Reports';
 import Data from './pages/Data';
 import Calendar from './pages/Calendar';
 import TeamChat from './pages/TeamChat';
+import Messaging from './pages/Messaging';
 import Settings from './pages/Settings';
+import CRM from './pages/CRM';
 import type { User, Role, Vehicle, Sale, UserAccount, UserAccessPolicy, AppSectionKey } from './types';
 import Header from './components/Header';
 import { supabase } from './supabaseClient';
@@ -24,8 +26,6 @@ import AdminUserPermissions from './pages/AdminUserPermissions';
 import AccountSettings from './pages/AccountSettings';
 import PrintDailyClosing from './pages/PrintDailyClosing';
 import { usePrintView } from './hooks/usePrintView';
-import { TwentyFirstToolbar } from '@21st-extension/toolbar-react';
-import { ReactPlugin } from '@21st-extension/react';
 
 const APP_PAGES: AppSectionKey[] = [
     'Dashboard',
@@ -36,6 +36,7 @@ const APP_PAGES: AppSectionKey[] = [
     'Data',
     'Calendar',
     'Team Chat',
+    'CRM',
     'Settings',
 ];
 
@@ -82,6 +83,9 @@ const PATH_TITLE_MAP: Record<string, string> = {
     '/data': 'Data',
     '/calendar': 'Calendar',
     '/team-chat': 'Team Chat',
+    '/messaging': 'Messaging',
+    '/dashboard/crm': 'CRM',
+    '/crm': 'CRM',
     '/settings': 'Settings',
     '/account-settings': 'Account Settings',
     '/admin': 'Admin Dashboard',
@@ -554,7 +558,6 @@ const App: React.FC = () => {
     return (
         <UserContext.Provider value={userContextValue}>
             <DataContext.Provider value={dataContextValue}>
-                <TwentyFirstToolbar config={{ plugins: [ReactPlugin] }} />
                 {location.pathname === '/print/daily-closing' ? (
                     <PrintDailyClosing />
                 ) : (
@@ -588,9 +591,11 @@ const App: React.FC = () => {
                                     <Route path="/calendar" element={
                                         !permissionsLoading && !canViewPage('Calendar') ? NotAuthorized : <Calendar />
                                     } />
-                                    <Route path="/team-chat" element={
-                                        !permissionsLoading && !canViewPage('Team Chat') ? NotAuthorized : <TeamChat />
-                                    } />
+                                    {/* Disabled pages - redirect to dashboard */}
+                                    <Route path="/team-chat" element={<Navigate to="/dashboard" replace />} />
+                                    <Route path="/messaging" element={<Navigate to="/dashboard" replace />} />
+                                    <Route path="/dashboard/crm" element={<Navigate to="/dashboard" replace />} />
+                                    <Route path="/crm" element={<Navigate to="/dashboard" replace />} />
                                     <Route path="/settings" element={
                                         !permissionsLoading && !canViewPage('Settings') ? NotAuthorized : <Settings />
                                     } />

@@ -380,7 +380,11 @@ const Reports: React.FC = () => {
 
                     <div className="flex items-center gap-2 print:hidden">
                         {activeReport === 'Commission' && reportView === 'live' && (
-                            <CommissionShortcutButton />
+                            <CommissionShortcutButton 
+                                weekBuckets={weekBuckets}
+                                selectedWeekKey={selectedWeekKey}
+                                onWeekChange={setSelectedWeekKey}
+                            />
                         )}
                         {reportView === 'live' && canLogReport && (
                             <GlassButton

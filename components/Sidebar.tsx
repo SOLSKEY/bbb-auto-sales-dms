@@ -10,8 +10,10 @@ import {
     TableCellsIcon,
     CalendarIcon,
     ChatBubbleLeftRightIcon,
+    ChatBubbleBottomCenterTextIcon,
     Cog6ToothIcon,
     UserGroupIcon,
+    UsersIcon,
 } from '@heroicons/react/24/outline';
 import type { AppSectionKey, UserAccessPolicy } from '@/types';
 
@@ -20,6 +22,8 @@ type NavItem = {
     icon: React.ComponentType<React.SVGProps<SVGSVGElement>>;
     path: string;
     permissionKey?: AppSectionKey;
+    disabled?: boolean;
+    comingSoon?: boolean;
 };
 
 const BASE_NAV_ITEMS: NavItem[] = [
@@ -30,7 +34,9 @@ const BASE_NAV_ITEMS: NavItem[] = [
     { name: 'Reports', icon: CircleStackIcon, path: '/reports', permissionKey: 'Reports' },
     { name: 'Data', icon: TableCellsIcon, path: '/data', permissionKey: 'Data' },
     { name: 'Calendar', icon: CalendarIcon, path: '/calendar', permissionKey: 'Calendar' },
-    { name: 'Team Chat', icon: ChatBubbleLeftRightIcon, path: '/team-chat', permissionKey: 'Team Chat' },
+    { name: 'Team Chat', icon: ChatBubbleLeftRightIcon, path: '/team-chat', permissionKey: 'Team Chat', disabled: true, comingSoon: true },
+    { name: 'Chat', icon: ChatBubbleBottomCenterTextIcon, path: '/messaging', permissionKey: 'Team Chat', disabled: true, comingSoon: true },
+    { name: 'CRM', icon: UsersIcon, path: '/dashboard/crm', permissionKey: 'CRM', disabled: true, comingSoon: true },
 ];
 
 const BbbLogo = () => (
@@ -71,7 +77,14 @@ const Sidebar: React.FC<SidebarProps> = ({ isAdmin = false, permissions, canView
             return false;
         };
 
-        const base = BASE_NAV_ITEMS.filter(item => canView(item.permissionKey));
+        // Show all items including disabled ones (they'll be greyed out)
+        const base = BASE_NAV_ITEMS.filter(item => {
+            // Always show disabled items (they'll be greyed out)
+            if (item.disabled) return true;
+            // For enabled items, check permissions
+            return canView(item.permissionKey);
+        });
+        
         if (isAdmin) {
             base.push({ name: 'Admin', icon: UserGroupIcon, path: '/admin' });
         }
@@ -86,24 +99,39 @@ const Sidebar: React.FC<SidebarProps> = ({ isAdmin = false, permissions, canView
                 </div>
             </div>
             <ul className="flex-1 space-y-2">
-                {navItems.map((item) => (
-                    <li key={item.name}>
-                        <button
-                            type="button"
-                            onClick={() => navigate(item.path)}
-                            className={`flex w-full items-center p-3 text-left rounded-r-xl transition-smooth group relative ${normalizedPath === item.path || (item.path !== '/' && normalizedPath.startsWith(`${item.path}/`))
-                                ? 'nav-item-active'
-                                : 'text-secondary-contrast hover:bg-white/5 hover:text-primary-contrast'
+                {navItems.map((item) => {
+                    const isDisabled = item.disabled;
+                    const isActive = !isDisabled && (normalizedPath === item.path || (item.path !== '/' && normalizedPath.startsWith(`${item.path}/`)));
+                    
+                    return (
+                        <li key={item.name}>
+                            <button
+                                type="button"
+                                onClick={() => !isDisabled && navigate(item.path)}
+                                disabled={isDisabled}
+                                className={`flex w-full items-center p-3 text-left rounded-r-xl transition-smooth group relative ${
+                                    isDisabled
+                                        ? 'opacity-50 cursor-not-allowed text-slate-500'
+                                        : isActive
+                                        ? 'nav-item-active'
+                                        : 'text-secondary-contrast hover:bg-white/5 hover:text-primary-contrast'
                                 }`}
-                        >
-                            <item.icon className={`h-6 w-6 mr-3 transition-smooth ${normalizedPath === item.path || (item.path !== '/' && normalizedPath.startsWith(`${item.path}/`))
-                                ? 'icon-neon'
-                                : 'text-slate-500 group-hover:icon-neon'
+                            >
+                                <item.icon className={`h-6 w-6 mr-3 transition-smooth ${
+                                    isDisabled
+                                        ? 'text-slate-600'
+                                        : isActive
+                                        ? 'icon-neon'
+                                        : 'text-slate-500 group-hover:icon-neon'
                                 }`} />
-                            <span className="font-medium">{item.name}</span>
-                        </button>
-                    </li>
-                ))}
+                                <span className="font-medium flex-1">{item.name}</span>
+                                {item.comingSoon && (
+                                    <span className="text-xs text-slate-500 italic ml-2">(coming soon)</span>
+                                )}
+                            </button>
+                        </li>
+                    );
+                })}
             </ul>
             <div className="mt-auto">
                 {(isAdmin || (canViewPage && canViewPage('Settings')) || (permissions && permissions['Settings']?.canView)) && (

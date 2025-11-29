@@ -8,6 +8,7 @@ const AdminUserPermissions: React.FC = () => {
     const userContext = useContext(UserContext);
     const isAdmin = useMemo(() => userContext?.user.role === 'admin', [userContext?.user.role]);
     const [userEmail, setUserEmail] = useState<string>('');
+    const [username, setUsername] = useState<string>('');
     const [userRole, setUserRole] = useState<'user' | 'admin'>('user');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -26,6 +27,7 @@ const AdminUserPermissions: React.FC = () => {
 
                 if (userData) {
                     setUserEmail(userData.email ?? 'unknown@user');
+                    setUsername(userData.username ?? '');
                     const role = (userData.role as 'user' | 'admin') ?? 'user';
                     setUserRole(role);
                 }
@@ -46,11 +48,14 @@ const AdminUserPermissions: React.FC = () => {
         setError(null);
         setSuccess(null);
         try {
-            await adminApi.updateUserRole(id, userRole);
+            await adminApi.updateUser(id, {
+                role: userRole,
+                username: username.trim() || null,
+            });
 
-            console.log('Successfully updated role for user:', id, 'to:', userRole);
+            console.log('Successfully updated user:', id);
 
-            setSuccess('User role updated successfully.');
+            setSuccess('User updated successfully.');
             setTimeout(() => {
                 navigate('/admin/users');
             }, 1500);
@@ -99,6 +104,22 @@ const AdminUserPermissions: React.FC = () => {
                 <p className="text-sm text-secondary">Loading user data…</p>
             ) : (
                 <>
+                    {/* Username Section */}
+                    <div className="rounded-2xl border border-border-low bg-glass-panel/70 p-6">
+                        <h2 className="mb-4 text-lg font-semibold text-primary">Username</h2>
+                        <label className="block text-sm font-medium text-secondary">
+                            Username (must be unique)
+                            <input
+                                type="text"
+                                value={username}
+                                onChange={event => setUsername(event.target.value)}
+                                className="mt-2 w-full rounded-lg border border-border-low bg-[rgba(35,35,40,0.9)] px-3 py-2 text-primary placeholder:text-[#D5D5D5] focus:border-lava-core focus:outline-none"
+                                placeholder="Enter username (leave empty to remove)"
+                            />
+                        </label>
+                        <p className="mt-2 text-xs text-secondary">Usernames must be unique. Leave empty to remove the username.</p>
+                    </div>
+
                     {/* Role Section */}
                     <div className="rounded-2xl border border-border-low bg-glass-panel/70 p-6">
                         <h2 className="mb-4 text-lg font-semibold text-primary">User Role</h2>

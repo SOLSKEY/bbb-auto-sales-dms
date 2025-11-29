@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { PlusCircleIcon, TrashIcon, PencilSquareIcon, CheckIcon } from '@heroicons/react/24/solid';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { PlusCircleIcon, TrashIcon, PencilSquareIcon, CheckIcon, MagnifyingGlassIcon, XCircleIcon } from '@heroicons/react/24/solid';
 import { supabase } from '../supabaseClient';
 import { toSupabase, quoteSupabaseColumn } from '../supabaseMapping';
 import { GlassButton } from '@/components/ui/glass-button';
@@ -78,6 +78,7 @@ const DataGrid: React.FC<DataGridProps> = ({
     const [editingValue, setEditingValue] = useState<string>('');
     const [isSaving, setIsSaving] = useState(false);
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+    const [searchTerm, setSearchTerm] = useState<string>('');
     const inputRef = useRef<HTMLInputElement>(null);
     const saveButtonRef = useRef<HTMLButtonElement>(null);
     const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -177,6 +178,25 @@ const DataGrid: React.FC<DataGridProps> = ({
         setSaveStatus('idle');
     };
 
+    // Filter data based on search term
+    const filteredData = useMemo(() => {
+        if (!searchTerm.trim()) {
+            return data;
+        }
+
+        const searchLower = searchTerm.toLowerCase().trim();
+        return data.filter((row) => {
+            // Search across all column values
+            return columns.some((col) => {
+                const value = row[col.key];
+                if (value === null || value === undefined) return false;
+                // Convert to string and search (case-insensitive)
+                const valueStr = String(value).toLowerCase();
+                return valueStr.includes(searchLower);
+            });
+        });
+    }, [data, searchTerm, columns]);
+
     const handleAddRow = async () => {
         if (!columns || columns.length === 0) return;
 
@@ -218,6 +238,33 @@ const DataGrid: React.FC<DataGridProps> = ({
 
     return (
         <div className="h-full flex flex-col glass-card-outline overflow-hidden">
+            {/* Search Bar */}
+            <div className="p-4 border-b border-border-low bg-glass-panel">
+                <div className="flex items-center gap-3 bg-[rgba(35,35,40,0.9)] border border-border-low rounded-md px-3 py-2 focus-within:border-lava-core transition-colors">
+                    <MagnifyingGlassIcon className="h-5 w-5 text-muted flex-shrink-0" />
+                    <input
+                        type="text"
+                        placeholder="Search across all columns..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                        className="flex-1 bg-transparent text-primary focus:outline-none placeholder:text-[#D5D5D5]"
+                    />
+                    {searchTerm && (
+                        <button
+                            onClick={() => setSearchTerm('')}
+                            className="p-1 text-muted hover:text-primary transition-colors flex-shrink-0"
+                            title="Clear search"
+                        >
+                            <XCircleIcon className="h-5 w-5" />
+                        </button>
+                    )}
+                </div>
+                {searchTerm && (
+                    <p className="text-xs text-muted mt-2">
+                        Showing {filteredData.length} of {data.length} results
+                    </p>
+                )}
+            </div>
             <div className="overflow-auto flex-grow">
                 <table className="min-w-full text-sm">
                     <thead className="sticky top-0 bg-glass-panel border-b border-border-low z-10 backdrop-blur-glass">
@@ -235,10 +282,20 @@ const DataGrid: React.FC<DataGridProps> = ({
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border-low">
-                        {data.map((row, rowIndex) => (
+                        {filteredData.map((row, rowIndex) => {
+                            // Find the original index in the unfiltered data for editing
+                            const originalIndex = data.findIndex((r) => {
+                                // Try to match by id or primary key if available
+                                if (row.id && r.id === row.id) return true;
+                                // Fallback to comparing all column values
+                                return columns.every((col) => row[col.key] === r[col.key]);
+                            });
+                            const actualRowIndex = originalIndex >= 0 ? originalIndex : rowIndex;
+                            
+                            return (
                             <tr key={row.id || rowIndex} className="hover:bg-glass-panel transition-colors">
                                 {columns.map((col) => {
-                                    const isEditing = editable && editingCell?.row === rowIndex && editingCell?.col === col.key;
+                                    const isEditing = editable && editingCell?.row === actualRowIndex && editingCell?.col === col.key;
                                     const displayValue = isVinLast4Column(col.key) && !isEditing 
                                         ? formatVinLast4(row[col.key])
                                         : (row[col.key] ?? '');
@@ -255,7 +312,7 @@ const DataGrid: React.FC<DataGridProps> = ({
                                                         onKeyDown={(e) => {
                                                             if (e.key === 'Enter') {
                                                                 e.preventDefault();
-                                                                handleSaveCell(rowIndex, col.key);
+                                                                handleSaveCell(actualRowIndex, col.key);
                                                             } else if (e.key === 'Escape') {
                                                                 e.preventDefault();
                                                                 handleCancelEdit();
@@ -273,7 +330,7 @@ const DataGrid: React.FC<DataGridProps> = ({
                                                             }
                                                             saveTimeoutRef.current = setTimeout(() => {
                                                                 if (saveStatus !== 'saving' && !saveButtonRef.current?.matches(':hover')) {
-                                                                    handleSaveCell(rowIndex, col.key);
+                                                                    handleSaveCell(actualRowIndex, col.key);
                                                                 }
                                                             }, 150);
                                                         }}
@@ -289,7 +346,7 @@ const DataGrid: React.FC<DataGridProps> = ({
                                                             if (saveTimeoutRef.current) {
                                                                 clearTimeout(saveTimeoutRef.current);
                                                             }
-                                                            handleSaveCell(rowIndex, col.key);
+                                                            handleSaveCell(actualRowIndex, col.key);
                                                         }}
                                                         onMouseDown={(e) => {
                                                             e.preventDefault(); // Prevent input blur
@@ -312,7 +369,7 @@ const DataGrid: React.FC<DataGridProps> = ({
                                             ) : (
                                                 <div
                                                     className="p-3 h-full text-secondary cursor-pointer hover:bg-glass-panel/50"
-                                                    onDoubleClick={() => handleStartEdit(rowIndex, col.key)}
+                                                    onDoubleClick={() => handleStartEdit(actualRowIndex, col.key)}
                                                 >
                                                     {displayValue}
                                                 </div>
@@ -349,7 +406,15 @@ const DataGrid: React.FC<DataGridProps> = ({
                                     </td>
                                 )}
                             </tr>
-                        ))}
+                            );
+                        })}
+                        {filteredData.length === 0 && (
+                            <tr>
+                                <td colSpan={columns.length + (onDeleteRow || onEditRow ? 1 : 0)} className="p-8 text-center text-muted">
+                                    {searchTerm ? `No results found for "${searchTerm}"` : 'No data available'}
+                                </td>
+                            </tr>
+                        )}
                     </tbody>
                 </table>
             </div>

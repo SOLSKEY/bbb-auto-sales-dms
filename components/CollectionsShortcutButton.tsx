@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 
+const EXPORT_SERVER_URL = import.meta.env.VITE_EXPORT_SERVER_URL || 'http://localhost:3001';
+
 /**
  * CollectionsShortcutButton Component
  * 
@@ -22,7 +24,7 @@ const CollectionsShortcutButton: React.FC = () => {
         try {
             console.log('⚡ Starting Collections shortcut automation...');
             
-            const response = await fetch('http://localhost:3001/api/shortcut-screenshot', {
+            const response = await fetch(`${EXPORT_SERVER_URL}/api/shortcut-screenshot`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -66,16 +68,12 @@ const CollectionsShortcutButton: React.FC = () => {
             if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
                 alert(
                     '❌ Cannot connect to export server.\n\n' +
-                    'Make sure the export server is running:\n' +
-                    '  npm run export-server\n\n' +
-                    'The export server should be running on http://localhost:3001'
+                    'The export server may be temporarily unavailable. Please try again later.'
                 );
-            } else if (errorMessage.includes('Development server is not running')) {
+            } else if (errorMessage.includes('Development server is not running') || errorMessage.includes('server is not running')) {
                 alert(
-                    '❌ Development server is not running.\n\n' +
-                    'Please start the dev server first:\n' +
-                    '  npm run dev\n\n' +
-                    'The shortcut automation needs the dev server to be running on http://localhost:3000'
+                    '❌ Application server is not accessible.\n\n' +
+                    'Please ensure the application is properly deployed and accessible.'
                 );
             } else {
                 alert(`❌ Collections shortcut failed:\n\n${errorMessage}`);

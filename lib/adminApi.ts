@@ -90,6 +90,7 @@ export const adminApi = {
     async createUser(userData: {
         email: string;
         password: string;
+        username?: string;
         role: 'admin' | 'user';
         access?: any;
     }) {
@@ -152,6 +153,23 @@ export const adminApi = {
         if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error?.message || 'Failed to update user role');
+        }
+
+        return response.json();
+    },
+
+    /**
+     * Update user (role and/or username) (admin only)
+     */
+    async updateUser(userId: string, data: { role?: 'user' | 'admin'; username?: string | null }) {
+        const response = await makeAuthenticatedRequest(`/admin/users/${userId}`, {
+            method: 'PATCH',
+            body: JSON.stringify(data),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error?.message || 'Failed to update user');
         }
 
         return response.json();
