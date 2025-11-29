@@ -50,13 +50,12 @@ const NightlyReportWidget: React.FC = () => {
         return formatDateKey(date);
     };
 
-    // Format vehicle as "YY Make Model Last4VIN"
+    // Format vehicle as "YY Model Last4VIN" (no Make)
     const formatVehicle = (vehicle: Vehicle | Sale): string => {
         const year = vehicle.year ? String(vehicle.year).slice(-2) : '';
-        const make = vehicle.make || '';
         const model = vehicle.model || '';
         const vinLast4 = vehicle.vinLast4 || (vehicle.vin ? vehicle.vin.slice(-4) : '');
-        return `${year} ${make} ${model} ${vinLast4}`.trim();
+        return `${year} ${model} ${vinLast4}`.trim();
     };
 
     const fetchReportData = async () => {
@@ -424,23 +423,21 @@ const NightlyReportWidget: React.FC = () => {
             {/* Floating Popover - Neon Glassmorphism */}
             {isOpen && (
                 <>
-                    {/* Backdrop - Semi-transparent, allows seeing inventory behind */}
-                    <div 
-                        className="fixed inset-0 z-40"
-                        onClick={() => setIsOpen(false)}
-                    />
-                    
                     {/* Popover Card - Positioned above button */}
                     <div 
-                        className="fixed bottom-24 right-6 z-50 w-full max-w-md max-h-[70vh] flex flex-col glass-card-accent"
+                        className="fixed bottom-24 right-6 z-50 max-h-[70vh] flex flex-col glass-card-accent"
                         style={{
+                            width: '18.2rem', // 65% of max-w-md (28rem * 0.65 = 18.2rem)
                             borderRadius: '16px',
+                            background: 'linear-gradient(180deg, rgba(10, 10, 15, 0.98) 0%, rgba(5, 5, 10, 0.99) 100%)',
+                            backdropFilter: 'blur(20px)',
+                            WebkitBackdropFilter: 'blur(20px)',
                         }}
                     >
                         {/* Header */}
                         <div className="flex justify-between items-center p-4 border-b border-cyan-500/20">
                             <h3 className="text-lg font-bold text-primary font-orbitron tracking-tight-lg">
-                                Nightly Report
+                                Inventory Text Out
                             </h3>
                             <button
                                 onClick={() => setIsOpen(false)}

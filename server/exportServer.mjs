@@ -352,13 +352,30 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
     await page.type('input[type="password"]', password, { delay: 35 });
 
     // Submit login form
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 60000 }).catch(() => {}),
-      page.click('button[type="submit"]'),
-    ]);
+    console.log('🔐 Submitting login form...');
+    await page.click('button[type="submit"]');
+    
+    // Wait for navigation with better error handling
+    try {
+      await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 60000 });
+      console.log('✅ Login successful, navigated to dashboard');
+    } catch (navError) {
+      console.log('⚠️ Navigation wait timed out, checking if login was successful...');
+      // Check if we're on a different page (login might have succeeded but navigation detection failed)
+      const currentUrl = page.url();
+      if (currentUrl.includes('/login')) {
+        throw new Error('Login may have failed - still on login page');
+      }
+      console.log(`✅ Currently at: ${currentUrl}`);
+    }
 
     console.log(`✅ Login submitted, navigating to ${reportType} page...`);
     await page.goto(config.targetUrl, { waitUntil: 'networkidle0', timeout: 60000 });
+    
+    // Verify page loaded
+    if (page.isClosed()) {
+      throw new Error('Page closed unexpectedly after navigation');
+    }
 
     // Wait for the page to fully load
     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -555,18 +572,42 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
 
     console.log(`📐 Element dimensions: ${elementDimensions.width}x${elementDimensions.height} pixels`);
 
+    // Check if page is still open before taking screenshot
+    if (page.isClosed()) {
+      throw new Error('Page was closed before screenshot could be taken');
+    }
+
     // Use Base64 encoding directly (fixes PDF corruption issues)
     console.log('📸 Taking screenshot with Base64 encoding...');
-    const screenshotBase64 = await elementHandle.screenshot({ 
-      type: 'png',
-      encoding: 'base64'  // Returns Base64 string directly, avoiding binary corruption
-    });
     
-    console.log('✅ Screenshot captured as Base64 string');
-    
-    return { screenshotBase64, dimensions: elementDimensions, filename: config.filename };
+    try {
+      const screenshotBase64 = await elementHandle.screenshot({ 
+        type: 'png',
+        encoding: 'base64'  // Returns Base64 string directly, avoiding binary corruption
+      });
+      
+      console.log('✅ Screenshot captured as Base64 string');
+      
+      return { screenshotBase64, dimensions: elementDimensions, filename: config.filename };
+    } catch (screenshotError) {
+      console.error('❌ Screenshot failed:', screenshotError.message);
+      // Check if page/browser closed
+      if (screenshotError.message.includes('Target closed') || screenshotError.message.includes('Session closed')) {
+        throw new Error('Browser or page was closed during screenshot. This may indicate the page took too long to load or encountered an error.');
+      }
+      throw screenshotError;
+    }
+  } catch (error) {
+    console.error('❌ Error in runShortcutAutomation:', error.message);
+    throw error;
   } finally {
-    await browser.close();
+    if (browser) {
+      try {
+        await browser.close();
+      } catch (closeError) {
+        console.error('Error closing browser:', closeError.message);
+      }
+    }
   }
 }
 
