@@ -235,7 +235,7 @@ const MarkSoldModal: React.FC<MarkSoldModalProps> = ({
                         <label className="block text-sm font-medium text-muted mb-2 uppercase tracking-wide">Salespeople</label>
                         <div className="space-y-2">
                             {resolvedSalespeople.map(user => (
-                                <label key={user.id} className="flex items-center gap-2 text-sm text-secondary">
+                                <label key={user.id} className="flex items-center gap-2 text-sm" style={{ color: '#ffffff' }}>
                                     <input
                                         type="checkbox"
                                         className="form-checkbox text-lava-core"
@@ -248,7 +248,7 @@ const MarkSoldModal: React.FC<MarkSoldModalProps> = ({
                         </div>
                         {selectedSalespeople.length > 1 && (
                             <div className="mt-4 bg-glass-panel border border-border-low rounded-md p-3">
-                                <div className="flex justify-between text-xs uppercase tracking-wide text-muted mb-2">
+                                <div className="flex justify-between text-xs uppercase tracking-wide mb-2" style={{ color: '#ffffff' }}>
                                     <span>{selectedSalespeople[0]}</span>
                                     <span>{selectedSalespeople[1]}</span>
                                 </div>
