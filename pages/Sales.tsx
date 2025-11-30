@@ -91,7 +91,23 @@ const SalesAnalytics: React.FC<{ layoutVariant?: 'classic' | 'compact' }> = ({ l
         const { parsedSales, years, totalsByDate, totalsByYearMonth } = aggregates;
 
         // --- KPI CALCULATIONS ---
-        const today = new Date();
+        // Get today's date in America/Chicago timezone to match the date display
+        // This ensures consistency between the displayed date and calculations
+        const getTodayInChicago = () => {
+            const now = new Date();
+            // Get the date string in Chicago timezone
+            const chicagoDateStr = now.toLocaleDateString('en-US', {
+                timeZone: 'America/Chicago',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+            });
+            // Parse it back to a Date object (this will be in local time, but represents Chicago date)
+            const [month, day, year] = chicagoDateStr.split('/');
+            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        };
+        
+        const today = getTodayInChicago();
         const currentYearValue = today.getFullYear();
         const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
         const todayKey = formatDateKey(todayStart);

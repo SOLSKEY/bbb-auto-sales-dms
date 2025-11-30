@@ -237,9 +237,33 @@ app.post('/api/export-sales-report', async (req, res) => {
     await page.waitForSelector(selector, { timeout: 10000 });
     console.log('✅ Container found');
 
-    // Give charts time to render
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    console.log('✅ Waited for charts to render');
+    // Wait for charts to fully render - check for chart elements and data
+    console.log('📊 Waiting for charts to fully render...');
+    try {
+      // Wait for chart containers to be present
+      await page.waitForFunction(() => {
+        // Check for Recharts SVG elements (common chart library)
+        const svgElements = document.querySelectorAll('svg');
+        if (svgElements.length === 0) return false;
+        
+        // Check for chart-specific elements (bars, lines, etc.)
+        const hasChartContent = Array.from(svgElements).some(svg => {
+          const rects = svg.querySelectorAll('rect');
+          const paths = svg.querySelectorAll('path');
+          const circles = svg.querySelectorAll('circle');
+          return rects.length > 0 || paths.length > 0 || circles.length > 0;
+        });
+        
+        return hasChartContent;
+      }, { timeout: 10000 });
+      console.log('✅ Charts detected');
+    } catch (error) {
+      console.log('⚠️ Chart detection timeout, continuing anyway...');
+    }
+    
+    // Additional wait to ensure all charts are fully painted
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    console.log('✅ Additional wait for chart rendering complete');
 
     console.log('📷 Taking screenshot...');
 
@@ -565,6 +589,34 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
 
     // Wait for layout to settle after zoom/DPR changes
     await new Promise(resolve => setTimeout(resolve, 1500));
+
+    // Wait for charts to fully render - check for chart elements and data
+    console.log('📊 Waiting for charts to fully render...');
+    try {
+      // Wait for chart containers to be present
+      await page.waitForFunction(() => {
+        // Check for Recharts SVG elements (common chart library)
+        const svgElements = document.querySelectorAll('svg');
+        if (svgElements.length === 0) return false;
+        
+        // Check for chart-specific elements (bars, lines, etc.)
+        const hasChartContent = Array.from(svgElements).some(svg => {
+          const rects = svg.querySelectorAll('rect');
+          const paths = svg.querySelectorAll('path');
+          const circles = svg.querySelectorAll('circle');
+          return rects.length > 0 || paths.length > 0 || circles.length > 0;
+        });
+        
+        return hasChartContent;
+      }, { timeout: 10000 });
+      console.log('✅ Charts detected');
+    } catch (error) {
+      console.log('⚠️ Chart detection timeout, continuing anyway...');
+    }
+    
+    // Additional wait to ensure all charts are fully painted
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    console.log('✅ Additional wait for chart rendering complete');
 
     const elementHandle = await page.$(targetSelector);
     if (!elementHandle) {
