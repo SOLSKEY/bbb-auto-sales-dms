@@ -5,5 +5,5 @@ nixPkgs = ["nodejs_20"]
 cmds = ["npm install"]
 
 [start]
-cmd = "node exportServer.mjs"
+cmd = "node index.js"
 
