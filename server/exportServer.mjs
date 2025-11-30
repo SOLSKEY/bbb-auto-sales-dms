@@ -343,17 +343,18 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
 
   try {
     const page = await browser.newPage();
+    
+    // Set timezone FIRST, before any other operations
+    // This ensures date calculations match what users see in their browser
+    const timezone = process.env.TIMEZONE || 'America/Chicago';
+    await page.emulateTimezone(timezone);
+    console.log(`🕐 Timezone set to: ${timezone}`);
+    
     await page.setViewport({
       width: 2000,
       height: 2000,
       deviceScaleFactor: 2 // DPR = 2.0
     });
-    
-    // Set timezone to match user's expected timezone (defaults to America/Chicago for US Central Time)
-    // This ensures date calculations match what users see in their browser
-    const timezone = process.env.TIMEZONE || 'America/Chicago';
-    await page.emulateTimezone(timezone);
-    console.log(`🕐 Timezone set to: ${timezone}`);
 
     console.log('🔐 Navigating to login page...');
     await page.goto(LOGIN_PAGE_URL, { waitUntil: 'networkidle0', timeout: 60000 });
@@ -389,8 +390,12 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
       throw new Error('Page closed unexpectedly after navigation');
     }
 
-    // Wait for the page to fully load
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Verify timezone is still set and wait for page to fully load
+    const currentTimezone = await page.evaluate(() => Intl.DateTimeFormat().resolvedOptions().timeZone);
+    console.log(`🕐 Current page timezone: ${currentTimezone}`);
+    
+    // Wait for the page to fully load and for date calculations to complete
+    await new Promise(resolve => setTimeout(resolve, 3000));
 
     // For Commission report, ensure the Commission tab is selected
     if (reportType === 'commission') {
