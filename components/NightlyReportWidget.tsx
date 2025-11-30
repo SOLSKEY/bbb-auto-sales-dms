@@ -5,6 +5,18 @@ import { fromSupabaseArray, SALE_FIELD_MAP, VEHICLE_FIELD_MAP, quoteSupabaseColu
 import { GlassButton } from '@/components/ui/glass-button';
 import type { Vehicle, Sale } from '../types';
 import { formatDateKey, getWeekStartUtc, parseDateStringToUtc, toUtcMidnight } from '../utils/date';
+import { INVENTORY_STATUS_VALUES } from '../constants';
+
+// Define status sets matching Inventory.tsx logic
+const ACTIVE_RETAIL_STATUSES = new Set(
+    INVENTORY_STATUS_VALUES.filter(status => status !== 'Repairs'),
+);
+
+const BHPH_STATUSES = new Set(
+    INVENTORY_STATUS_VALUES.filter(
+        status => status !== 'Repairs' && status !== 'Cash',
+    ),
+);
 
 interface StatusLog {
     id: number;
@@ -246,7 +258,7 @@ const NightlyReportWidget: React.FC = () => {
                 }
             });
 
-            // Calculate inventory counts
+            // Calculate inventory counts - using same logic as Inventory.tsx
             const inventory = (inventoryData || []).map(v => fromSupabaseArray([v], VEHICLE_FIELD_MAP)[0] as Vehicle);
             let totalInventory = 0;
             let bhphCount = 0;
@@ -254,12 +266,13 @@ const NightlyReportWidget: React.FC = () => {
 
             inventory.forEach(vehicle => {
                 if (vehicle.status === 'Sold') return;
-                if (vehicle.status && vehicle.status !== 'Repairs') {
+                if (ACTIVE_RETAIL_STATUSES.has(vehicle.status || '')) {
                     totalInventory++;
+                    if (BHPH_STATUSES.has(vehicle.status || '')) {
+                        bhphCount++;
+                    }
                     if (vehicle.status === 'Cash') {
                         cashCount++;
-                    } else {
-                        bhphCount++;
                     }
                 }
             });
@@ -345,8 +358,8 @@ const NightlyReportWidget: React.FC = () => {
             sections.push(trashLines.join('\n'));
         }
 
-        // 6. FOOTER (Always show)
-        sections.push(`Total (${reportData.totalInventory} bhph / ${reportData.cashCount} _CASH_)`);
+        // 6. FOOTER (Always show) - Format: "29 (28 bhph/1 _CASH_)"
+        sections.push(`${reportData.totalInventory} (${reportData.bhphCount} bhph/${reportData.cashCount} _CASH_)`);
 
         // Join all non-empty sections with double newline
         return sections.join('\n\n');
