@@ -966,14 +966,27 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
         const [manualCommissionOverrides, setManualCommissionOverrides] = useState<Record<string, string>>({});
         const reportContainerRef = React.useRef<HTMLDivElement>(null);
         const latestWeekKeyRef = React.useRef<string | null>(null);
+        // Get today's date in America/Chicago timezone for consistent week calculations
+        const getTodayInChicago = () => {
+            const now = new Date();
+            const chicagoDateStr = now.toLocaleDateString('en-US', {
+                timeZone: 'America/Chicago',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+            });
+            const [month, day, year] = chicagoDateStr.split('/');
+            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        };
+        
         const [activeWeekStartMs, setActiveWeekStartMs] = useState(() =>
-            getCommissionWeekStart(new Date()).getTime()
+            getCommissionWeekStart(getTodayInChicago()).getTime()
         );
 
         useEffect(() => {
             if (typeof window === 'undefined') return;
             const updateActiveWeek = () => {
-                const next = getCommissionWeekStart(new Date()).getTime();
+                const next = getCommissionWeekStart(getTodayInChicago()).getTime();
                 setActiveWeekStartMs(prev => (prev === next ? prev : next));
             };
             const intervalId = window.setInterval(updateActiveWeek, 60 * 1000);

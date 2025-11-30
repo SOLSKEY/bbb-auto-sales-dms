@@ -61,7 +61,19 @@ const CollectionsOverview: React.FC<{
         const [logError, setLogError] = useState<string | null>(null);
         const dateInputRef = useRef<HTMLInputElement | null>(null);
         const [logForm, setLogForm] = useState(() => {
-            const today = formatDateKey(toUtcMidnight(new Date()));
+            // Get today's date in America/Chicago timezone to match the date display
+            const getTodayInChicago = () => {
+                const now = new Date();
+                const chicagoDateStr = now.toLocaleDateString('en-US', {
+                    timeZone: 'America/Chicago',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                });
+                const [month, day, year] = chicagoDateStr.split('/');
+                return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            };
+            const today = formatDateKey(toUtcMidnight(getTodayInChicago()));
             return {
                 date: today,
                 payments: '',
@@ -73,7 +85,19 @@ const CollectionsOverview: React.FC<{
         });
 
         const paymentMix = useMemo(() => {
-            const today = toUtcMidnight(new Date());
+            // Get today's date in America/Chicago timezone to match the date display
+            const getTodayInChicago = () => {
+                const now = new Date();
+                const chicagoDateStr = now.toLocaleDateString('en-US', {
+                    timeZone: 'America/Chicago',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                });
+                const [month, day, year] = chicagoDateStr.split('/');
+                return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            };
+            const today = toUtcMidnight(getTodayInChicago());
             const weekStart = getWeekStartUtc(today);
 
             let total = 0;
@@ -122,7 +146,19 @@ const CollectionsOverview: React.FC<{
         }, [paymentsData]);
 
         const metrics = useMemo(() => {
-            const today = toUtcMidnight(new Date());
+            // Get today's date in America/Chicago timezone to match the date display
+            const getTodayInChicago = () => {
+                const now = new Date();
+                const chicagoDateStr = now.toLocaleDateString('en-US', {
+                    timeZone: 'America/Chicago',
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                });
+                const [month, day, year] = chicagoDateStr.split('/');
+                return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+            };
+            const today = toUtcMidnight(getTodayInChicago());
             const weekStart = getWeekStartUtc(today);
 
             let todayPaymentsTotal = 0;
