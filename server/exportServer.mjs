@@ -206,6 +206,12 @@ app.post('/api/export-sales-report', async (req, res) => {
 
     const page = await browser.newPage();
     console.log('✅ New page created');
+    
+    // Set timezone to match user's expected timezone (defaults to America/Chicago for US Central Time)
+    // This ensures date calculations match what users see in their browser
+    const timezone = process.env.TIMEZONE || 'America/Chicago';
+    await page.emulateTimezone(timezone);
+    console.log(`🕐 Timezone set to: ${timezone}`);
 
     // 2. Set viewport to match your manual DevTools settings
     await page.setViewport({
@@ -342,6 +348,12 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
       height: 2000,
       deviceScaleFactor: 2 // DPR = 2.0
     });
+    
+    // Set timezone to match user's expected timezone (defaults to America/Chicago for US Central Time)
+    // This ensures date calculations match what users see in their browser
+    const timezone = process.env.TIMEZONE || 'America/Chicago';
+    await page.emulateTimezone(timezone);
+    console.log(`🕐 Timezone set to: ${timezone}`);
 
     console.log('🔐 Navigating to login page...');
     await page.goto(LOGIN_PAGE_URL, { waitUntil: 'networkidle0', timeout: 60000 });
