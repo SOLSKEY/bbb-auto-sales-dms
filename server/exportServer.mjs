@@ -237,33 +237,64 @@ app.post('/api/export-sales-report', async (req, res) => {
     await page.waitForSelector(selector, { timeout: 10000 });
     console.log('✅ Container found');
 
-    // Wait for charts to fully render - check for chart elements and data
-    console.log('📊 Waiting for charts to fully render...');
+    // Wait for Recharts charts to fully render
+    console.log('📊 Waiting for Recharts to fully render...');
     try {
-      // Wait for chart containers to be present
+      // Wait for ResponsiveContainer elements to have dimensions
       await page.waitForFunction(() => {
-        // Check for Recharts SVG elements (common chart library)
+        const containers = document.querySelectorAll('.recharts-responsive-container');
+        if (containers.length === 0) return false;
+        
+        // Check that containers have actual width/height
+        const hasDimensions = Array.from(containers).every(container => {
+          const rect = container.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        });
+        
+        if (!hasDimensions) return false;
+        
+        // Check for actual chart content - Recharts renders paths, lines, and rects
         const svgElements = document.querySelectorAll('svg');
         if (svgElements.length === 0) return false;
         
-        // Check for chart-specific elements (bars, lines, etc.)
+        // Check for chart-specific elements with actual data
         const hasChartContent = Array.from(svgElements).some(svg => {
-          const rects = svg.querySelectorAll('rect');
-          const paths = svg.querySelectorAll('path');
-          const circles = svg.querySelectorAll('circle');
-          return rects.length > 0 || paths.length > 0 || circles.length > 0;
+          // Check for line charts (paths with d attribute)
+          const paths = svg.querySelectorAll('path[d]');
+          // Check for bar charts (rects with width/height)
+          const rects = svg.querySelectorAll('rect[width][height]');
+          // Check for area charts (paths)
+          const areas = svg.querySelectorAll('path.recharts-area-curve');
+          
+          // Ensure paths have actual path data (not empty)
+          const hasValidPaths = Array.from(paths).some(path => {
+            const d = path.getAttribute('d');
+            return d && d.length > 10; // Path data should be substantial
+          });
+          
+          // Ensure rects have actual dimensions
+          const hasValidRects = Array.from(rects).some(rect => {
+            const width = parseFloat(rect.getAttribute('width') || '0');
+            const height = parseFloat(rect.getAttribute('height') || '0');
+            return width > 0 && height > 0;
+          });
+          
+          return hasValidPaths || hasValidRects || areas.length > 0;
         });
         
         return hasChartContent;
-      }, { timeout: 10000 });
-      console.log('✅ Charts detected');
+      }, { timeout: 15000 });
+      console.log('✅ Recharts charts detected with data');
     } catch (error) {
       console.log('⚠️ Chart detection timeout, continuing anyway...');
     }
     
-    // Additional wait to ensure all charts are fully painted
+    // Wait for any Recharts animations to complete (default animation duration is ~1000ms)
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Additional wait to ensure all charts are fully painted and stable
     await new Promise(resolve => setTimeout(resolve, 3000));
-    console.log('✅ Additional wait for chart rendering complete');
+    console.log('✅ Chart rendering complete');
 
     console.log('📷 Taking screenshot...');
 
@@ -590,33 +621,64 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
     // Wait for layout to settle after zoom/DPR changes
     await new Promise(resolve => setTimeout(resolve, 1500));
 
-    // Wait for charts to fully render - check for chart elements and data
-    console.log('📊 Waiting for charts to fully render...');
+    // Wait for Recharts charts to fully render
+    console.log('📊 Waiting for Recharts to fully render...');
     try {
-      // Wait for chart containers to be present
+      // Wait for ResponsiveContainer elements to have dimensions
       await page.waitForFunction(() => {
-        // Check for Recharts SVG elements (common chart library)
+        const containers = document.querySelectorAll('.recharts-responsive-container');
+        if (containers.length === 0) return false;
+        
+        // Check that containers have actual width/height
+        const hasDimensions = Array.from(containers).every(container => {
+          const rect = container.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        });
+        
+        if (!hasDimensions) return false;
+        
+        // Check for actual chart content - Recharts renders paths, lines, and rects
         const svgElements = document.querySelectorAll('svg');
         if (svgElements.length === 0) return false;
         
-        // Check for chart-specific elements (bars, lines, etc.)
+        // Check for chart-specific elements with actual data
         const hasChartContent = Array.from(svgElements).some(svg => {
-          const rects = svg.querySelectorAll('rect');
-          const paths = svg.querySelectorAll('path');
-          const circles = svg.querySelectorAll('circle');
-          return rects.length > 0 || paths.length > 0 || circles.length > 0;
+          // Check for line charts (paths with d attribute)
+          const paths = svg.querySelectorAll('path[d]');
+          // Check for bar charts (rects with width/height)
+          const rects = svg.querySelectorAll('rect[width][height]');
+          // Check for area charts (paths)
+          const areas = svg.querySelectorAll('path.recharts-area-curve');
+          
+          // Ensure paths have actual path data (not empty)
+          const hasValidPaths = Array.from(paths).some(path => {
+            const d = path.getAttribute('d');
+            return d && d.length > 10; // Path data should be substantial
+          });
+          
+          // Ensure rects have actual dimensions
+          const hasValidRects = Array.from(rects).some(rect => {
+            const width = parseFloat(rect.getAttribute('width') || '0');
+            const height = parseFloat(rect.getAttribute('height') || '0');
+            return width > 0 && height > 0;
+          });
+          
+          return hasValidPaths || hasValidRects || areas.length > 0;
         });
         
         return hasChartContent;
-      }, { timeout: 10000 });
-      console.log('✅ Charts detected');
+      }, { timeout: 15000 });
+      console.log('✅ Recharts charts detected with data');
     } catch (error) {
       console.log('⚠️ Chart detection timeout, continuing anyway...');
     }
     
-    // Additional wait to ensure all charts are fully painted
+    // Wait for any Recharts animations to complete (default animation duration is ~1000ms)
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    // Additional wait to ensure all charts are fully painted and stable
     await new Promise(resolve => setTimeout(resolve, 3000));
-    console.log('✅ Additional wait for chart rendering complete');
+    console.log('✅ Chart rendering complete');
 
     const elementHandle = await page.$(targetSelector);
     if (!elementHandle) {
