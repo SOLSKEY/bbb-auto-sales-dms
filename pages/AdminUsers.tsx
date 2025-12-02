@@ -35,7 +35,27 @@ const AdminUsers: React.FC = () => {
                 setUsers(sanitized);
             } catch (err: any) {
                 console.error('Error loading users:', err);
-                setError(err.message ?? 'Failed to load users. Make sure the API server is running.');
+                // Show more helpful error messages with better formatting
+                const errorMessage = err.message || 'Failed to load users.';
+                let displayMessage = errorMessage;
+                
+                // Handle multi-line error messages (replace \n with spaces for single line display)
+                if (errorMessage.includes('\n')) {
+                    displayMessage = errorMessage.split('\n').join(' ');
+                }
+                
+                // Provide more specific guidance based on error type
+                if (errorMessage.includes('VITE_API_URL') || errorMessage.includes('API server URL is not configured')) {
+                    displayMessage = '⚠️ API server is not configured. Please set VITE_API_URL environment variable to your API server URL.';
+                } else if (errorMessage.includes('connect to API server') || errorMessage.includes('not reachable')) {
+                    displayMessage = '⚠️ Cannot connect to API server. Please ensure the server is running and VITE_API_URL is correct.';
+                } else if (errorMessage.includes('HTML instead of JSON')) {
+                    displayMessage = '⚠️ API endpoint returned HTML (likely a 404). The API server may not be accessible. Please check VITE_API_URL configuration.';
+                } else if (errorMessage.includes('Not authenticated')) {
+                    displayMessage = '⚠️ Authentication required. Please log in again.';
+                }
+                
+                setError(displayMessage);
             } finally {
                 setLoading(false);
             }
@@ -63,7 +83,11 @@ const AdminUsers: React.FC = () => {
                     Create User
                 </button>
             </header>
-            {error && <p className="text-sm text-red-400">{error}</p>}
+            {error && (
+                <div className="rounded-lg bg-red-500/10 border border-red-500/20 p-4">
+                    <p className="text-sm text-red-400 whitespace-pre-wrap">{error}</p>
+                </div>
+            )}
             {loading ? (
                 <p className="text-sm text-secondary">Loading users…</p>
             ) : (

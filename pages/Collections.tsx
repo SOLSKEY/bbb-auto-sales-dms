@@ -55,6 +55,20 @@ const CollectionsOverview: React.FC<{
     layoutVariant = 'compact',
     canLogDailyData = true,
 }) => {
+        // Get today's date in America/Chicago timezone - shared helper function
+        // Must be defined before any useState calls that use it
+        const getTodayInChicago = () => {
+            const now = new Date();
+            const chicagoDateStr = now.toLocaleDateString('en-US', {
+                timeZone: 'America/Chicago',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+            });
+            const [month, day, year] = chicagoDateStr.split('/');
+            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        };
+        
         const { isPrintView } = usePrintView();
         const [isLogModalOpen, setIsLogModalOpen] = useState(false);
         const [isSubmittingLog, setIsSubmittingLog] = useState(false);
@@ -71,19 +85,6 @@ const CollectionsOverview: React.FC<{
                 openAccounts: '',
             };
         });
-
-        // Get today's date in America/Chicago timezone - shared helper function
-        const getTodayInChicago = () => {
-            const now = new Date();
-            const chicagoDateStr = now.toLocaleDateString('en-US', {
-                timeZone: 'America/Chicago',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-            });
-            const [month, day, year] = chicagoDateStr.split('/');
-            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-        };
         
         const paymentMix = useMemo(() => {
             const today = toUtcMidnight(getTodayInChicago());
