@@ -61,18 +61,6 @@ const CollectionsOverview: React.FC<{
         const [logError, setLogError] = useState<string | null>(null);
         const dateInputRef = useRef<HTMLInputElement | null>(null);
         const [logForm, setLogForm] = useState(() => {
-            // Get today's date in America/Chicago timezone to match the date display
-            const getTodayInChicago = () => {
-                const now = new Date();
-                const chicagoDateStr = now.toLocaleDateString('en-US', {
-                    timeZone: 'America/Chicago',
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                });
-                const [month, day, year] = chicagoDateStr.split('/');
-                return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-            };
             const today = formatDateKey(toUtcMidnight(getTodayInChicago()));
             return {
                 date: today,
@@ -84,19 +72,20 @@ const CollectionsOverview: React.FC<{
             };
         });
 
+        // Get today's date in America/Chicago timezone - shared helper function
+        const getTodayInChicago = () => {
+            const now = new Date();
+            const chicagoDateStr = now.toLocaleDateString('en-US', {
+                timeZone: 'America/Chicago',
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+            });
+            const [month, day, year] = chicagoDateStr.split('/');
+            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+        };
+        
         const paymentMix = useMemo(() => {
-            // Get today's date in America/Chicago timezone to match the date display
-            const getTodayInChicago = () => {
-                const now = new Date();
-                const chicagoDateStr = now.toLocaleDateString('en-US', {
-                    timeZone: 'America/Chicago',
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                });
-                const [month, day, year] = chicagoDateStr.split('/');
-                return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-            };
             const today = toUtcMidnight(getTodayInChicago());
             const weekStart = getWeekStartUtc(today);
 
@@ -146,18 +135,6 @@ const CollectionsOverview: React.FC<{
         }, [paymentsData]);
 
         const metrics = useMemo(() => {
-            // Get today's date in America/Chicago timezone to match the date display
-            const getTodayInChicago = () => {
-                const now = new Date();
-                const chicagoDateStr = now.toLocaleDateString('en-US', {
-                    timeZone: 'America/Chicago',
-                    year: 'numeric',
-                    month: '2-digit',
-                    day: '2-digit',
-                });
-                const [month, day, year] = chicagoDateStr.split('/');
-                return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-            };
             const today = toUtcMidnight(getTodayInChicago());
             const weekStart = getWeekStartUtc(today);
 
@@ -710,6 +687,7 @@ const CollectionsOverview: React.FC<{
                                 <CollectionsWeeklyForecast
                                     weeklyData={weeklyData}
                                     paymentsData={paymentsData}
+                                    today={getTodayInChicago()}
                                     compact
                                 />
                             </div>
@@ -725,7 +703,11 @@ const CollectionsOverview: React.FC<{
                                 <CollectionsWeeklyPaymentMix data={paymentMix.data} total={paymentMix.total} />
                             </div>
                             <div className="w-full lg:w-3/4">
-                                <CollectionsWeeklyForecast weeklyData={weeklyData} paymentsData={paymentsData} />
+                                <CollectionsWeeklyForecast 
+                                    weeklyData={weeklyData} 
+                                    paymentsData={paymentsData}
+                                    today={getTodayInChicago()}
+                                />
                             </div>
                         </div>
 
