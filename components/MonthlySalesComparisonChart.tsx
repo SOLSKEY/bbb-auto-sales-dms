@@ -152,7 +152,7 @@ const MonthlySalesComparisonChart: React.FC<MonthlySalesComparisonChartProps> = 
     return (
         <LiquidContainer variant="cyan-blue" disableBackdropFilter className={`p-4 h-full flex flex-col ${className ?? ''}`} style={{ overflow: 'visible' }}>
             <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-medium text-muted-contrast uppercase tracking-wider">Monthly Sales Comparison</h3>
+                <h3 className="text-xl font-semibold text-primary tracking-tight-md">Monthly Sales Comparison</h3>
                 <div className="relative">
                     <select
                         className="glass-select text-xs"

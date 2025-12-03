@@ -329,16 +329,18 @@ const SalesAnalytics: React.FC<{ layoutVariant?: 'classic' | 'compact' }> = ({ l
             {/* Second Container: Stat Cards and Charts */}
             <div className="space-y-6 p-12" style={{ backgroundColor: 'var(--background)', isolation: 'isolate', position: 'relative' }}>
                 {/* Header: Title on left, Date on right */}
-                <LiquidContainer variant="cyan-blue" className="flex justify-between items-center print:mb-6 mb-6 p-4 text-white">
-                    <h1 
-                        className="font-bold font-orbitron tracking-tight-lg text-white"
-                        style={{
-                            fontSize: '38px',
-                        }}
-                    >
-                        SMYRNA SALES REPORT
-                    </h1>
-                    <p className="text-lg text-secondary font-semibold">{currentDateCST}</p>
+                <LiquidContainer variant="cyan-blue" className="print:mb-6 mb-6 p-4 text-white">
+                    <div className="flex flex-row justify-between items-center w-full">
+                        <h1 
+                            className="font-bold font-orbitron tracking-tight-lg text-white flex-shrink-0"
+                            style={{
+                                fontSize: '38px',
+                            }}
+                        >
+                            SMYRNA SALES REPORT
+                        </h1>
+                        <p className="text-lg text-white font-semibold flex-shrink-0 whitespace-nowrap">{currentDateCST}</p>
+                    </div>
                 </LiquidContainer>
                 {renderStatCards()}
                 {/* Export Container - Charts Only */}
