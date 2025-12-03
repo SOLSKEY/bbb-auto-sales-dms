@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import type { Sale } from '../types';
 import { ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/solid';
 import { buildSalesAggregates, getYtdCountForYear } from '../utils/salesAnalytics';
+import { LiquidContainer } from './ui/liquid-container';
 
 interface YtdSalesComparisonProps {
     salesData: Sale[];
@@ -70,8 +71,8 @@ const YtdSalesComparison: React.FC<YtdSalesComparisonProps> = ({ salesData, comp
     const { currentYtdSales, results, today } = comparisonData;
 
     const containerClasses = compact
-        ? 'glass-card-outline p-4 h-full flex flex-col'
-        : 'glass-card-outline p-6';
+        ? 'p-4 h-full flex flex-col'
+        : 'p-6';
 
     const getPercentClass = (percent: number) => {
         if (percent > 0) return 'text-dynamic-green';
@@ -80,7 +81,7 @@ const YtdSalesComparison: React.FC<YtdSalesComparisonProps> = ({ salesData, comp
     };
 
     return (
-        <div className={containerClasses}>
+        <LiquidContainer variant="cyan-blue" className={containerClasses}>
             <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:justify-between mb-4">
                 <h3 className="text-xl font-semibold text-primary tracking-tight-md">YTD Sales Pace Comparison</h3>
                 <p className="text-sm text-muted">
@@ -138,7 +139,7 @@ const YtdSalesComparison: React.FC<YtdSalesComparisonProps> = ({ salesData, comp
                     </tbody>
                 </table>
             </div>
-        </div>
+        </LiquidContainer>
     );
 };
 

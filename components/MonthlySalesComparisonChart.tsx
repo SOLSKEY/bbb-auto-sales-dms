@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import {
     ResponsiveContainer,
     ComposedChart,
@@ -12,6 +12,7 @@ import {
     LabelList,
 } from 'recharts';
 import { GlassButton } from '@/components/ui/glass-button';
+import { LiquidContainer } from './ui/liquid-container';
 
 interface MonthlySalesComparisonChartProps {
     data: Array<Record<string, string | number | undefined>>;
@@ -45,6 +46,8 @@ const MonthlySalesComparisonChart: React.FC<MonthlySalesComparisonChartProps> = 
     className,
 }) => {
     const [visibleYears, setVisibleYears] = useState<Record<string, boolean>>({});
+    const [chartHeight, setChartHeight] = useState(height);
+    const chartContainerRef = useRef<HTMLDivElement>(null);
 
     // Ensure years are always sorted chronologically
     const sortedYears = useMemo(() => {
@@ -58,6 +61,35 @@ const MonthlySalesComparisonChart: React.FC<MonthlySalesComparisonChartProps> = 
         });
         setVisibleYears(initialVisibility);
     }, [sortedYears]);
+
+    // Measure container height once after mount
+    useEffect(() => {
+        const measureOnce = () => {
+            if (chartContainerRef.current) {
+                const rect = chartContainerRef.current.getBoundingClientRect();
+                const newHeight = Math.floor(rect.height);
+                if (newHeight > 100 && newHeight !== chartHeight) {
+                    setChartHeight(newHeight);
+                } else if (newHeight <= 0) {
+                    // Fallback: calculate from parent
+                    const parent = chartContainerRef.current.parentElement;
+                    if (parent) {
+                        const parentRect = parent.getBoundingClientRect();
+                        const headerHeight = 60;
+                        const padding = 32;
+                        const calculatedHeight = Math.floor(parentRect.height - headerHeight - padding);
+                        if (calculatedHeight > 100) {
+                            setChartHeight(calculatedHeight);
+                        }
+                    }
+                }
+            }
+        };
+
+        // Measure after a delay to ensure layout is complete
+        const timeoutId = setTimeout(measureOnce, 200);
+        return () => clearTimeout(timeoutId);
+    }, []); // Only run once on mount
 
     // Generate gradient definitions for each year (using sorted years to maintain color consistency)
     const gradientDefs = useMemo(() => {
@@ -118,7 +150,7 @@ const MonthlySalesComparisonChart: React.FC<MonthlySalesComparisonChartProps> = 
     );
 
     return (
-        <div className={`glass-card-outline p-4 h-full flex flex-col ${className ?? ''}`}>
+        <LiquidContainer variant="cyan-blue" disableBackdropFilter className={`p-4 h-full flex flex-col ${className ?? ''}`} style={{ overflow: 'visible' }}>
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-sm font-medium text-muted-contrast uppercase tracking-wider">Monthly Sales Comparison</h3>
                 <div className="relative">
@@ -145,8 +177,8 @@ const MonthlySalesComparisonChart: React.FC<MonthlySalesComparisonChartProps> = 
                     </select>
                 </div>
             </div>
-            <div className="flex-1" style={{ minHeight: height }}>
-                <ResponsiveContainer width="100%" height="100%">
+            <div ref={chartContainerRef} className="flex-1 min-h-0 w-full" style={{ minHeight: `${height}px` }}>
+                <ResponsiveContainer width="100%" height={chartHeight}>
                     <ComposedChart data={data} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
                         <defs>
                             {gradientDefs.map(gradient => {
@@ -258,7 +290,7 @@ const MonthlySalesComparisonChart: React.FC<MonthlySalesComparisonChartProps> = 
                     </ComposedChart>
                 </ResponsiveContainer>
             </div>
-        </div>
+        </LiquidContainer>
     );
 };
 

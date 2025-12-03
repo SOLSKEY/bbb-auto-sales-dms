@@ -4,6 +4,7 @@ import { ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis, Cartesian
 import { FunnelIcon, CheckIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import { buildSalesAggregates } from '../utils/salesAnalytics';
 import { GlassButton } from '@/components/ui/glass-button';
+import { LiquidContainer } from './ui/liquid-container';
 
 interface YtdCumulativeSalesChartProps {
     salesData: Sale[];
@@ -233,7 +234,7 @@ const YtdCumulativeSalesChart: React.FC<YtdCumulativeSalesChartProps> = ({ sales
     );
 
     return (
-        <div className={`glass-card-outline ${containerPadding} h-full flex flex-col`}>
+        <LiquidContainer variant="cyan-blue" className={`${containerPadding} h-full flex flex-col`}>
             <div className="flex justify-between items-center mb-4">
                 <h3 className="text-xl font-semibold text-primary tracking-tight-md">YTD Cumulative Sales</h3>
                 <div className="relative" ref={filterRef}>
@@ -377,7 +378,7 @@ const YtdCumulativeSalesChart: React.FC<YtdCumulativeSalesChartProps> = ({ sales
                     })}
                 </ComposedChart>
             </ResponsiveContainer>
-        </div>
+        </LiquidContainer>
     );
 };
 

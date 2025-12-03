@@ -10,6 +10,7 @@ import { DataContext } from '../App';
 import { buildSalesAggregates, formatDateKey, getYtdCountForYear } from '../utils/salesAnalytics';
 import { computeNextAccountNumber, computeNextStockNumbers } from '../utils/stockNumbers';
 import { GlassButton } from '@/components/ui/glass-button';
+import { LiquidContainer } from '@/components/ui/liquid-container';
 import ShortcutButton from '../components/ShortcutButton';
 
 const StatCard: React.FC<{
@@ -44,32 +45,46 @@ const StatCard: React.FC<{
     const titleClasses = `${baseTitleClasses} ${titleClassName ?? ''}`.trim();
     const valueClasses = `${baseValueClasses} ${valueClassName ?? ''}`.trim();
 
+    if (isAccent) {
+        return (
+            <LiquidContainer variant="cyan-blue" className={`text-white p-3.5 ${className ?? ''}`}>
+                <div className="h-full w-full flex flex-col justify-center">
+                    <div className="flex items-center gap-3">
+                        <div className={`p-2.5 rounded-lg ${iconWrapperClasses}`}>
+                            <Icon className={`h-5 w-5 icon-neon`} />
+                        </div>
+                        <div>
+                            <h4 className={titleClasses}>{title}</h4>
+                            <span
+                                className={`${valueClasses} inline-block`}
+                                style={{
+                                    background: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 50%, #3b82f6 100%)',
+                                    WebkitBackgroundClip: 'text',
+                                    WebkitTextFillColor: 'transparent',
+                                    backgroundClip: 'text',
+                                }}
+                            >
+                                {value}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+            </LiquidContainer>
+        );
+    }
+
     return (
-        <div className={`${containerClasses} p-3.5 ${className ?? ''}`}>
+        <LiquidContainer variant="cyan-blue" className={`p-3.5 ${className ?? ''}`}>
             <div className="flex items-center gap-3">
                 <div className={`p-2.5 rounded-lg ${iconWrapperClasses}`}>
                     <Icon className={`h-5 w-5 icon-neon`} />
                 </div>
                 <div>
                     <h4 className={titleClasses}>{title}</h4>
-                    {isAccent ? (
-                        <span
-                            className={`${valueClasses} inline-block`}
-                            style={{
-                                background: 'linear-gradient(135deg, #22d3ee 0%, #06b6d4 50%, #3b82f6 100%)',
-                                WebkitBackgroundClip: 'text',
-                                WebkitTextFillColor: 'transparent',
-                                backgroundClip: 'text',
-                            }}
-                        >
-                            {value}
-                        </span>
-                    ) : (
-                        <p className={valueClasses}>{value}</p>
-                    )}
+                    <p className={valueClasses}>{value}</p>
                 </div>
             </div>
-        </div>
+        </LiquidContainer>
     );
 };
 
@@ -314,7 +329,7 @@ const SalesAnalytics: React.FC<{ layoutVariant?: 'classic' | 'compact' }> = ({ l
             {/* Second Container: Stat Cards and Charts */}
             <div className="space-y-6 p-12" style={{ backgroundColor: 'var(--background)', isolation: 'isolate', position: 'relative' }}>
                 {/* Header: Title on left, Date on right */}
-                <div className="glass-card-accent flex justify-between items-center print:mb-6 mb-6 p-4">
+                <LiquidContainer variant="cyan-blue" className="flex justify-between items-center print:mb-6 mb-6 p-4 text-white">
                     <h1 
                         className="font-bold font-orbitron tracking-tight-lg text-white"
                         style={{
@@ -324,7 +339,7 @@ const SalesAnalytics: React.FC<{ layoutVariant?: 'classic' | 'compact' }> = ({ l
                         SMYRNA SALES REPORT
                     </h1>
                     <p className="text-lg text-secondary font-semibold">{currentDateCST}</p>
-                </div>
+                </LiquidContainer>
                 {renderStatCards()}
                 {/* Export Container - Charts Only */}
                 <div id="sales-analytics-export-container" className="space-y-6">

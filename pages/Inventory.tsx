@@ -1,7 +1,7 @@
-import React, { useState, useContext, useMemo, useEffect } from 'react';
+import React, { useState, useContext, useMemo, useEffect, useRef } from 'react';
 import type { Vehicle, Sale } from '../types';
 import { UserContext, DataContext } from '../App';
-import { PhotoIcon, PencilSquareIcon, CheckCircleIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, XCircleIcon, ChevronLeftIcon, ChevronRightIcon, XMarkIcon, ClipboardDocumentIcon, CheckIcon } from '@heroicons/react/24/solid';
+import { PhotoIcon, PencilSquareIcon, CheckCircleIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, XCircleIcon, ChevronLeftIcon, ChevronRightIcon, XMarkIcon, ClipboardDocumentIcon, CheckIcon, ArrowUpTrayIcon, FolderIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
 import EditVehicleModal from '../components/EditVehicleModal';
 import MarkSoldModal from '../components/MarkSoldModal';
 import ConfirmationModal from '../components/ConfirmationModal';
@@ -12,6 +12,7 @@ import { computeNextAccountNumber, computeNextStockNumbers, getStockPrefix } fro
 import { toSupabase, fromSupabase, SALE_FIELD_MAP, VEHICLE_FIELD_MAP, quoteSupabaseColumn } from '../supabaseMapping';
 import { INVENTORY_STATUS_VALUES } from '../constants';
 import { GlassButton } from '@/components/ui/glass-button';
+import { LiquidButton } from '@/components/ui/liquid-glass-button';
 
 const INVENTORY_STATUS_OPTIONS = INVENTORY_STATUS_VALUES.map(status => ({
     value: status,
@@ -93,6 +94,8 @@ const VehicleCard: React.FC<{
     const [activeImageIndex, setActiveImageIndex] = useState(0);
     const [binCopied, setBinCopied] = useState(false);
     const [vinCopied, setVinCopied] = useState(false);
+    const [captionCopied, setCaptionCopied] = useState(false);
+    const [folderCopied, setFolderCopied] = useState(false);
 
     useEffect(() => {
         setActiveImageIndex(prev => {
@@ -108,6 +111,72 @@ const VehicleCard: React.FC<{
     const showNext = () => {
         setActiveImageIndex(prev => (prev === images.length - 1 ? 0 : prev + 1));
     };
+
+    const generateSocialCaption = (): string => {
+        const year = vehicle.year || '';
+        const make = vehicle.make || '';
+        const model = vehicle.model || '';
+        const trim = vehicle.trim || '';
+        const mileage = formatNumberDisplay(vehicle.mileage || 0);
+
+        return `🔥 | New car alert
+${year} ${make} ${model}${trim ? ` ${trim}` : ''}
+${mileage} miles
+Rebuilt Title
+
+🚗 | Take it home TODAY!
+• Buy here pay here
+• No credit, Bad Credit, No Problem!
+• Free Warranty Included
+
+📞 | Call/Text Now
+615-878-5233
+Sales Rep: Key
+
+📍 | ⭐️⭐️⭐️⭐️⭐️
+BBB Auto Sales of Smyrna
+375 South Lowry Street,
+Smyrna, Tennessee 37167
+https://www.bbbofsmyrna.com/
+
+#cardealer #cardealership #carshopping #newcar #usedcar #carfinance #carleasing #carbuying #auto #carsofinstagram #carlifestyle #luxurycars #carphotography #carcommunity #carswithoutlimits #instacar #supercars #exoticcars #carshow #carculture`;
+    };
+
+    const handleCopyCaption = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            const caption = generateSocialCaption();
+            await navigator.clipboard.writeText(caption);
+            setCaptionCopied(true);
+            setTimeout(() => setCaptionCopied(false), 2000);
+        } catch (error) {
+            console.error('Failed to copy social caption:', error);
+        }
+    };
+
+    const generateFolderName = (): string => {
+        const vin = vehicle.vin || '';
+        const last4Vin = vin.length >= 4 ? vin.slice(-4) : vin;
+        const year = vehicle.year || '';
+        const make = vehicle.make || '';
+        const model = vehicle.model || '';
+        const trim = vehicle.trim || '';
+        
+        return `${last4Vin} ${year} ${make} ${model}${trim ? ` ${trim}` : ''}`.trim();
+    };
+
+    const handleCopyFolderName = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        try {
+            const folderName = generateFolderName();
+            await navigator.clipboard.writeText(folderName);
+            setFolderCopied(true);
+            setTimeout(() => setFolderCopied(false), 2000);
+        } catch (error) {
+            console.error('Failed to copy folder name:', error);
+        }
+    };
+
     const badgeClasses = STATUS_BADGE_CLASSES[vehicle.status] || STATUS_BADGE_CLASSES['Sold'] || 'bg-gray-500/20 text-gray-300 border-gray-600/30';
 
     // Get outline color for the card border based on vehicle status
@@ -238,31 +307,55 @@ const VehicleCard: React.FC<{
                     </div>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                    <LiquidButton
+                        onClick={handleCopyCaption}
+                        size="icon"
+                        color="blue"
+                        className="flex-shrink-0"
+                        title={captionCopied ? "Copied!" : "Copy Social Caption"}
+                    >
+                        {captionCopied ? (
+                            <CheckIcon className="h-5 w-5" />
+                        ) : (
+                            <ArrowUpTrayIcon className="h-5 w-5" />
+                        )}
+                    </LiquidButton>
+                    <LiquidButton
+                        onClick={handleCopyFolderName}
+                        size="icon"
+                        color="blue"
+                        className="flex-shrink-0"
+                        title={folderCopied ? "Copied!" : "Copy Folder Name"}
+                    >
+                        {folderCopied ? (
+                            <CheckIcon className="h-5 w-5" />
+                        ) : (
+                            <FolderIcon className="h-5 w-5" />
+                        )}
+                    </LiquidButton>
                     {canEdit && (
-                        <GlassButton
+                        <LiquidButton
                             size="sm"
                             onClick={onEdit}
                             className="flex-1 min-w-[110px]"
-                            contentClassName="flex items-center justify-center gap-2"
                         >
                             <PencilSquareIcon className="h-4 w-4" /> Edit
-                        </GlassButton>
+                        </LiquidButton>
                     )}
                     {canMarkSold && (
-                        <GlassButton
+                        <LiquidButton
                             size="sm"
                             onClick={onSold}
                             disabled={isSold}
                             className="flex-1 min-w-[110px]"
-                            contentClassName="flex items-center justify-center gap-2"
                         >
                             <CheckCircleIcon className="h-4 w-4" /> Sold
-                        </GlassButton>
+                        </LiquidButton>
                     )}
                     {canDelete && (
-                        <GlassButton size="icon" onClick={onTrash} className="flex-shrink-0">
+                        <LiquidButton size="icon" onClick={onTrash} className="flex-shrink-0">
                             <TrashIcon className="h-4 w-4" />
-                        </GlassButton>
+                        </LiquidButton>
                     )}
                 </div>
             </div>
@@ -457,6 +550,23 @@ const Inventory: React.FC = () => {
         bodyStyle: '',
         downPayment: '',
     });
+    const [sortBy, setSortBy] = useState<string>('dateAdded-desc');
+    const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
+    const sortDropdownRef = useRef<HTMLDivElement>(null);
+
+    // Close sort dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (sortDropdownRef.current && !sortDropdownRef.current.contains(event.target as Node)) {
+                setSortDropdownOpen(false);
+            }
+        };
+
+        if (sortDropdownOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+            return () => document.removeEventListener('mousedown', handleClickOutside);
+        }
+    }, [sortDropdownOpen]);
 
     if (!dataContext) return null;
     const { inventory, setInventory, sales, setSales, users } = dataContext;
@@ -481,7 +591,7 @@ const Inventory: React.FC = () => {
     const defaultStockNumberForSale = sellingVehicle ? nextStockData.nextByPrefix[getStockPrefix(sellingVehicle.make)]?.formatted ?? '' : '';
 
     const filteredInventory = useMemo(() => {
-        return normalizedInventory.filter(vehicle => {
+        const filtered = normalizedInventory.filter(vehicle => {
             // Instantly hide sold vehicles from the inventory view
             if (vehicle.status === 'Sold') return false;
 
@@ -511,7 +621,44 @@ const Inventory: React.FC = () => {
 
             return true;
         });
-    }, [inventory, searchTerm, filters]);
+
+        // Apply sorting
+        const [sortField, sortDirection] = sortBy.split('-') as [string, 'asc' | 'desc'];
+        const sorted = [...filtered].sort((a, b) => {
+            let comparison = 0;
+
+            switch (sortField) {
+                case 'dateAdded':
+                    // Sort by arrival date (most recent first when descending)
+                    const dateA = a.arrivalDate ? new Date(a.arrivalDate).getTime() : 0;
+                    const dateB = b.arrivalDate ? new Date(b.arrivalDate).getTime() : 0;
+                    comparison = dateA - dateB; // ascending = older first, descending = newer first
+                    break;
+                case 'downPayment':
+                    const downA = a.downPayment ?? 0;
+                    const downB = b.downPayment ?? 0;
+                    comparison = downA - downB;
+                    break;
+                case 'price':
+                    const priceA = a.price ?? 0;
+                    const priceB = b.price ?? 0;
+                    comparison = priceA - priceB;
+                    break;
+                case 'make':
+                    comparison = (a.make || '').localeCompare(b.make || '');
+                    break;
+                case 'model':
+                    comparison = (a.model || '').localeCompare(b.model || '');
+                    break;
+                default:
+                    return 0;
+            }
+
+            return sortDirection === 'asc' ? comparison : -comparison;
+        });
+
+        return sorted;
+    }, [inventory, searchTerm, filters, sortBy]);
 
     const inventoryCounts = useMemo(() => {
         let total = 0;
@@ -550,6 +697,7 @@ const Inventory: React.FC = () => {
     const handleResetFilters = () => {
         setSearchTerm('');
         setFilters({ make: '', model: '', bodyStyle: '', downPayment: '' });
+        setSortBy('dateAdded-desc');
     };
 
     const handleVehicleImagesUpdated = (vehicleId: number, urls: string[]) => {
@@ -957,6 +1105,104 @@ const Inventory: React.FC = () => {
                             label,
                         }))}
                     />
+                </div>
+                <div className="relative" ref={sortDropdownRef}>
+                    <button
+                        type="button"
+                        onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+                        className="flex items-center gap-2 text-primary hover:text-lava-core transition-colors cursor-pointer"
+                    >
+                        <span>Sort by</span>
+                        <ChevronDownIcon className={`h-4 w-4 transition-transform ${sortDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+                    {sortDropdownOpen && (
+                        <div className="absolute top-full left-0 mt-2 min-w-[220px] bg-[rgba(18,18,18,0.95)] border border-border-low rounded-xl shadow-2xl z-50 backdrop-filter backdrop-blur-lg overflow-hidden">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSortBy('dateAdded-desc');
+                                    setSortDropdownOpen(false);
+                                }}
+                                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition-colors ${
+                                    sortBy === 'dateAdded-desc' ? 'bg-white/10 text-lava-core' : 'text-primary'
+                                }`}
+                            >
+                                Date added (newest)
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSortBy('downPayment-asc');
+                                    setSortDropdownOpen(false);
+                                }}
+                                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition-colors ${
+                                    sortBy === 'downPayment-asc' ? 'bg-white/10 text-lava-core' : 'text-primary'
+                                }`}
+                            >
+                                Down Payment (ascending)
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSortBy('downPayment-desc');
+                                    setSortDropdownOpen(false);
+                                }}
+                                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition-colors ${
+                                    sortBy === 'downPayment-desc' ? 'bg-white/10 text-lava-core' : 'text-primary'
+                                }`}
+                            >
+                                Down Payment (descending)
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSortBy('price-asc');
+                                    setSortDropdownOpen(false);
+                                }}
+                                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition-colors ${
+                                    sortBy === 'price-asc' ? 'bg-white/10 text-lava-core' : 'text-primary'
+                                }`}
+                            >
+                                Price (ascending)
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSortBy('price-desc');
+                                    setSortDropdownOpen(false);
+                                }}
+                                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition-colors ${
+                                    sortBy === 'price-desc' ? 'bg-white/10 text-lava-core' : 'text-primary'
+                                }`}
+                            >
+                                Price (descending)
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSortBy('make-asc');
+                                    setSortDropdownOpen(false);
+                                }}
+                                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition-colors ${
+                                    sortBy === 'make-asc' ? 'bg-white/10 text-lava-core' : 'text-primary'
+                                }`}
+                            >
+                                Make (alphabetical)
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSortBy('model-asc');
+                                    setSortDropdownOpen(false);
+                                }}
+                                className={`w-full text-left px-4 py-2.5 text-sm hover:bg-white/10 transition-colors ${
+                                    sortBy === 'model-asc' ? 'bg-white/10 text-lava-core' : 'text-primary'
+                                }`}
+                            >
+                                Model (alphabetical)
+                            </button>
+                        </div>
+                    )}
                 </div>
                 <GlassButton size="sm" onClick={handleResetFilters} contentClassName="flex items-center gap-2">
                     <XCircleIcon className="h-5 w-5"/> Reset
