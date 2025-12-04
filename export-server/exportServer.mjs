@@ -4,6 +4,7 @@ import puppeteer from 'puppeteer';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import http from 'http';
+import https from 'https';
 import dotenv from 'dotenv';
 import { jsPDF } from 'jspdf';
 
@@ -32,32 +33,39 @@ const LOGIN_PAGE_URL = `${APP_URL}/login`;
 app.use(cors());
 app.use(express.json());
 
-// Helper function to check if dev server is running
+// Helper function to check if app server is accessible
 function checkDevServer(url) {
   return new Promise((resolve) => {
     const urlObj = new URL(url);
+    const isHttps = urlObj.protocol === 'https:';
+    const httpModule = isHttps ? require('https') : http;
+    
     const options = {
       hostname: urlObj.hostname,
-      port: urlObj.port || (urlObj.protocol === 'https:' ? 443 : 80),
+      port: urlObj.port || (isHttps ? 443 : 80),
       path: urlObj.pathname || '/',
       method: 'HEAD',
-      timeout: 3000
+      timeout: 10000, // Increased to 10 seconds
+      rejectUnauthorized: true // Verify SSL certificates
     };
 
-    const req = http.request(options, (res) => {
+    const req = httpModule.request(options, (res) => {
+      console.log(`✅ App accessibility check: ${res.statusCode} ${res.statusMessage}`);
       resolve(res.statusCode >= 200 && res.statusCode < 400);
     });
 
-    req.on('error', () => {
+    req.on('error', (error) => {
+      console.error(`❌ App accessibility check failed: ${error.message}`);
       resolve(false);
     });
 
     req.on('timeout', () => {
+      console.error(`❌ App accessibility check timed out after 10s`);
       req.destroy();
       resolve(false);
     });
 
-    req.setTimeout(3000);
+    req.setTimeout(10000);
     req.end();
   });
 }
@@ -651,7 +659,13 @@ app.post('/api/shortcut-screenshot', async (req, res) => {
     console.log(`🔍 Checking if app is accessible at ${APP_URL}...`);
     const isServerRunning = await checkDevServer(APP_URL);
     if (!isServerRunning) {
-      throw new Error(`Application is not accessible at ${APP_URL}. Please ensure the application is properly deployed and APP_URL is set correctly.`);
+      const errorMsg = `Application is not accessible at ${APP_URL}. Please verify:
+1. The site is deployed and running
+2. APP_URL is set correctly in Railway environment variables
+3. The site is not blocking requests from Railway servers
+4. SSL certificates are valid`;
+      console.error(`❌ ${errorMsg}`);
+      throw new Error(errorMsg);
     }
     console.log(`✅ App is accessible at ${APP_URL}`);
 
