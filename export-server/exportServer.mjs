@@ -285,6 +285,11 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
   if (!email || !password) {
     throw new Error('Shortcut automation credentials are missing. Set SHORTCUT_EMAIL and SHORTCUT_PASSWORD env vars.');
   }
+  
+  console.log(`🔧 Configuration:`);
+  console.log(`   APP_URL: ${APP_URL}`);
+  console.log(`   LOGIN_PAGE_URL: ${LOGIN_PAGE_URL}`);
+  console.log(`   Report Type: ${reportType}`);
 
   // Configure based on report type
   const reportConfig = {
@@ -294,12 +299,12 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
       filename: 'Sales_Report.pdf'
     },
     collections: {
-      targetUrl: `${DEV_SERVER_URL}/collections`,
+      targetUrl: `${APP_URL}/collections`,
       selector: '#collections-analytics-export',
       filename: 'Collections_Report.pdf'
     },
     commission: {
-      targetUrl: `${DEV_SERVER_URL}/reports`,
+      targetUrl: `${APP_URL}/reports`,
       selector: '#commission-report-content',
       filename: 'Commission_Report.pdf'
     }
@@ -340,21 +345,60 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
     });
 
     console.log('🔐 Navigating to login page...');
-    await page.goto(LOGIN_PAGE_URL, { waitUntil: 'networkidle0', timeout: 60000 });
-    await page.waitForSelector('input[type="email"]', { timeout: 15000 });
+    console.log(`📍 Login URL: ${LOGIN_PAGE_URL}`);
+    
+    // First, navigate with domcontentloaded to get initial HTML quickly
+    await page.goto(LOGIN_PAGE_URL, { 
+      waitUntil: 'domcontentloaded', 
+      timeout: 90000 
+    });
+    console.log('✅ Initial page load complete');
+    
+    // Then wait for React to initialize and the email input to appear
+    await page.waitForFunction(
+      () => {
+        const emailInput = document.querySelector('input[type="email"]');
+        return emailInput !== null && emailInput.offsetParent !== null;
+      },
+      { timeout: 45000 }
+    );
+    console.log('✅ Login form is ready');
 
     // Fill credentials
     await page.type('input[type="email"]', email, { delay: 35 });
     await page.type('input[type="password"]', password, { delay: 35 });
 
     // Submit login form
-    await Promise.all([
-      page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 60000 }).catch(() => {}),
-      page.click('button[type="submit"]'),
-    ]);
-
-    console.log(`✅ Login submitted, navigating to ${reportType} page...`);
-    await page.goto(config.targetUrl, { waitUntil: 'networkidle0', timeout: 60000 });
+    console.log('🔐 Submitting login form...');
+    await page.click('button[type="submit"]');
+    
+    // Wait for URL to change (login successful)
+    await page.waitForFunction(
+      (loginUrl) => window.location.href !== loginUrl,
+      { timeout: 90000 },
+      LOGIN_PAGE_URL
+    );
+    console.log('✅ Login successful, URL changed');
+    
+    // Wait a bit for the dashboard to start loading
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    
+    console.log(`✅ Navigating to ${reportType} page: ${config.targetUrl}`);
+    // Navigate to target page with more lenient strategy
+    await page.goto(config.targetUrl, { 
+      waitUntil: 'domcontentloaded', 
+      timeout: 90000 
+    });
+    
+    // Wait for React to initialize and content to appear
+    await page.waitForFunction(
+      () => {
+        const root = document.getElementById('root');
+        return root !== null && root.children.length > 0;
+      },
+      { timeout: 45000 }
+    );
+    console.log('✅ Target page loaded');
 
     // Wait for the page to fully load
     await new Promise(resolve => setTimeout(resolve, 2000));
@@ -580,11 +624,17 @@ app.post('/api/shortcut-screenshot', async (req, res) => {
       weekKey,
     };
 
+    // Log the APP_URL being used
+    console.log(`🌐 Using APP_URL: ${APP_URL}`);
+    console.log(`🔗 Login URL: ${LOGIN_PAGE_URL}`);
+    
     // Ensure app server is accessible
+    console.log(`🔍 Checking if app is accessible at ${APP_URL}...`);
     const isServerRunning = await checkDevServer(APP_URL);
     if (!isServerRunning) {
-      throw new Error(`Application is not accessible at ${APP_URL}. Please ensure the application is properly deployed.`);
+      throw new Error(`Application is not accessible at ${APP_URL}. Please ensure the application is properly deployed and APP_URL is set correctly.`);
     }
+    console.log(`✅ App is accessible at ${APP_URL}`);
 
     // Step 1: Capture screenshot as Base64 string and get dimensions
     const { screenshotBase64, dimensions, filename } = await runShortcutAutomation(credentials);
