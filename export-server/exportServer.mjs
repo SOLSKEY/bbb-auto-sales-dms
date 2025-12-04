@@ -322,8 +322,12 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
-      '--enable-gpu', // Enable GPU acceleration
-      '--use-gl=desktop', // Use desktop graphics instead of SwiftShader
+      '--disable-dev-shm-usage', // Overcome limited resource problems
+      '--disable-accelerated-2d-canvas',
+      '--no-first-run',
+      '--no-zygote',
+      '--single-process', // Run in single process mode (helps with memory)
+      '--disable-gpu', // Disable GPU for Railway environment
       '--force-color-profile=srgb', // Prevent color washing/mismatch
       '--disable-font-subpixel-positioning', // Sharpen text for screenshots
       '--hide-scrollbars' // Clean capture
@@ -347,22 +351,37 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
     console.log('🔐 Navigating to login page...');
     console.log(`📍 Login URL: ${LOGIN_PAGE_URL}`);
     
-    // First, navigate with domcontentloaded to get initial HTML quickly
-    await page.goto(LOGIN_PAGE_URL, { 
-      waitUntil: 'domcontentloaded', 
-      timeout: 90000 
-    });
-    console.log('✅ Initial page load complete');
-    
-    // Then wait for React to initialize and the email input to appear
-    await page.waitForFunction(
-      () => {
-        const emailInput = document.querySelector('input[type="email"]');
-        return emailInput !== null && emailInput.offsetParent !== null;
-      },
-      { timeout: 45000 }
-    );
-    console.log('✅ Login form is ready');
+    try {
+      // First, navigate with domcontentloaded to get initial HTML quickly
+      await page.goto(LOGIN_PAGE_URL, { 
+        waitUntil: 'domcontentloaded', 
+        timeout: 90000 
+      });
+      console.log('✅ Initial page load complete');
+      
+      // Check if we got an error page
+      const pageTitle = await page.title();
+      const pageUrl = page.url();
+      console.log(`📄 Page title: ${pageTitle}`);
+      console.log(`🌐 Current URL: ${pageUrl}`);
+      
+      // Then wait for React to initialize and the email input to appear
+      console.log('⏳ Waiting for login form to appear...');
+      await page.waitForFunction(
+        () => {
+          const emailInput = document.querySelector('input[type="email"]');
+          return emailInput !== null && emailInput.offsetParent !== null;
+        },
+        { timeout: 45000 }
+      );
+      console.log('✅ Login form is ready');
+    } catch (error) {
+      console.error(`❌ Failed to load login page: ${error.message}`);
+      // Take a screenshot for debugging
+      const screenshot = await page.screenshot({ encoding: 'base64' });
+      console.log(`📸 Screenshot taken (base64 length: ${screenshot.length})`);
+      throw new Error(`Failed to navigate to login page: ${error.message}. URL: ${LOGIN_PAGE_URL}`);
+    }
 
     // Fill credentials
     await page.type('input[type="email"]', email, { delay: 35 });
