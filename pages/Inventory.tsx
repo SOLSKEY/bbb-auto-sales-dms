@@ -13,6 +13,7 @@ import { toSupabase, fromSupabase, SALE_FIELD_MAP, VEHICLE_FIELD_MAP, quoteSupab
 import { INVENTORY_STATUS_VALUES } from '../constants';
 import { GlassButton } from '@/components/ui/glass-button';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
+import { LiquidContainer } from '@/components/ui/liquid-container';
 
 const INVENTORY_STATUS_OPTIONS = INVENTORY_STATUS_VALUES.map(status => ({
     value: status,
@@ -1015,7 +1016,7 @@ const Inventory: React.FC = () => {
     return (
         <div>
             <div className="flex flex-col lg:flex-row items-start justify-between gap-4 mb-6">
-                <div className="glass-card border border-border-low/80 px-4 py-3 shadow-lg w-full sm:w-auto sm:min-w-[260px] lg:min-w-[320px]">
+                <LiquidContainer variant="cyan-blue" className="w-full sm:w-auto sm:min-w-[260px] lg:min-w-[320px] px-4 py-3">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:gap-4">
                         <div className="flex-1 min-w-[150px]">
                             <p className="text-[11px] uppercase tracking-[0.3em] text-muted">Inventory Count</p>
@@ -1025,22 +1026,22 @@ const Inventory: React.FC = () => {
                         </div>
                         <div className="hidden lg:block h-12 w-px bg-border-low/60" aria-hidden="true"></div>
                         <div className="flex-1 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-3 lg:mt-0">
-                            <div className="flex-1 bg-glass-panel/60 border border-border-low/60 rounded-lg px-3 py-2">
+                            <LiquidContainer variant="neon-green" className="flex-1 px-3 py-2">
                                 <p className="text-[11px] uppercase tracking-wide text-muted">BHPH</p>
                                 <p className="text-base font-semibold text-primary mt-1">
                                     {inventoryCounts.bhph.toLocaleString()}
                                 </p>
-                            </div>
+                            </LiquidContainer>
                             <div className="hidden sm:block h-10 w-px bg-border-low/60" aria-hidden="true"></div>
-                            <div className="flex-1 bg-glass-panel/60 border border-border-low/60 rounded-lg px-3 py-2">
+                            <LiquidContainer variant="neon-pink" className="flex-1 px-3 py-2">
                                 <p className="text-[11px] uppercase tracking-wide text-muted">Cash</p>
                                 <p className="text-base font-semibold text-primary mt-1">
                                     {inventoryCounts.cash.toLocaleString()}
                                 </p>
-                            </div>
+                            </LiquidContainer>
                         </div>
                     </div>
-                </div>
+                </LiquidContainer>
                 <div className="flex flex-col items-end gap-3 w-full lg:w-auto">
                     <GlassButton
                         onClick={canAddInventory ? () => setIsAddingVehicle(true) : undefined}

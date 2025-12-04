@@ -399,6 +399,15 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
   try {
     const page = await browser.newPage();
     
+    // Suppress React errors in console (they're often non-fatal)
+    page.on('console', msg => {
+      const text = msg.text();
+      if (text.includes('Minified React error #299') || text.includes('Invalid hook call')) {
+        console.log('⚠️ React error detected in console (non-fatal):', text);
+        // Don't throw - these are often non-fatal and don't prevent rendering
+      }
+    });
+    
     // Set timezone FIRST, before any other operations
     // This ensures date calculations match what users see in their browser
     const timezone = process.env.TIMEZONE || 'America/Chicago';
@@ -425,8 +434,21 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
     
     // Wait for navigation with better error handling
     try {
-      await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 60000 });
-      console.log('✅ Login successful, navigated to dashboard');
+      // Wait for URL to change (more reliable than networkidle)
+      await page.waitForFunction(
+        (loginUrl) => window.location.href !== loginUrl,
+        { timeout: 30000 },
+        LOGIN_PAGE_URL
+      );
+      console.log('✅ Login successful, navigated away from login page');
+      
+      // Wait a bit for the new page to start loading
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Check current URL
+      const currentUrl = page.url();
+      console.log(`📍 Current URL: ${currentUrl}`);
+      
     } catch (navError) {
       console.log('⚠️ Navigation wait timed out, checking if login was successful...');
       // Check if we're on a different page (login might have succeeded but navigation detection failed)
@@ -438,11 +460,66 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
     }
 
     console.log(`✅ Login submitted, navigating to ${reportType} page...`);
-    await page.goto(config.targetUrl, { waitUntil: 'networkidle0', timeout: 60000 });
+    // Navigate to target page with increased timeout
+    try {
+      await page.goto(config.targetUrl, { 
+        waitUntil: 'domcontentloaded', 
+        timeout: 90000 // Increased to 90 seconds
+      });
+    } catch (gotoError) {
+      // If goto times out, check if we're at least on the right page
+      const currentUrl = page.url();
+      if (!currentUrl.includes(config.targetUrl.replace(APP_URL, ''))) {
+        throw new Error(`Failed to navigate to ${config.targetUrl}. Current URL: ${currentUrl}`);
+      }
+      console.log('⚠️ Navigation timeout, but we appear to be on the target page');
+    }
     
     // Verify page loaded
     if (page.isClosed()) {
       throw new Error('Page closed unexpectedly after navigation');
+    }
+
+    // Wait for React to be fully loaded and initialized
+    console.log('⏳ Waiting for React to initialize...');
+    try {
+      await page.waitForFunction(() => {
+        // Check if React root is mounted and has content
+        const root = document.getElementById('root');
+        if (!root || root.children.length === 0) return false;
+        
+        // Check for actual rendered content (not just loading states)
+        const hasContent = root.querySelector('main, div[class*="container"], div[class*="page"]');
+        return hasContent !== null;
+      }, { timeout: 45000 }); // Increased timeout
+      console.log('✅ React initialized');
+    } catch (error) {
+      console.log('⚠️ React initialization check timed out, checking if page has content anyway...');
+      // Check if page has any content at all
+      const hasContent = await page.evaluate(() => {
+        const root = document.getElementById('root');
+        return root && root.children.length > 0;
+      });
+      if (!hasContent) {
+        throw new Error('Page appears to be empty - React may not have loaded');
+      }
+      console.log('✅ Page has content, continuing...');
+    }
+
+    // Wait for network to be idle (all resources loaded) with timeout
+    console.log('⏳ Waiting for network to be idle...');
+    try {
+      // Use a more lenient approach - wait for networkidle but with shorter timeout
+      await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 30000 }).catch(() => {
+        // If this fails, just wait a bit for resources to load
+        console.log('⚠️ Network idle wait timed out, waiting 3 seconds for resources...');
+        return new Promise(resolve => setTimeout(resolve, 3000));
+      });
+      console.log('✅ Network idle');
+    } catch (e) {
+      // Fallback: just wait a bit for resources to load
+      console.log('⚠️ Network wait failed, waiting 3 seconds...');
+      await new Promise(resolve => setTimeout(resolve, 3000));
     }
 
     // Verify timezone is still set and wait for page to fully load

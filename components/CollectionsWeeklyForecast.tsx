@@ -21,6 +21,7 @@ import {
     getWeekRangeForDate,
 } from '../utils/date';
 import AppSelect from './AppSelect';
+import { LiquidContainer } from '@/components/ui/liquid-container';
 
 const DOW_KEYS = ['mon', 'tue', 'wed', 'thr', 'fri', 'sat', 'sun'] as const;
 type DowKey = typeof DOW_KEYS[number];
@@ -472,7 +473,7 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
         : ArrowTrendingDownIcon;
 
     return (
-        <div className={`glass-card-outline ${compact ? 'p-5' : 'p-6'} relative overflow-hidden`}>
+        <LiquidContainer variant="cyan-blue" className={`${compact ? 'p-5' : 'p-6'} relative overflow-hidden`}>
             <div className={`flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 ${compact ? 'mb-4' : 'mb-6'}`}>
                 <div>
                     <h3 className="text-xl font-semibold text-primary tracking-tight-md">
@@ -656,7 +657,7 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
                     </ComposedChart>
                 </ResponsiveContainer>
             </div>
-        </div>
+        </LiquidContainer>
     );
 };
 

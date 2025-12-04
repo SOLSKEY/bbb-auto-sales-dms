@@ -15,6 +15,7 @@ import {
 } from '../utils/date';
 import { downloadHtmlElementAsPdf } from '../utils/export';
 import { GlassButton } from '@/components/ui/glass-button';
+import { LiquidContainer } from '@/components/ui/liquid-container';
 import { usePrintView } from '../hooks/usePrintView';
 import CollectionsShortcutButton from '../components/CollectionsShortcutButton';
 
@@ -456,17 +457,19 @@ const CollectionsOverview: React.FC<{
         return (
             <div id="collections-analytics-export" className={containerClasses}>
                 {/* Header: Title on left, Date on right */}
-                <div className="glass-card-accent flex justify-between items-center print:mb-6 mb-6 p-4">
-                    <h1 
-                        className="font-bold font-orbitron tracking-tight-lg text-white"
-                        style={{
-                            fontSize: '38px',
-                        }}
-                    >
-                        SMYRNA COLLECTIONS REPORT
-                    </h1>
-                    <p className="text-lg text-secondary font-semibold">{currentDateCST}</p>
-                </div>
+                <LiquidContainer variant="cyan-blue" className="print:mb-6 mb-6 p-4 text-white">
+                    <div className="flex flex-row justify-between items-center w-full">
+                        <h1 
+                            className="font-bold font-orbitron tracking-tight-lg text-white flex-shrink-0"
+                            style={{
+                                fontSize: '38px',
+                            }}
+                        >
+                            SMYRNA COLLECTIONS REPORT
+                        </h1>
+                        <p className="text-lg text-white font-semibold flex-shrink-0 whitespace-nowrap">{currentDateCST}</p>
+                    </div>
+                </LiquidContainer>
                 {canLogDailyData && isLogModalOpen && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8">
                         <div className="w-full max-w-xl p-6 relative bg-[#1b1f26] border border-border-high rounded-2xl shadow-2xl">
@@ -618,12 +621,12 @@ const CollectionsOverview: React.FC<{
                 <div className="flex flex-wrap items-stretch gap-4 w-full">
                     {/* Group 1: Today's Accounts - 3 cards in a row */}
                     {cardData.group1.map(card => (
-                        <div key={card.title} className={`glass-card-outline ${cardPaddingClass} flex-1 min-w-[200px] flex flex-col justify-between`}>
+                        <LiquidContainer key={card.title} variant="cyan-blue" className={`${cardPaddingClass} flex-1 min-w-[200px] flex flex-col justify-between`}>
                             <p className={cardTitleClass}>{card.title}</p>
                             <p className={`${cardValueClass} ${card.accent} mt-auto`}>
                                 {card.value}
                             </p>
-                        </div>
+                        </LiquidContainer>
                     ))}
 
                     {/* Vertical Divider 1 */}
@@ -631,12 +634,12 @@ const CollectionsOverview: React.FC<{
 
                     {/* Group 2: Payments - 3 cards in a row */}
                     {cardData.group2.map(card => (
-                        <div key={card.title} className={`glass-card-outline ${cardPaddingClass} flex-1 min-w-[200px] flex flex-col justify-between`}>
+                        <LiquidContainer key={card.title} variant="cyan-blue" className={`${cardPaddingClass} flex-1 min-w-[200px] flex flex-col justify-between`}>
                             <p className={cardTitleClass}>{card.title}</p>
                             <p className={`${cardValueClass} ${card.accent} mt-auto`}>
                                 {card.value}
                             </p>
-                        </div>
+                        </LiquidContainer>
                     ))}
                 </div>
 
@@ -644,9 +647,10 @@ const CollectionsOverview: React.FC<{
                 <div className="flex flex-wrap items-stretch gap-4 w-full">
                     {/* Record Cards - Accent Styling (like Next Account Number) - 2 cards in a row */}
                     {cardData.recordCards.map(card => (
-                        <div
+                        <LiquidContainer
                             key={card.title}
-                            className={`glass-card-accent ${cardPaddingClass} flex-1 min-w-[200px] flex flex-col justify-between`}
+                            variant="cyan-blue"
+                            className={`${cardPaddingClass} flex-1 min-w-[200px] flex flex-col justify-between`}
                         >
                             <p className={`text-xs text-cyan-200 uppercase tracking-wide font-semibold`}>
                                 {card.title}
@@ -667,7 +671,7 @@ const CollectionsOverview: React.FC<{
                             >
                                 {card.value}
                             </p>
-                        </div>
+                        </LiquidContainer>
                     ))}
                 </div>
 

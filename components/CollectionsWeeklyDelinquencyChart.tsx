@@ -11,6 +11,7 @@ import {
 } from 'recharts';
 import { getWeekStartUtc, addUtcDays, formatDateKey } from '../utils/date';
 import { GlassButton } from '@/components/ui/glass-button';
+import { LiquidContainer } from '@/components/ui/liquid-container';
 import { ChevronDownIcon } from '@heroicons/react/24/solid';
 
 const MS_IN_DAY = 24 * 60 * 60 * 1000;
@@ -249,7 +250,7 @@ const CollectionsWeeklyDelinquencyChart: React.FC<CollectionsWeeklyDelinquencyCh
     };
 
     return (
-        <div className="glass-card-outline p-6">
+        <LiquidContainer variant="cyan-blue" className="p-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-4">
                 <div>
                     <h3 className="text-xl font-semibold text-primary tracking-tight-md">Weekly Delinquency Percentage</h3>
@@ -355,7 +356,7 @@ const CollectionsWeeklyDelinquencyChart: React.FC<CollectionsWeeklyDelinquencyCh
                     })}
                 </BarChart>
             </ResponsiveContainer>
-        </div>
+        </LiquidContainer>
     );
 };
 
