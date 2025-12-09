@@ -25,13 +25,16 @@ export default defineConfig(({ mode }) => {
         alias: {
           '@': path.resolve(__dirname, '.'),
         },
+        // Ensure pdf-lib can be resolved during build
+        dedupe: ['pdf-lib'],
       },
       build: {
         chunkSizeWarningLimit: 1500,
         rollupOptions: {
-          external: (id) => {
-            // Don't externalize pdf-lib - we want it bundled but in separate chunks via dynamic imports
-            return false;
+          // Configure output to handle dynamic imports properly
+          output: {
+            // Ensure dynamic imports are handled correctly
+            inlineDynamicImports: false,
           },
         },
       },
