@@ -546,8 +546,7 @@ const Inventory: React.FC = () => {
     // State for filters and search
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({
-        make: '',
-        model: '',
+        status: '',
         bodyStyle: '',
         downPayment: '',
     });
@@ -579,12 +578,7 @@ const Inventory: React.FC = () => {
         return users.filter(user => user.name && user.name.trim().length > 0);
     }, [users]);
 
-    const uniqueMakes = useMemo(() => [...new Set(normalizedInventory.map(v => v.make))].sort(), [normalizedInventory]);
     const uniqueBodyStyles = useMemo(() => [...new Set(normalizedInventory.map(v => v.bodyStyle))].sort(), [normalizedInventory]);
-    const availableModels = useMemo(() => {
-        if (!filters.make) return [];
-        return [...new Set(normalizedInventory.filter(v => v.make === filters.make).map(v => v.model))].sort();
-    }, [normalizedInventory, filters.make]);
 
     const nextAccountNumberValue = useMemo(() => computeNextAccountNumber(sales), [sales]);
     const nextStockData = useMemo(() => computeNextStockNumbers(sales), [sales]);
@@ -606,8 +600,7 @@ const Inventory: React.FC = () => {
                 return false;
             }
 
-            if (filters.make && vehicle.make !== filters.make) return false;
-            if (filters.model && vehicle.model !== filters.model) return false;
+            if (filters.status && vehicle.status !== filters.status) return false;
             if (filters.bodyStyle && vehicle.bodyStyle !== filters.bodyStyle) return false;
 
             if (filters.downPayment) {
@@ -688,16 +681,13 @@ const Inventory: React.FC = () => {
         const { name, value } = 'target' in input ? input.target : input;
         setFilters(prev => {
             const next = { ...prev, [name]: value } as typeof filters;
-            if (name === 'make') {
-                next.model = '';
-            }
             return next;
         });
     };
 
     const handleResetFilters = () => {
         setSearchTerm('');
-        setFilters({ make: '', model: '', bodyStyle: '', downPayment: '' });
+        setFilters({ status: '', bodyStyle: '', downPayment: '' });
         setSortBy('dateAdded-desc');
     };
 
@@ -1068,22 +1058,11 @@ const Inventory: React.FC = () => {
                 </div>
                 <div className="min-w-[150px]">
                     <AppSelect
-                        value={filters.make}
-                        onChange={value => handleFilterChange({ name: 'make', value })}
+                        value={filters.status}
+                        onChange={value => handleFilterChange({ name: 'status', value })}
                         options={[
-                            { value: '', label: 'Any Make' },
-                            ...uniqueMakes.map(make => ({ value: make, label: make })),
-                        ]}
-                    />
-                </div>
-                <div className="min-w-[150px]">
-                    <AppSelect
-                        value={filters.model}
-                        onChange={value => handleFilterChange({ name: 'model', value })}
-                        disabled={!filters.make}
-                        options={[
-                            { value: '', label: 'Any Model', disabled: !filters.make },
-                            ...availableModels.map(model => ({ value: model, label: model })),
+                            { value: '', label: 'Any Status' },
+                            ...INVENTORY_STATUS_OPTIONS,
                         ]}
                     />
                 </div>

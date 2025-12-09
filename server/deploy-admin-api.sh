@@ -65,3 +65,5 @@ echo "1. Copy the domain URL from above"
 echo "2. Update VITE_API_URL in your frontend service to point to that domain"
 echo "3. Redeploy your frontend service"
 
+
+

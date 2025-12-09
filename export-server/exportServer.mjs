@@ -30,7 +30,18 @@ if (!APP_URL) {
 const SALES_PAGE_URL = `${APP_URL}/sales`;
 const LOGIN_PAGE_URL = `${APP_URL}/login`;
 
-app.use(cors());
+// Configure CORS to allow requests from your production domain
+app.use(cors({
+  origin: [
+    'https://bbbhq.app',
+    'http://localhost:3000',
+    'http://localhost:5173',
+    process.env.APP_URL
+  ].filter(Boolean),
+  credentials: true,
+  methods: ['GET', 'POST', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 app.use(express.json());
 
 // Helper function to check if app server is accessible
@@ -38,7 +49,7 @@ function checkDevServer(url) {
   return new Promise((resolve) => {
     const urlObj = new URL(url);
     const isHttps = urlObj.protocol === 'https:';
-    const httpModule = isHttps ? require('https') : http;
+    const httpModule = isHttps ? https : http;
     
     const options = {
       hostname: urlObj.hostname,
@@ -350,28 +361,109 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
 
   try {
     const page = await browser.newPage();
+    
+    // Set default navigation timeout to 180 seconds (longer than individual timeouts)
+    // This must be set BEFORE any navigation calls
+    page.setDefaultNavigationTimeout(180000);
+    page.setDefaultTimeout(180000);
+    
+    // Set custom User Agent to identify as Puppeteer bot
+    // This allows the React app to skip heavy WebGL animations on the login page
+    const userAgent = await browser.userAgent();
+    await page.setUserAgent(`${userAgent} Puppeteer`);
+    console.log('🤖 Set User Agent to identify as Puppeteer bot');
+    
     await page.setViewport({
       width: 2000,
       height: 2000,
       deviceScaleFactor: 2 // DPR = 2.0
     });
 
+    // Monitor network requests for debugging
+    const failedRequests = [];
+    page.on('requestfailed', (request) => {
+      failedRequests.push({
+        url: request.url(),
+        failure: request.failure()?.errorText || 'Unknown error'
+      });
+      console.error(`❌ Request failed: ${request.url()} - ${request.failure()?.errorText || 'Unknown error'}`);
+    });
+    
+    page.on('response', (response) => {
+      if (response.status() >= 400) {
+        console.error(`⚠️ HTTP ${response.status()} for ${response.url()}`);
+      }
+    });
+
     console.log('🔐 Navigating to login page...');
     console.log(`📍 Login URL: ${LOGIN_PAGE_URL}`);
+    console.log(`🌐 APP_URL: ${APP_URL}`);
+    
+    // Verify APP_URL is accessible before attempting navigation
+    console.log(`🔍 Verifying APP_URL accessibility...`);
+    const isAccessible = await checkDevServer(APP_URL);
+    if (!isAccessible) {
+      throw new Error(`APP_URL ${APP_URL} is not accessible. Please verify the URL is correct and the site is deployed.`);
+    }
+    console.log(`✅ APP_URL is accessible`);
     
     try {
       // First, navigate with domcontentloaded to get initial HTML quickly
-      await page.goto(LOGIN_PAGE_URL, { 
-        waitUntil: 'domcontentloaded', 
-        timeout: 90000 
-      });
-      console.log('✅ Initial page load complete');
+      console.log(`⏳ Starting navigation (timeout: 180s)...`);
+      console.log(`🌐 Target URL: ${LOGIN_PAGE_URL}`);
+      
+      // Try navigation with retry logic and multiple wait strategies
+      let navigationSuccess = false;
+      let lastError = null;
+      const maxRetries = 3;
+      const waitStrategies = ['domcontentloaded', 'load', 'networkidle0'];
+      
+      for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        for (const waitStrategy of waitStrategies) {
+          try {
+            console.log(`🔄 Navigation attempt ${attempt}/${maxRetries} with waitUntil: ${waitStrategy}...`);
+            console.log(`⏱️  Timeout set to: 180000ms (3 minutes)`);
+            
+            await page.goto(LOGIN_PAGE_URL, { 
+              waitUntil: waitStrategy, 
+              timeout: 180000 
+            });
+            navigationSuccess = true;
+            console.log(`✅ Initial page load complete using ${waitStrategy}`);
+            break;
+          } catch (error) {
+            lastError = error;
+            console.error(`❌ Navigation attempt ${attempt} with ${waitStrategy} failed: ${error.message}`);
+            // If it's a timeout error, try next strategy
+            if (error.message.includes('timeout')) {
+              continue; // Try next wait strategy
+            } else {
+              break; // If it's not a timeout, break and retry
+            }
+          }
+        }
+        
+        if (navigationSuccess) break;
+        
+        if (attempt < maxRetries) {
+          console.log(`⏳ Retrying in 5 seconds...`);
+          await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+      }
+      
+      if (!navigationSuccess) {
+        throw lastError || new Error('Navigation failed after all retries and wait strategies');
+      }
       
       // Check if we got an error page
       const pageTitle = await page.title();
       const pageUrl = page.url();
       console.log(`📄 Page title: ${pageTitle}`);
       console.log(`🌐 Current URL: ${pageUrl}`);
+      
+      if (failedRequests.length > 0) {
+        console.warn(`⚠️ ${failedRequests.length} network request(s) failed during navigation`);
+      }
       
       // Then wait for React to initialize and the email input to appear
       console.log('⏳ Waiting for login form to appear...');
@@ -380,15 +472,35 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
           const emailInput = document.querySelector('input[type="email"]');
           return emailInput !== null && emailInput.offsetParent !== null;
         },
-        { timeout: 45000 }
+        { timeout: 120000 }
       );
       console.log('✅ Login form is ready');
     } catch (error) {
       console.error(`❌ Failed to load login page: ${error.message}`);
-      // Take a screenshot for debugging
-      const screenshot = await page.screenshot({ encoding: 'base64' });
-      console.log(`📸 Screenshot taken (base64 length: ${screenshot.length})`);
-      throw new Error(`Failed to navigate to login page: ${error.message}. URL: ${LOGIN_PAGE_URL}`);
+      console.error(`❌ Error stack: ${error.stack}`);
+      
+      // Get more debugging info
+      try {
+        const currentUrl = page.url();
+        const pageTitle = await page.title().catch(() => 'Unable to get title');
+        console.error(`📄 Current page URL: ${currentUrl}`);
+        console.error(`📄 Current page title: ${pageTitle}`);
+        
+        if (failedRequests.length > 0) {
+          console.error(`❌ Failed network requests:`);
+          failedRequests.forEach((req, idx) => {
+            console.error(`   ${idx + 1}. ${req.url} - ${req.failure}`);
+          });
+        }
+        
+        // Take a screenshot for debugging
+        const screenshot = await page.screenshot({ encoding: 'base64' });
+        console.log(`📸 Screenshot taken (base64 length: ${screenshot.length})`);
+      } catch (debugError) {
+        console.error(`❌ Could not gather debug info: ${debugError.message}`);
+      }
+      
+      throw new Error(`Failed to navigate to login page: ${error.message}. URL: ${LOGIN_PAGE_URL}. Failed requests: ${failedRequests.length}`);
     }
 
     // Fill credentials
@@ -402,7 +514,7 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
     // Wait for URL to change (login successful)
     await page.waitForFunction(
       (loginUrl) => window.location.href !== loginUrl,
-      { timeout: 90000 },
+      { timeout: 120000 },
       LOGIN_PAGE_URL
     );
     console.log('✅ Login successful, URL changed');
@@ -411,11 +523,18 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
     await new Promise(resolve => setTimeout(resolve, 2000));
     
     console.log(`✅ Navigating to ${reportType} page: ${config.targetUrl}`);
-    // Navigate to target page with more lenient strategy
+    // Navigate to target page and wait for network to be completely idle
+    // This ensures all Supabase requests have completed before proceeding
     await page.goto(config.targetUrl, { 
-      waitUntil: 'domcontentloaded', 
-      timeout: 90000 
+      waitUntil: 'networkidle0', 
+      timeout: 180000 
     });
+    console.log('✅ Initial page navigation complete (network idle)');
+    
+    // Additional wait to ensure all data is loaded and rendered
+    console.log('⏳ Waiting for network to be completely silent...');
+    await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds of complete silence
+    console.log('✅ Network is completely idle');
     
     // Wait for React to initialize and content to appear
     await page.waitForFunction(
@@ -423,12 +542,270 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
         const root = document.getElementById('root');
         return root !== null && root.children.length > 0;
       },
-      { timeout: 45000 }
+      { timeout: 60000 }
     );
-    console.log('✅ Target page loaded');
+    console.log('✅ React root initialized');
 
-    // Wait for the page to fully load
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // Wait for all images to load
+    console.log('⏳ Waiting for all images to load...');
+    await page.evaluate(async () => {
+      const images = Array.from(document.images);
+      await Promise.all(
+        images.map((img) => {
+          if (img.complete) return Promise.resolve();
+          return new Promise((resolve, reject) => {
+            img.addEventListener('load', resolve);
+            img.addEventListener('error', resolve); // Resolve even on error to not block
+            setTimeout(resolve, 5000); // Timeout after 5s per image
+          });
+        })
+      );
+    });
+    console.log('✅ All images loaded');
+
+    // Wait for any loading spinners/indicators to disappear
+    console.log('⏳ Waiting for loading indicators to disappear...');
+    try {
+      await page.waitForFunction(
+        () => {
+          // Check for common loading indicators
+          const loadingSelectors = [
+            '[class*="loading"]',
+            '[class*="spinner"]',
+            '[class*="Loading"]',
+            '[data-loading="true"]',
+            '.animate-spin',
+          ];
+          
+          for (const selector of loadingSelectors) {
+            const elements = document.querySelectorAll(selector);
+            for (const el of elements) {
+              // Check if element is visible
+              const style = window.getComputedStyle(el);
+              if (style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0') {
+                return false; // Still loading
+              }
+            }
+          }
+          return true; // No visible loading indicators
+        },
+        { timeout: 30000 }
+      );
+      console.log('✅ Loading indicators cleared');
+    } catch (error) {
+      console.log('⚠️ Timeout waiting for loading indicators, continuing anyway...');
+    }
+
+    // Wait for Supabase API requests to complete successfully
+    console.log('⏳ Waiting for Supabase API requests to complete...');
+    await new Promise((resolve) => {
+      let idleTimer;
+      let requestCount = 0;
+      let supabaseRequestCount = 0;
+      let supabaseSuccessCount = 0;
+      const supabaseRequests = new Map(); // Track request -> response status
+      const requiredSupabaseTables = ['Sales', 'Inventory', 'Payments', 'Delinquency'];
+      const completedTables = new Set();
+      
+      const checkIdle = () => {
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => {
+          // Check if we have successful responses for required tables
+          const hasRequiredData = requiredSupabaseTables.some(table => 
+            completedTables.has(table.toLowerCase())
+          ) || supabaseSuccessCount > 0;
+          
+          // Only resolve if there are no pending requests AND we have at least some successful data
+          if (requestCount === 0 && supabaseRequestCount === 0 && hasRequiredData) {
+            page.off('request', onRequest);
+            page.off('response', onResponse);
+            page.off('requestfailed', onRequestFailed);
+            clearTimeout(idleTimer);
+            console.log(`✅ Supabase data loaded (${supabaseSuccessCount} successful request(s))`);
+            resolve();
+          } else if (requestCount === 0 && supabaseRequestCount === 0) {
+            // No pending requests but no data yet - wait a bit more
+            requestCount = 0;
+            checkIdle(); // Check again
+          } else {
+            requestCount = 0;
+            checkIdle(); // Check again
+          }
+        }, 2000); // Wait 2 seconds of no network activity
+      };
+      
+      const onRequest = (request) => {
+        const url = request.url();
+        requestCount++;
+        
+        // Track Supabase requests specifically
+        if (url.includes('supabase.co') && url.includes('/rest/v1/')) {
+          supabaseRequestCount++;
+          supabaseRequests.set(url, { status: 'pending', startTime: Date.now() });
+          
+          // Extract table name from URL
+          const tableMatch = url.match(/\/rest\/v1\/([^?]+)/);
+          if (tableMatch) {
+            const tableName = tableMatch[1];
+            console.log(`📡 Supabase request started: ${tableName}`);
+          }
+        }
+        
+        checkIdle();
+      };
+      
+      const onResponse = (response) => {
+        const url = response.url();
+        requestCount = Math.max(0, requestCount - 1);
+        
+        // Track Supabase responses
+        if (url.includes('supabase.co') && url.includes('/rest/v1/')) {
+          supabaseRequestCount = Math.max(0, supabaseRequestCount - 1);
+          const requestInfo = supabaseRequests.get(url);
+          
+          if (requestInfo) {
+            const status = response.status();
+            if (status >= 200 && status < 300) {
+              // Successful response
+              supabaseSuccessCount++;
+              requestInfo.status = 'success';
+              
+              // Extract table name
+              const tableMatch = url.match(/\/rest\/v1\/([^?]+)/);
+              if (tableMatch) {
+                const tableName = tableMatch[1];
+                completedTables.add(tableName.toLowerCase());
+                console.log(`✅ Supabase request succeeded: ${tableName} (${status})`);
+              }
+            } else {
+              requestInfo.status = 'error';
+              console.log(`⚠️ Supabase request error: ${url.substring(0, 60)}... (${status})`);
+            }
+            supabaseRequests.delete(url);
+          }
+        }
+        
+        checkIdle();
+      };
+      
+      const onRequestFailed = (request) => {
+        const url = request.url();
+        requestCount = Math.max(0, requestCount - 1);
+        
+        // Handle failed Supabase requests
+        if (url.includes('supabase.co') && url.includes('/rest/v1/')) {
+          supabaseRequestCount = Math.max(0, supabaseRequestCount - 1);
+          const requestInfo = supabaseRequests.get(url);
+          
+          if (requestInfo) {
+            const failure = request.failure();
+            const errorText = failure?.errorText || 'Unknown error';
+            
+            // Only log if it's not a cancellation (which is expected during navigation)
+            if (errorText === 'net::ERR_ABORTED') {
+              // Silently ignore cancellations - they're expected during page transitions
+              requestInfo.status = 'cancelled';
+            } else {
+              requestInfo.status = 'failed';
+              const tableMatch = url.match(/\/rest\/v1\/([^?]+)/);
+              if (tableMatch) {
+                console.log(`⚠️ Supabase request failed: ${tableMatch[1]} - ${errorText}`);
+              }
+            }
+            supabaseRequests.delete(url);
+          }
+        }
+        
+        checkIdle();
+      };
+      
+      page.on('request', onRequest);
+      page.on('response', onResponse);
+      page.on('requestfailed', onRequestFailed);
+      
+      // Start checking after a brief delay to let initial requests start
+      setTimeout(() => {
+        if (requestCount === 0 && supabaseRequestCount === 0 && supabaseSuccessCount > 0) {
+          page.off('request', onRequest);
+          page.off('response', onResponse);
+          page.off('requestfailed', onRequestFailed);
+          resolve();
+        } else {
+          checkIdle();
+        }
+      }, 2000); // Give requests 2 seconds to start
+      
+      // Fallback timeout - ensure we don't wait forever
+      setTimeout(() => {
+        page.off('request', onRequest);
+        page.off('response', onResponse);
+        page.off('requestfailed', onRequestFailed);
+        clearTimeout(idleTimer);
+        if (supabaseRequestCount > 0) {
+          console.log(`⚠️ Timeout waiting for ${supabaseRequestCount} Supabase request(s), proceeding with ${supabaseSuccessCount} successful...`);
+        } else if (supabaseSuccessCount === 0) {
+          console.log(`⚠️ No successful Supabase requests detected, but proceeding anyway...`);
+        }
+        resolve();
+      }, 45000); // Max 45 seconds wait for Supabase requests
+    });
+    console.log('✅ Network idle (Supabase requests handled)');
+
+    // Wait for data to actually be loaded in the page
+    console.log('⏳ Waiting for data to be loaded in the page...');
+    try {
+      // Wait for the page to have actual content (not just loading states)
+      await page.waitForFunction(
+        () => {
+          // Check if there's actual data content visible
+          // For sales page, look for sales data
+          const salesContainer = document.querySelector('#sales-analytics-export-container');
+          if (salesContainer) {
+            // Check if there are actual stat cards or charts with data
+            const statCards = salesContainer.querySelectorAll('[class*="StatCard"], [class*="stat"]');
+            const charts = salesContainer.querySelectorAll('canvas, svg, [class*="chart"], [class*="Chart"]');
+            // If we have stat cards or charts, assume data is loaded
+            if (statCards.length > 0 || charts.length > 0) {
+              return true;
+            }
+          }
+          
+          // For collections page
+          const collectionsContainer = document.querySelector('#collections-analytics-export');
+          if (collectionsContainer) {
+            const hasContent = collectionsContainer.textContent && collectionsContainer.textContent.trim().length > 100;
+            return hasContent;
+          }
+          
+          // For commission report
+          const commissionContainer = document.querySelector('#commission-report-content');
+          if (commissionContainer) {
+            const hasContent = commissionContainer.textContent && commissionContainer.textContent.trim().length > 100;
+            return hasContent;
+          }
+          
+          return false;
+        },
+        { timeout: 30000 }
+      );
+      console.log('✅ Data content verified');
+    } catch (error) {
+      console.log('⚠️ Could not verify data content, continuing anyway...');
+    }
+    
+    // Additional wait for charts and dynamic content to render
+    console.log('⏳ Waiting for charts and dynamic content to render...');
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Wait for any canvas elements (charts) to be rendered
+    await page.evaluate(async () => {
+      const canvases = Array.from(document.querySelectorAll('canvas'));
+      if (canvases.length > 0) {
+        // Wait a bit for canvas rendering
+        await new Promise(resolve => setTimeout(resolve, 2000));
+      }
+    });
+    console.log('✅ Charts rendered');
 
     // For Commission report, ensure the Commission tab is selected
     if (reportType === 'commission') {
@@ -439,7 +816,11 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
         await page.click('[data-report-type="Commission"]');
         console.log('✅ Commission tab clicked');
         // Wait for the tab to switch and content to load
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        // Wait for network to be idle after tab switch
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        console.log('✅ Commission tab content loaded');
 
         // If weekKey is provided, select the week from the dropdown
         if (weekKey) {
@@ -550,8 +931,12 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
               
               if (optionClicked) {
                 // Wait for the report to update after selection
+                console.log('⏳ Waiting for report to update after week selection...');
+                await new Promise(resolve => setTimeout(resolve, 3000));
+                
+                // Wait for network to be idle after week selection
                 await new Promise(resolve => setTimeout(resolve, 2000));
-                console.log(`✅ Week ${weekKey} selected`);
+                console.log(`✅ Week ${weekKey} selected and report updated`);
               } else {
                 console.log('⚠️ Could not find matching week option, continuing with current week...');
               }
@@ -572,8 +957,51 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
     const targetSelector = config.selector;
     console.log('🔍 Looking for target element:', targetSelector);
     
-    await page.waitForSelector(targetSelector, { visible: true, timeout: 20000 });
+    // Wait for target element to be visible and fully rendered
+    await page.waitForSelector(targetSelector, { visible: true, timeout: 60000 });
     console.log('✅ Target element found');
+    
+    // Wait for element to have actual data content (not just loading states)
+    console.log('⏳ Waiting for element to have actual data content...');
+    await page.waitForFunction(
+      (selector) => {
+        const el = document.querySelector(selector);
+        if (!el) return false;
+        
+        // Check if element has meaningful content
+        const hasText = el.textContent && el.textContent.trim().length > 100;
+        const hasChildren = el.children.length > 0;
+        const hasImages = el.querySelectorAll('img').length > 0;
+        
+        // Check if images are loaded
+        const images = Array.from(el.querySelectorAll('img'));
+        const allImagesLoaded = images.every(img => img.complete && img.naturalHeight !== 0);
+        
+        // For sales page, check for charts/canvas elements
+        if (selector.includes('sales-analytics')) {
+          const charts = el.querySelectorAll('canvas');
+          const hasCharts = charts.length > 0;
+          // Check if charts have been rendered (canvas has content)
+          const chartsRendered = Array.from(charts).some(canvas => {
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return false;
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            // Check if canvas has non-transparent pixels (indicating it's been drawn)
+            return imageData.data.some((val, idx) => idx % 4 !== 3 && val !== 0);
+          });
+          return (hasText || hasChildren || hasImages) && allImagesLoaded && (hasCharts ? chartsRendered : true);
+        }
+        
+        return (hasText || hasChildren || hasImages) && allImagesLoaded;
+      },
+      { timeout: 60000 },
+      targetSelector
+    );
+    console.log('✅ Target element has data content');
+    
+    // Final wait to ensure everything is stable
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    console.log('✅ Final stabilization wait complete');
 
     // Mimic DevTools device toolbar: Set DPR to 2.0 and zoom to 50%
     console.log('⚙️ Setting DPR to 2.0 and zoom to 50%...');
@@ -597,7 +1025,21 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
     }, targetSelector);
 
     // Wait for layout to settle after zoom/DPR changes
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    console.log('⏳ Waiting for layout to settle after DPR/zoom changes...');
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    
+    // Verify element is still visible and has content after DPR changes
+    await page.waitForFunction(
+      (selector) => {
+        const el = document.querySelector(selector);
+        if (!el) return false;
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0;
+      },
+      { timeout: 10000 },
+      targetSelector
+    );
+    console.log('✅ Layout settled and element verified');
 
     const elementHandle = await page.$(targetSelector);
     if (!elementHandle) {

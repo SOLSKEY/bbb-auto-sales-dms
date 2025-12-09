@@ -14,6 +14,7 @@ import {
     Cog6ToothIcon,
     UserGroupIcon,
     UsersIcon,
+    ClipboardDocumentIcon,
 } from '@heroicons/react/24/outline';
 import type { AppSectionKey, UserAccessPolicy } from '@/types';
 
@@ -29,6 +30,7 @@ type NavItem = {
 const BASE_NAV_ITEMS: NavItem[] = [
     { name: 'Dashboard', icon: ChartPieIcon, path: '/', permissionKey: 'Dashboard' },
     { name: 'Inventory', icon: BuildingStorefrontIcon, path: '/inventory', permissionKey: 'Inventory' },
+    { name: 'Sale Prep', icon: ClipboardDocumentIcon, path: '/sale-prep', permissionKey: 'Sale Prep' },
     { name: 'Sales', icon: CurrencyDollarIcon, path: '/sales', permissionKey: 'Sales' },
     { name: 'Collections', icon: DocumentChartBarIcon, path: '/collections', permissionKey: 'Collections' },
     { name: 'Reports', icon: CircleStackIcon, path: '/reports', permissionKey: 'Reports' },

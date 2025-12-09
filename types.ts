@@ -11,6 +11,7 @@ export type AppSectionKey =
   | 'Dashboard'
   | 'Inventory'
   | 'Sales'
+  | 'Sale Prep'
   | 'Collections'
   | 'Reports'
   | 'Data'

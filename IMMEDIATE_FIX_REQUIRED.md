@@ -68,3 +68,5 @@ Should return: `{"status":"ok"}` or similar JSON response.
 
 Then your admin dashboard will work! 🎉
 
+
+

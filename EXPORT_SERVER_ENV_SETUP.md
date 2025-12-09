@@ -105,3 +105,5 @@ Instead of:
 - Consider using a dedicated service account with limited permissions
 - Regularly rotate the password if needed
 
+
+

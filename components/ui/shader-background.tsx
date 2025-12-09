@@ -1,6 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 
 const ShaderBackground = () => {
+  // Check if the browser is our Puppeteer bot
+  const isPuppeteer = typeof navigator !== 'undefined' && navigator.userAgent.includes('Puppeteer');
+  
+  // If it is Puppeteer, render nothing and stop here.
+  // This prevents WebGL from running on headless servers, saving CPU resources
+  if (isPuppeteer) {
+    return null;
+  }
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   // Vertex shader source code
@@ -236,4 +245,5 @@ const ShaderBackground = () => {
 };
 
 export default ShaderBackground;
+
 
