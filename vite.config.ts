@@ -31,11 +31,22 @@ export default defineConfig(({ mode }) => {
       build: {
         chunkSizeWarningLimit: 1500,
         rollupOptions: {
-          // Configure output to handle dynamic imports properly
+          // Externalize pdf-lib as suggested by the error message
+          // It will be loaded dynamically at runtime via import()
+          external: (id) => {
+            // Don't externalize - we need it bundled for browser
+            // The issue is that Rollup tries to resolve it during static analysis
+            // even though it's a dynamic import. We'll handle this differently.
+            return false;
+          },
           output: {
-            // Ensure dynamic imports are handled correctly
+            // Ensure dynamic imports create separate chunks
             inlineDynamicImports: false,
           },
+        },
+        // Ensure commonjs dependencies are handled
+        commonjsOptions: {
+          include: [/pdf-lib/, /node_modules/],
         },
       },
       optimizeDeps: {
