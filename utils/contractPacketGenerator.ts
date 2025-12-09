@@ -1,4 +1,5 @@
-import { PDFDocument, TextAlignment } from 'pdf-lib';
+// Dynamic import of pdf-lib to avoid bundling issues during build
+// pdf-lib is imported inside generateContractPacket function
 
 export interface ContractPacketData {
     firstName: string;
@@ -167,6 +168,9 @@ const isNameField = (fieldName: string): boolean => {
  */
 export const generateContractPacket = async (data: ContractPacketData): Promise<void> => {
     try {
+        // Dynamically import pdf-lib to avoid bundling issues during build
+        const { PDFDocument, TextAlignment } = await import('pdf-lib');
+        
         // Load the PDF template from public directory
         const templateUrl = '/templates/contract_packet.pdf';
         const response = await fetch(templateUrl);
