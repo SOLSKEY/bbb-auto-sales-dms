@@ -7,6 +7,7 @@ import Sidebar from './components/Sidebar';
 import Dashboard from './pages/Dashboard';
 import Inventory from './pages/Inventory';
 import Sales from './pages/Sales';
+import SalePrep from './pages/SalePrep';
 import Collections from './pages/Collections';
 import Reports from './pages/Reports';
 import Data from './pages/Data';
@@ -26,11 +27,13 @@ import AdminUserPermissions from './pages/AdminUserPermissions';
 import AccountSettings from './pages/AccountSettings';
 import PrintDailyClosing from './pages/PrintDailyClosing';
 import { usePrintView } from './hooks/usePrintView';
+import DealCalculator from './components/DealCalculator';
 
 const APP_PAGES: AppSectionKey[] = [
     'Dashboard',
     'Inventory',
     'Sales',
+    'Sale Prep',
     'Collections',
     'Reports',
     'Data',
@@ -78,6 +81,7 @@ const PATH_TITLE_MAP: Record<string, string> = {
     '/dashboard': 'Dashboard',
     '/inventory': 'Inventory',
     '/sales': 'Sales',
+    '/sale-prep': 'Sale Prep',
     '/collections': 'Collections',
     '/reports': 'Reports',
     '/data': 'Data',
@@ -104,6 +108,7 @@ const App: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [permissions, setPermissions] = useState<UserAccessPolicy['permissions']>(() => createPermissionsForRole('user'));
     const [permissionsLoading, setPermissionsLoading] = useState(true);
+    const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
     const { isPrintView } = usePrintView();
@@ -579,6 +584,9 @@ const App: React.FC = () => {
                                     <Route path="/sales" element={
                                         !permissionsLoading && !canViewPage('Sales') ? NotAuthorized : <Sales />
                                     } />
+                                    <Route path="/sale-prep" element={
+                                        !permissionsLoading && !canViewPage('Sale Prep') ? NotAuthorized : <SalePrep />
+                                    } />
                                     <Route path="/collections" element={
                                         !permissionsLoading && !canViewPage('Collections') ? NotAuthorized : <Collections />
                                     } />
@@ -627,6 +635,12 @@ const App: React.FC = () => {
                                 </Routes>
                             </main>
                         </div>
+                        {!isPrintView && (
+                            <DealCalculator
+                                isOpen={isCalculatorOpen}
+                                onToggle={() => setIsCalculatorOpen(!isCalculatorOpen)}
+                            />
+                        )}
                     </div>
                 )}
             </DataContext.Provider>
