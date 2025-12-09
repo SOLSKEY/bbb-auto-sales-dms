@@ -24,10 +24,17 @@ export default defineConfig(({ mode }) => {
       resolve: {
         alias: {
           '@': path.resolve(__dirname, '.'),
-        }
+        },
+        dedupe: ['pdf-lib'],
       },
       build: {
         chunkSizeWarningLimit: 1500,
+        commonjsOptions: {
+          include: [/pdf-lib/, /node_modules/],
+        },
+      },
+      optimizeDeps: {
+        include: ['pdf-lib'],
       },
     };
 });
