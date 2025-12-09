@@ -27,6 +27,8 @@ export default defineConfig(({ mode }) => {
         },
         // Ensure pdf-lib can be resolved during build
         dedupe: ['pdf-lib'],
+        // Ensure proper module resolution for dynamic imports
+        preserveSymlinks: false,
       },
       build: {
         chunkSizeWarningLimit: 1500,
