@@ -665,14 +665,12 @@ const SalePrep: React.FC = () => {
 
     // Check if all form fields are filled (for contract packet generation)
     const canGenerateContractPacket = (): boolean => {
-        // Check all form data fields
+        // Check all form data fields (DL #, SSN, and GPS are optional)
         const allFieldsFilled = 
             formData.firstName.trim() !== '' &&
             formData.lastName.trim() !== '' &&
             formData.phone.trim() !== '' &&
             formData.dob.trim() !== '' &&
-            formData.dlNumber.trim() !== '' &&
-            formData.ssn.trim() !== '' &&
             formData.address.trim() !== '' &&
             formData.city.trim() !== '' &&
             formData.state.trim() !== '' &&
@@ -683,7 +681,6 @@ const SalePrep: React.FC = () => {
             formData.stockNumber.trim() !== '' &&
             formData.bodyStyle.trim() !== '' &&
             formData.color.trim() !== '' &&
-            formData.gps.trim() !== '' &&
             formData.miles.trim() !== '' &&
             formData.warrantyMonths.trim() !== '' &&
             formData.warrantyMiles.trim() !== '';
