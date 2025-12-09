@@ -7,8 +7,8 @@ import { GlassButton } from '@/components/ui/glass-button';
 import { LiquidContainer } from '@/components/ui/liquid-container';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
 import { getNextStockNumberForMake } from '../utils/stockNumbers';
-import { generateWarrantyPDF, printWarranty, type WarrantyData } from '../utils/warrantyGenerator';
-import { generateContractPacket, type ContractPacketData } from '../utils/contractPacketGenerator';
+import type { WarrantyData } from '../utils/warrantyGenerator';
+import type { ContractPacketData } from '../utils/contractPacketGenerator';
 import type { Vehicle, Sale } from '../types';
 
 // Google Places API types
@@ -726,7 +726,8 @@ const SalePrep: React.FC = () => {
                 saleDate: new Date(),
             };
 
-            // Generate and open PDF
+            // Generate and open PDF (dynamic import to avoid bundling pdf-lib)
+            const { generateWarrantyPDF } = await import('../utils/warrantyGenerator');
             await generateWarrantyPDF(warrantyData);
         } catch (error) {
             console.error('Error generating warranty:', error);
@@ -782,7 +783,8 @@ const SalePrep: React.FC = () => {
                 downPayment: vehicle?.downPayment,
             };
 
-            // Generate and download PDF
+            // Generate and download PDF (dynamic import to avoid bundling pdf-lib)
+            const { generateContractPacket } = await import('../utils/contractPacketGenerator');
             await generateContractPacket(contractData);
         } catch (error) {
             console.error('Error generating contract packet:', error);
