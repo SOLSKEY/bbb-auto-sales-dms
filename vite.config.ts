@@ -28,6 +28,15 @@ export default defineConfig(({ mode }) => {
       },
       build: {
         chunkSizeWarningLimit: 1500,
+        rollupOptions: {
+          external: (id) => {
+            // Don't externalize pdf-lib - we want it bundled but in separate chunks via dynamic imports
+            return false;
+          },
+        },
+      },
+      optimizeDeps: {
+        exclude: ['pdf-lib'], // Don't pre-bundle pdf-lib
       },
     };
 });
