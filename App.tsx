@@ -1,33 +1,35 @@
 
 
-import React, { useState, createContext, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, createContext, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
-import Dashboard from './pages/Dashboard';
-import Inventory from './pages/Inventory';
-import Sales from './pages/Sales';
-import SalePrep from './pages/SalePrep';
-import Collections from './pages/Collections';
-import Reports from './pages/Reports';
-import Data from './pages/Data';
-import Calendar from './pages/Calendar';
-import TeamChat from './pages/TeamChat';
-import Messaging from './pages/Messaging';
-import Settings from './pages/Settings';
-import CRM from './pages/CRM';
+// Lazy load pages for better performance
+const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Inventory = lazy(() => import('./pages/Inventory'));
+const Sales = lazy(() => import('./pages/Sales'));
+const SalePrep = lazy(() => import('./pages/SalePrep'));
+const Collections = lazy(() => import('./pages/Collections'));
+const Reports = lazy(() => import('./pages/Reports'));
+const Data = lazy(() => import('./pages/Data'));
+const Calendar = lazy(() => import('./pages/Calendar'));
+const TeamChat = lazy(() => import('./pages/TeamChat'));
+const Messaging = lazy(() => import('./pages/Messaging'));
+const Settings = lazy(() => import('./pages/Settings'));
+const CRM = lazy(() => import('./pages/CRM'));
+const AdminUsers = lazy(() => import('./pages/AdminUsers'));
+const AdminUserPermissions = lazy(() => import('./pages/AdminUserPermissions'));
+const AccountSettings = lazy(() => import('./pages/AccountSettings'));
+const PrintDailyClosing = lazy(() => import('./pages/PrintDailyClosing'));
 import type { User, Role, Vehicle, Sale, UserAccount, UserAccessPolicy, AppSectionKey } from './types';
 import Header from './components/Header';
 import { supabase } from './supabaseClient';
 import { fromSupabaseArray, VEHICLE_FIELD_MAP, SALE_FIELD_MAP, USER_FIELD_MAP, quoteSupabaseColumn } from './supabaseMapping';
 import Login from './pages/Login';
 import AdminCreateUserForm from './components/AdminCreateUserForm';
-import AdminUsers from './pages/AdminUsers';
-import AdminUserPermissions from './pages/AdminUserPermissions';
-import AccountSettings from './pages/AccountSettings';
-import PrintDailyClosing from './pages/PrintDailyClosing';
 import { usePrintView } from './hooks/usePrintView';
-import DealCalculator from './components/DealCalculator';
+import { useDeviceType } from './hooks/useDeviceType';
+import { MobileLayout } from './components/layout/MobileLayout';
 
 const APP_PAGES: AppSectionKey[] = [
     'Dashboard',
@@ -72,6 +74,7 @@ interface DataContextType {
     revertSale: (saleToRevert: Sale) => void;
     users: UserAccount[];
     setUsers: React.Dispatch<React.SetStateAction<UserAccount[]>>;
+    refreshData: () => Promise<void>;
 }
 
 export const DataContext = createContext<DataContextType | null>(null);
@@ -108,10 +111,10 @@ const App: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [permissions, setPermissions] = useState<UserAccessPolicy['permissions']>(() => createPermissionsForRole('user'));
     const [permissionsLoading, setPermissionsLoading] = useState(true);
-    const [isCalculatorOpen, setIsCalculatorOpen] = useState(false);
     const location = useLocation();
     const navigate = useNavigate();
     const { isPrintView } = usePrintView();
+    const { isMobile } = useDeviceType();
 
     // Bypass auth and layout for print route
     if (location.pathname === '/print/daily-closing') {
@@ -135,6 +138,15 @@ const App: React.FC = () => {
         normalized.images = Array.isArray(normalized.images) ? normalized.images : [];
         return normalized;
     };
+
+    // Helper to get current date string (YYYY-MM-DD)
+    const getCurrentDateString = useCallback(() => {
+        const now = new Date();
+        const year = now.getFullYear();
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const day = String(now.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }, []);
 
     // Track authentication session
     useEffect(() => {
@@ -239,8 +251,8 @@ const App: React.FC = () => {
         loadPermissions();
     }, [session]);
 
-    // Load initial data from Supabase
-    useEffect(() => {
+    // Extract loadData as a reusable function
+    const loadData = useCallback(async (showLoading = true) => {
         // Skip loading data if in export mode (already hydrated)
         if ((window as any).IS_EXPORT_MODE) {
             return;
@@ -250,105 +262,159 @@ const App: React.FC = () => {
             setInventory([]);
             setSales([]);
             setUsers([]);
-            setIsLoading(false);
+            if (showLoading) setIsLoading(false);
             return;
         }
 
-        const loadData = async () => {
-            try {
-                // Load inventory
-                console.log('Loading inventory from Supabase...');
-                const { data: inventoryData, error: inventoryError } = await supabase
-                    .from('Inventory')
-                    .select('*');
+        try {
+            if (showLoading) setIsLoading(true);
 
-                if (inventoryError) {
-                    console.error('Error loading inventory:', inventoryError);
-                    console.error('Error details:', JSON.stringify(inventoryError, null, 2));
-                } else if (inventoryData) {
-                    console.log(`Loaded ${inventoryData.length} vehicles from Supabase`);
-                    const mappedInventory = fromSupabaseArray(inventoryData, VEHICLE_FIELD_MAP)
-                        .map(item => normalizeVehicle(item as Vehicle)) as Vehicle[];
-                    setInventory(mappedInventory);
-                } else {
-                    console.log('No inventory data returned from Supabase');
-                }
+            // Load inventory
+            console.log('Loading inventory from Supabase...');
+            const { data: inventoryData, error: inventoryError } = await supabase
+                .from('Inventory')
+                .select('*');
 
-                // Load sales with pagination to handle large datasets
-                console.log('Loading sales from Supabase...');
-                const { count: totalSalesCount, error: countError } = await supabase
+            if (inventoryError) {
+                console.error('Error loading inventory:', inventoryError);
+                console.error('Error details:', JSON.stringify(inventoryError, null, 2));
+            } else if (inventoryData) {
+                console.log(`Loaded ${inventoryData.length} vehicles from Supabase`);
+                const mappedInventory = fromSupabaseArray(inventoryData, VEHICLE_FIELD_MAP)
+                    .map(item => normalizeVehicle(item as Vehicle)) as Vehicle[];
+                setInventory(mappedInventory);
+            } else {
+                console.log('No inventory data returned from Supabase');
+            }
+
+            // Load sales with pagination to handle large datasets
+            console.log('Loading sales from Supabase...');
+            const { count: totalSalesCount, error: countError } = await supabase
+                .from('Sales')
+                .select('*', { count: 'exact', head: true });
+
+            if (countError) {
+                console.error('Error retrieving sales count from Supabase:', countError);
+            }
+
+            const pageSize = 1000;
+            const allSalesRows: any[] = [];
+            let page = 0;
+            let hasMore = true;
+
+            while (hasMore) {
+                const from = page * pageSize;
+                const to = from + pageSize - 1;
+
+                const { data: pageData, error: pageError } = await supabase
                     .from('Sales')
-                    .select('*', { count: 'exact', head: true });
-
-                if (countError) {
-                    console.error('Error retrieving sales count from Supabase:', countError);
-                }
-
-                const pageSize = 1000;
-                const allSalesRows: any[] = [];
-                let page = 0;
-                let hasMore = true;
-
-                while (hasMore) {
-                    const from = page * pageSize;
-                    const to = from + pageSize - 1;
-
-                    const { data: pageData, error: pageError } = await supabase
-                        .from('Sales')
-                        .select('*')
-                        .order('"Sale Date"', { ascending: false })
-                        .range(from, to);
-
-                    if (pageError) {
-                        console.error(`Error loading sales page starting at row ${from}:`, pageError);
-                        break;
-                    }
-
-                    if (!pageData || pageData.length === 0) {
-                        hasMore = false;
-                    } else {
-                        allSalesRows.push(...pageData);
-                        hasMore = pageData.length === pageSize;
-                        if (typeof totalSalesCount === 'number' && allSalesRows.length >= totalSalesCount) {
-                            hasMore = false;
-                        }
-                        page += 1;
-                    }
-                }
-
-                if (allSalesRows.length > 0) {
-                    console.log(`Loaded ${allSalesRows.length} sales from Supabase${typeof totalSalesCount === 'number' ? ` (total count: ${totalSalesCount})` : ''}`);
-                    const mappedSales = fromSupabaseArray(allSalesRows, SALE_FIELD_MAP);
-                    setSales(mappedSales);
-                } else {
-                    console.log('No sales data returned from Supabase');
-                    setSales([]);
-                }
-
-                console.log('Loading users from Supabase...');
-                const { data: usersData, error: usersError } = await supabase
-                    .from('Users')
                     .select('*')
-                    .order('"Name"', { ascending: true });
+                    .order('"Sale Date"', { ascending: false })
+                    .range(from, to);
 
-                if (usersError) {
-                    console.error('Error loading users:', usersError);
-                    console.error('Error details:', JSON.stringify(usersError, null, 2));
-                } else if (usersData) {
-                    const mappedUsers = fromSupabaseArray(usersData, USER_FIELD_MAP) as UserAccount[];
-                    setUsers(mappedUsers);
-                } else {
-                    setUsers([]);
+                if (pageError) {
+                    console.error(`Error loading sales page starting at row ${from}:`, pageError);
+                    break;
                 }
-            } catch (error) {
-                console.error('Error loading data:', error);
-            } finally {
-                setIsLoading(false);
+
+                if (!pageData || pageData.length === 0) {
+                    hasMore = false;
+                } else {
+                    allSalesRows.push(...pageData);
+                    hasMore = pageData.length === pageSize;
+                    if (typeof totalSalesCount === 'number' && allSalesRows.length >= totalSalesCount) {
+                        hasMore = false;
+                    }
+                    page += 1;
+                }
+            }
+
+            if (allSalesRows.length > 0) {
+                console.log(`Loaded ${allSalesRows.length} sales from Supabase${typeof totalSalesCount === 'number' ? ` (total count: ${totalSalesCount})` : ''}`);
+                const mappedSales = fromSupabaseArray(allSalesRows, SALE_FIELD_MAP);
+                setSales(mappedSales);
+            } else {
+                console.log('No sales data returned from Supabase');
+                setSales([]);
+            }
+
+            console.log('Loading users from Supabase...');
+            const { data: usersData, error: usersError } = await supabase
+                .from('Users')
+                .select('*')
+                .order('"Name"', { ascending: true });
+
+            if (usersError) {
+                console.error('Error loading users:', usersError);
+                console.error('Error details:', JSON.stringify(usersError, null, 2));
+            } else if (usersData) {
+                const mappedUsers = fromSupabaseArray(usersData, USER_FIELD_MAP) as UserAccount[];
+                setUsers(mappedUsers);
+            } else {
+                setUsers([]);
+            }
+        } catch (error) {
+            console.error('Error loading data:', error);
+        } finally {
+            if (showLoading) setIsLoading(false);
+        }
+    }, [session]);
+
+    // Load initial data from Supabase
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
+
+    // Day-change detection - refresh data when a new day starts
+    useEffect(() => {
+        if ((window as any).IS_EXPORT_MODE || !session) return;
+
+        let lastDateString = getCurrentDateString();
+        const checkDayChange = () => {
+            const currentDateString = getCurrentDateString();
+            if (currentDateString !== lastDateString) {
+                console.log('Day changed detected, refreshing data...');
+                lastDateString = currentDateString;
+                loadData(false); // Don't show loading spinner for background refresh
             }
         };
 
-        loadData();
-    }, [session]);
+        // Check every minute for day change
+        const interval = setInterval(checkDayChange, 60000);
+        return () => clearInterval(interval);
+    }, [session, getCurrentDateString, loadData]);
+
+    // Refresh data when navigating between pages
+    useEffect(() => {
+        if ((window as any).IS_EXPORT_MODE || !session) return;
+        
+        // Skip refresh on initial mount (handled by initial load)
+        const normalizedPath = location.pathname.replace(/\/+$/, '') || '/dashboard';
+        if (normalizedPath === '/login' || normalizedPath.startsWith('/print')) return;
+
+        // Refresh data when route changes (but not on initial mount)
+        const timeoutId = setTimeout(() => {
+            console.log('Route changed, refreshing data...');
+            loadData(false); // Don't show loading spinner for navigation refresh
+        }, 100);
+
+        return () => clearTimeout(timeoutId);
+    }, [location.pathname, session, loadData]);
+
+    // Refresh data when tab becomes visible (user switches back to the tab)
+    useEffect(() => {
+        if ((window as any).IS_EXPORT_MODE || !session) return;
+
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                console.log('Tab became visible, refreshing data...');
+                loadData(false); // Don't show loading spinner for visibility refresh
+            }
+        };
+
+        document.addEventListener('visibilitychange', handleVisibilityChange);
+        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    }, [session, loadData]);
 
     const revertSale = useCallback(async (saleToRevert: Sale) => {
         const applyIdentifier = (query: any, useQuoted: boolean) => {
@@ -431,8 +497,17 @@ const App: React.FC = () => {
 
     const userContextValue = useMemo(() => ({ user, setUser }), [user]);
     const dataContextValue = useMemo(
-        () => ({ inventory, setInventory, sales, setSales, revertSale, users, setUsers }),
-        [inventory, sales, revertSale, users]
+        () => ({ 
+            inventory, 
+            setInventory, 
+            sales, 
+            setSales, 
+            revertSale, 
+            users, 
+            setUsers,
+            refreshData: () => loadData(false)
+        }),
+        [inventory, sales, revertSale, users, loadData]
     );
     const normalizedPath = location.pathname.replace(/\/+$/, '') || '/dashboard';
     const currentTitle = useMemo(() => {
@@ -560,87 +635,103 @@ const App: React.FC = () => {
         );
     }
 
+    // Routes component to be used in both layouts
+    const routesElement = (
+        <Suspense fallback={
+            <div className="flex h-screen items-center justify-center bg-slate-950 text-slate-100">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-cyan-500 mx-auto"></div>
+                    <p className="mt-4 text-sm text-slate-400">Loading page...</p>
+                </div>
+            </div>
+        }>
+            <Routes>
+            {/* Redirect /login to /dashboard if already authenticated (handled by session check above) */}
+            <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={
+                !permissionsLoading && !canViewPage('Dashboard') ? NotAuthorized : <Dashboard />
+            } />
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/inventory" element={
+                !permissionsLoading && !canViewPage('Inventory') ? NotAuthorized : <Inventory />
+            } />
+            <Route path="/sales" element={
+                !permissionsLoading && !canViewPage('Sales') ? NotAuthorized : <Sales />
+            } />
+            <Route path="/sale-prep" element={
+                !permissionsLoading && !canViewPage('Sale Prep') ? NotAuthorized : <SalePrep />
+            } />
+            <Route path="/collections" element={
+                !permissionsLoading && !canViewPage('Collections') ? NotAuthorized : <Collections />
+            } />
+            <Route path="/reports" element={
+                !permissionsLoading && !canViewPage('Reports') ? NotAuthorized : <Reports />
+            } />
+            <Route path="/data" element={
+                !permissionsLoading && !canViewPage('Data') ? NotAuthorized : <Data />
+            } />
+            <Route path="/calendar" element={
+                !permissionsLoading && !canViewPage('Calendar') ? NotAuthorized : <Calendar />
+            } />
+            {/* Disabled pages - redirect to dashboard */}
+            <Route path="/team-chat" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/messaging" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard/crm" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/crm" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/settings" element={
+                !permissionsLoading && !canViewPage('Settings') ? NotAuthorized : <Settings />
+            } />
+            {/* Account Settings - accessible to all authenticated users */}
+            <Route path="/account-settings" element={<AccountSettings />} />
+            {/* Admin routes - only accessible by admins */}
+            <Route
+                path="/admin"
+                element={isAdmin ? <AdminUsers /> : <Navigate to="/dashboard" replace />}
+            />
+            <Route
+                path="/admin/create-user"
+                element={isAdmin ? <AdminCreateUserForm /> : <Navigate to="/dashboard" replace />}
+            />
+            <Route
+                path="/admin/users"
+                element={isAdmin ? <AdminUsers /> : <Navigate to="/dashboard" replace />}
+            />
+            <Route
+                path="/admin/user/:id/edit"
+                element={isAdmin ? <AdminUserPermissions /> : <Navigate to="/dashboard" replace />}
+            />
+            {/* Legacy route for backwards compatibility */}
+            <Route
+                path="/admin/users/:id"
+                element={isAdmin ? <AdminUserPermissions /> : <Navigate to="/dashboard" replace />}
+            />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+        </Suspense>
+    );
+
     return (
         <UserContext.Provider value={userContextValue}>
             <DataContext.Provider value={dataContextValue}>
                 {location.pathname === '/print/daily-closing' ? (
                     <PrintDailyClosing />
+                ) : isMobile ? (
+                    // Mobile Layout
+                    <MobileLayout onSignOut={handleLogout}>
+                        <div className="p-4">
+                            {routesElement}
+                        </div>
+                    </MobileLayout>
                 ) : (
+                    // Desktop Layout
                     <div className={`flex ${isPrintView ? 'h-auto min-h-screen' : 'h-screen'} animated-bg text-slate-100`}>
-                        {!isPrintView && <Sidebar isAdmin={isAdmin} permissions={permissions} canViewPage={canViewPage} />}
+                        <Sidebar isAdmin={isAdmin} permissions={permissions} canViewPage={canViewPage} />
                         <div className={`flex-1 flex flex-col ${isPrintView ? '' : 'overflow-hidden'}`}>
-                            {!isPrintView && <Header title={currentTitle} onLogout={handleLogout} />}
+                            <Header title={currentTitle} onLogout={handleLogout} />
                             <main className={`flex-1 ${isPrintView ? '' : 'overflow-y-auto'} p-4 md:p-6 lg:p-8`}>
-                                <Routes>
-                                    {/* Redirect /login to /dashboard if already authenticated (handled by session check above) */}
-                                    <Route path="/login" element={<Navigate to="/dashboard" replace />} />
-                                    <Route path="/dashboard" element={
-                                        !permissionsLoading && !canViewPage('Dashboard') ? NotAuthorized : <Dashboard />
-                                    } />
-                                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                                    <Route path="/inventory" element={
-                                        !permissionsLoading && !canViewPage('Inventory') ? NotAuthorized : <Inventory />
-                                    } />
-                                    <Route path="/sales" element={
-                                        !permissionsLoading && !canViewPage('Sales') ? NotAuthorized : <Sales />
-                                    } />
-                                    <Route path="/sale-prep" element={
-                                        !permissionsLoading && !canViewPage('Sale Prep') ? NotAuthorized : <SalePrep />
-                                    } />
-                                    <Route path="/collections" element={
-                                        !permissionsLoading && !canViewPage('Collections') ? NotAuthorized : <Collections />
-                                    } />
-                                    <Route path="/reports" element={
-                                        !permissionsLoading && !canViewPage('Reports') ? NotAuthorized : <Reports />
-                                    } />
-                                    <Route path="/data" element={
-                                        !permissionsLoading && !canViewPage('Data') ? NotAuthorized : <Data />
-                                    } />
-                                    <Route path="/calendar" element={
-                                        !permissionsLoading && !canViewPage('Calendar') ? NotAuthorized : <Calendar />
-                                    } />
-                                    {/* Disabled pages - redirect to dashboard */}
-                                    <Route path="/team-chat" element={<Navigate to="/dashboard" replace />} />
-                                    <Route path="/messaging" element={<Navigate to="/dashboard" replace />} />
-                                    <Route path="/dashboard/crm" element={<Navigate to="/dashboard" replace />} />
-                                    <Route path="/crm" element={<Navigate to="/dashboard" replace />} />
-                                    <Route path="/settings" element={
-                                        !permissionsLoading && !canViewPage('Settings') ? NotAuthorized : <Settings />
-                                    } />
-                                    {/* Account Settings - accessible to all authenticated users */}
-                                    <Route path="/account-settings" element={<AccountSettings />} />
-                                    {/* Admin routes - only accessible by admins */}
-                                    <Route
-                                        path="/admin"
-                                        element={isAdmin ? <AdminUsers /> : <Navigate to="/dashboard" replace />}
-                                    />
-                                    <Route
-                                        path="/admin/create-user"
-                                        element={isAdmin ? <AdminCreateUserForm /> : <Navigate to="/dashboard" replace />}
-                                    />
-                                    <Route
-                                        path="/admin/users"
-                                        element={isAdmin ? <AdminUsers /> : <Navigate to="/dashboard" replace />}
-                                    />
-                                    <Route
-                                        path="/admin/user/:id/edit"
-                                        element={isAdmin ? <AdminUserPermissions /> : <Navigate to="/dashboard" replace />}
-                                    />
-                                    {/* Legacy route for backwards compatibility */}
-                                    <Route
-                                        path="/admin/users/:id"
-                                        element={isAdmin ? <AdminUserPermissions /> : <Navigate to="/dashboard" replace />}
-                                    />
-                                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                                </Routes>
+                                {routesElement}
                             </main>
                         </div>
-                        {!isPrintView && (
-                            <DealCalculator
-                                isOpen={isCalculatorOpen}
-                                onToggle={() => setIsCalculatorOpen(!isCalculatorOpen)}
-                            />
-                        )}
                     </div>
                 )}
             </DataContext.Provider>
