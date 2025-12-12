@@ -1,12 +1,11 @@
 import React, { useState, useContext, useMemo, useEffect, useRef } from 'react';
 import type { Vehicle, Sale } from '../types';
 import { UserContext, DataContext } from '../App';
-import { PhotoIcon, PencilSquareIcon, CheckCircleIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, XCircleIcon, ChevronLeftIcon, ChevronRightIcon, XMarkIcon, ClipboardDocumentIcon, CheckIcon, ArrowUpTrayIcon, FolderIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
+import { PhotoIcon, PencilSquareIcon, CheckCircleIcon, TrashIcon, PlusIcon, MagnifyingGlassIcon, XCircleIcon, ChevronLeftIcon, ChevronRightIcon, XMarkIcon, ClipboardDocumentIcon, CheckIcon, ArrowUpTrayIcon, FolderIcon, ChevronDownIcon, FunnelIcon } from '@heroicons/react/24/solid';
 import EditVehicleModal from '../components/EditVehicleModal';
 import MarkSoldModal from '../components/MarkSoldModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AppSelect from '../components/AppSelect';
-import NightlyReportWidget from '../components/NightlyReportWidget';
 import { supabase } from '../supabaseClient';
 import { computeNextAccountNumber, computeNextStockNumbers, getStockPrefix } from '../utils/stockNumbers';
 import { toSupabase, fromSupabase, SALE_FIELD_MAP, VEHICLE_FIELD_MAP, quoteSupabaseColumn } from '../supabaseMapping';
@@ -14,6 +13,9 @@ import { INVENTORY_STATUS_VALUES } from '../constants';
 import { GlassButton } from '@/components/ui/glass-button';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
 import { LiquidContainer } from '@/components/ui/liquid-container';
+import { useDeviceType } from '../hooks/useDeviceType';
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
+import { InventoryFilterSheet } from '../components/InventoryFilterSheet';
 
 const INVENTORY_STATUS_OPTIONS = INVENTORY_STATUS_VALUES.map(status => ({
     value: status,
@@ -194,8 +196,9 @@ https://www.bbbofsmyrna.com/
                  {images.length > 0 ? (
                     <img
                         src={images[activeImageIndex]}
-                        alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`} 
+                        alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
                         className="w-full h-full object-cover"
+                        loading="lazy"
                     />
                 ) : (
                     <PhotoIcon className="h-16 w-16 text-muted" />
@@ -258,7 +261,7 @@ https://www.bbbofsmyrna.com/
                                             console.error('Failed to copy VIN:', error);
                                         }
                                     }}
-                                    className="p-1 transition-colors group"
+                                    className="p-1 transition-colors group touch-target"
                                     title="Copy VIN"
                                 >
                                     {vinCopied ? (
@@ -286,7 +289,7 @@ https://www.bbbofsmyrna.com/
                                             console.error('Failed to copy bin number:', error);
                                         }
                                     }}
-                                    className="p-1 text-cyan-400 hover:text-cyan-300 transition-colors"
+                                    className="p-1 text-cyan-400 hover:text-cyan-300 transition-colors touch-target"
                                     title="Copy bin number"
                                 >
                                     {binCopied ? (
@@ -401,6 +404,7 @@ const VehicleDetailsModal: React.FC<{ vehicle: Vehicle; onClose: () => void }> =
                                 src={images[activeImageIndex]}
                                 alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
                                 className="w-full h-full object-contain"
+                                loading="lazy"
                             />
                         ) : (
                             <PhotoIcon className="h-20 w-20 text-muted" />
@@ -536,13 +540,16 @@ const Inventory: React.FC = () => {
     const canMarkSold = isAdmin;
     const canDeleteInventory = isAdmin;
 
+    const { isMobile } = useDeviceType();
+
     const [editingVehicle, setEditingVehicle] = useState<Vehicle | null>(null);
     const [sellingVehicle, setSellingVehicle] = useState<Vehicle | null>(null);
     const [isAddingVehicle, setIsAddingVehicle] = useState(false);
     const [viewingVehicle, setViewingVehicle] = useState<Vehicle | null>(null);
 
     const [vehicleToDelete, setVehicleToDelete] = useState<Vehicle | null>(null);
-    
+    const [isFilterSheetOpen, setIsFilterSheetOpen] = useState(false);
+
     // State for filters and search
     const [searchTerm, setSearchTerm] = useState('');
     const [filters, setFilters] = useState({
@@ -653,6 +660,14 @@ const Inventory: React.FC = () => {
 
         return sorted;
     }, [inventory, searchTerm, filters, sortBy]);
+
+    // Infinite scroll for both mobile and desktop (improves performance)
+    const { displayedItems: displayedVehicles, hasMore, isLoading: isLoadingMore, sentinelRef } = useInfiniteScroll(
+        filteredInventory,
+        { initialItemsPerPage: isMobile ? 10 : 20 } // Load 10 on mobile, 20 on desktop
+    );
+
+    const vehiclesToDisplay = displayedVehicles; // Use paginated results for both mobile and desktop
 
     const inventoryCounts = useMemo(() => {
         let total = 0;
@@ -1044,8 +1059,20 @@ const Inventory: React.FC = () => {
                 </div>
             </div>
 
-            {/* Filter and Search Bar */}
-            <div className="mb-6 glass-card p-4 flex flex-wrap items-center gap-4">
+            {/* Mobile Filter Button */}
+            <div className="mb-4 md:hidden">
+                <GlassButton
+                    size="sm"
+                    onClick={() => setIsFilterSheetOpen(true)}
+                    contentClassName="flex items-center gap-2 w-full justify-center"
+                >
+                    <FunnelIcon className="h-5 w-5" />
+                    Filters & Sort
+                </GlassButton>
+            </div>
+
+            {/* Desktop Filter and Search Bar */}
+            <div className="hidden md:flex mb-6 glass-card p-4 flex-wrap items-center gap-4">
                 <div className="flex items-center gap-3 flex-grow min-w-[250px] bg-[rgba(35,35,40,0.9)] border border-border-low rounded-md px-3 py-2 focus-within:border-lava-core transition-colors">
                     <MagnifyingGlassIcon className="h-5 w-5 text-muted" />
                     <input
@@ -1189,7 +1216,7 @@ const Inventory: React.FC = () => {
                 </GlassButton>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {filteredInventory.length > 0 ? filteredInventory.map(vehicle => (
+                {vehiclesToDisplay.length > 0 ? vehiclesToDisplay.map(vehicle => (
                     <VehicleCard
                         key={vehicle.id ?? vehicle.vin}
                         vehicle={vehicle}
@@ -1208,7 +1235,22 @@ const Inventory: React.FC = () => {
                     </div>
                 )}
             </div>
-            
+
+            {/* Infinite Scroll Sentinel */}
+            {hasMore && (
+                <div ref={sentinelRef} className="h-10 flex items-center justify-center">
+                    {isLoadingMore && (
+                        <div className="flex items-center gap-2 text-muted">
+                            <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span className="text-sm">Loading more...</span>
+                        </div>
+                    )}
+                </div>
+            )}
+
             {editingVehicle && (
                 <EditVehicleModal
                     vehicle={editingVehicle}
@@ -1252,9 +1294,19 @@ const Inventory: React.FC = () => {
                     onClose={() => setViewingVehicle(null)}
                 />
             )}
-            
-            {/* Nightly Report Widget - Only visible on Inventory page */}
-            <NightlyReportWidget />
+
+            {/* Mobile Filter Sheet */}
+            <InventoryFilterSheet
+                isOpen={isFilterSheetOpen}
+                onClose={() => setIsFilterSheetOpen(false)}
+                filters={filters}
+                onFilterChange={handleFilterChange}
+                onReset={handleResetFilters}
+                sortBy={sortBy}
+                onSortChange={setSortBy}
+                uniqueBodyStyles={uniqueBodyStyles}
+                downPaymentRanges={downPaymentRanges}
+            />
         </div>
     );
 };
