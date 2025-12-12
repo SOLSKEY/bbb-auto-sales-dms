@@ -31,6 +31,15 @@ export const decodeVin = async (vin: string): Promise<Partial<Vehicle>> => {
         if (!response.ok) {
             throw new Error('Failed to fetch VIN data from NHTSA.');
         }
+
+        // Check if response is JSON before trying to parse
+        const contentType = response.headers.get('content-type');
+        if (!contentType || !contentType.includes('application/json')) {
+            const responseText = await response.text();
+            console.log('VIN Decoder: Received non-JSON response:', responseText.substring(0, 200));
+            throw new Error('VIN decoder service returned an invalid response. Please try again later.');
+        }
+
         const data = await response.json();
 
         // The API response for errors contains a result item with Variable: "Error Code" and a non-zero Value.
@@ -40,13 +49,7 @@ export const decodeVin = async (vin: string): Promise<Partial<Vehicle>> => {
         if (errorCodeItem && errorCodeItem.Value && errorCodeItem.Value !== '0') {
             const errorTextItem = data.Results.find((item: NhtsaVariable) => item.Variable === 'Error Text');
             const errorMessage = errorTextItem?.Value || 'Invalid VIN or no data found.';
-            
-            // The API sometimes "corrects" a VIN but the original is valid. We can ignore this error.
-            if (errorMessage.includes('VIN corrected')) {
-                // Proceed, as this is often a false positive.
-            } else {
-                throw new Error(errorMessage);
-            }
+            throw new Error(errorMessage);
         }
 
         const vehicleData: Partial<Vehicle> = {};
