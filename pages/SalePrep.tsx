@@ -92,7 +92,6 @@ interface SalesPrepLog {
     phone: string | null;
     dob: string | null;
     dl_number: string | null;
-    ssn: string | null;
     address: string | null;
     city: string | null;
     state: string | null;
@@ -117,7 +116,6 @@ interface FormData {
     phone: string;
     dob: string;
     dlNumber: string;
-    ssn: string;
     address: string;
     city: string;
     state: string;
@@ -142,7 +140,6 @@ const SalePrep: React.FC = () => {
         phone: '',
         dob: '',
         dlNumber: '',
-        ssn: '',
         address: '',
         city: '',
         state: '',
@@ -482,37 +479,6 @@ const SalePrep: React.FC = () => {
         }
     };
 
-    // Format SSN input (123456789 -> 123-45-6789)
-    const formatSSN = (input: string): string => {
-        // Remove all non-numeric characters
-        const numbers = input.replace(/\D/g, '');
-        
-        // If it's 9 digits, format as ###-##-####
-        if (numbers.length === 9) {
-            const firstPart = numbers.slice(0, 3);
-            const secondPart = numbers.slice(3, 5);
-            const thirdPart = numbers.slice(5, 9);
-            return `${firstPart}-${secondPart}-${thirdPart}`;
-        }
-        
-        // If it's already formatted, return as is
-        if (input.includes('-')) {
-            return input;
-        }
-        
-        // If less than 9 digits, return as is (user might still be typing)
-        return input;
-    };
-
-    // Handle SSN blur to auto-format
-    const handleSSNBlur = (value: string) => {
-        if (value && !value.includes('-')) {
-            const formatted = formatSSN(value);
-            if (formatted !== value) {
-                setFormData(prev => ({ ...prev, ssn: formatted }));
-            }
-        }
-    };
 
     // Handle text field blur to auto-capitalize words
     const handleCapitalizeBlur = (fieldName: keyof FormData, value: string) => {
@@ -634,7 +600,6 @@ const SalePrep: React.FC = () => {
                 phone: log.phone || '',
                 dob: log.dob || '',
                 dlNumber: log.dl_number || '',
-                ssn: log.ssn || '',
                 address: log.address || '',
                 city: log.city || '',
                 state: log.state || '',
@@ -687,7 +652,7 @@ const SalePrep: React.FC = () => {
 
     // Check if all form fields are filled (for contract packet generation)
     const canGenerateContractPacket = (): boolean => {
-        // Check all form data fields (DL #, SSN, and GPS are optional)
+        // Check all form data fields (DL # and GPS are optional)
         const allFieldsFilled = 
             formData.firstName.trim() !== '' &&
             formData.lastName.trim() !== '' &&
@@ -778,7 +743,7 @@ const SalePrep: React.FC = () => {
                 phone: formData.phone,
                 dob: formData.dob,
                 dlNumber: formData.dlNumber,
-                ssn: formData.ssn,
+                ssn: '', // SSN field removed from form
                 address: formData.address,
                 city: formData.city,
                 state: formData.state,
@@ -835,7 +800,7 @@ const SalePrep: React.FC = () => {
                 phone: formData.phone,
                 dob: formData.dob,
                 dlNumber: formData.dlNumber,
-                ssn: formData.ssn,
+                ssn: '', // SSN field removed from form
                 address: formData.address,
                 city: formData.city,
                 state: formData.state,
@@ -913,7 +878,7 @@ const SalePrep: React.FC = () => {
                 phone: formData.phone || null,
                 dob: formData.dob || null,
                 dl_number: formData.dlNumber || null,
-                ssn: formData.ssn || null,
+                ssn: null, // SSN field removed from form
                 address: formData.address || null,
                 city: formData.city || null,
                 state: formData.state || null,
@@ -957,7 +922,6 @@ const SalePrep: React.FC = () => {
                 phone: '',
                 dob: '',
                 dlNumber: '',
-                ssn: '',
                 address: '',
                 city: '',
                 state: '',
@@ -1297,16 +1261,6 @@ const SalePrep: React.FC = () => {
                                     onChange={(value) => setFormData(prev => ({ ...prev, dlNumber: value }))}
                                     onBlur={(value) => handleCapitalizeBlur('dlNumber', value)}
                                     placeholder="Driver's License Number"
-                                    copiedField={copiedField}
-                                    onCopy={copyToClipboard}
-                                />
-                                <InputWithCopy
-                                    label="SSN"
-                                    value={formData.ssn}
-                                    fieldName="ssn"
-                                    onChange={(value) => setFormData(prev => ({ ...prev, ssn: value }))}
-                                    onBlur={handleSSNBlur}
-                                    placeholder="Social Security Number"
                                     copiedField={copiedField}
                                     onCopy={copyToClipboard}
                                 />
