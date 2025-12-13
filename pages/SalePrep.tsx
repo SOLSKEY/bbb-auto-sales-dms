@@ -479,7 +479,6 @@ const SalePrep: React.FC = () => {
         }
     };
 
-
     // Handle text field blur to auto-capitalize words
     const handleCapitalizeBlur = (fieldName: keyof FormData, value: string) => {
         const capitalized = capitalizeWords(value);
@@ -743,7 +742,6 @@ const SalePrep: React.FC = () => {
                 phone: formData.phone,
                 dob: formData.dob,
                 dlNumber: formData.dlNumber,
-                ssn: '', // SSN field removed from form
                 address: formData.address,
                 city: formData.city,
                 state: formData.state,
@@ -800,7 +798,6 @@ const SalePrep: React.FC = () => {
                 phone: formData.phone,
                 dob: formData.dob,
                 dlNumber: formData.dlNumber,
-                ssn: '', // SSN field removed from form
                 address: formData.address,
                 city: formData.city,
                 state: formData.state,
@@ -878,7 +875,6 @@ const SalePrep: React.FC = () => {
                 phone: formData.phone || null,
                 dob: formData.dob || null,
                 dl_number: formData.dlNumber || null,
-                ssn: null, // SSN field removed from form
                 address: formData.address || null,
                 city: formData.city || null,
                 state: formData.state || null,

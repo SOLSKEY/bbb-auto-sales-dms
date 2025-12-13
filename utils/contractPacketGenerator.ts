@@ -7,7 +7,7 @@ export interface ContractPacketData {
     phone: string;
     dob: string;
     dlNumber: string;
-    ssn: string;
+    ssn?: string;
     address: string;
     city: string;
     state: string;
@@ -373,6 +373,45 @@ export const generateContractPacket = async (data: ContractPacketData): Promise<
         }
         if (data.warrantyMonths) {
             setFieldByExactName('Warranty Months', data.warrantyMonths);
+        }
+        
+        // Special field: GPS (on new page at end of PDF)
+        // Try multiple variations to ensure GPS field gets filled
+        if (data.gps) {
+            // First try the standard mapping (already done above, but try exact name as well)
+            setFieldByExactName('GPS', data.gps);
+            
+            // Also try case-insensitive search for any field containing "gps"
+            // This handles variations like "GPS Serial Number", "GPS Serial", etc.
+            const gpsFieldName = fieldNames.find(name => {
+                const lowerName = name.toLowerCase();
+                return (lowerName.includes('gps') && 
+                       !lowerName.includes('warranty') && 
+                       !lowerName.includes('miles') &&
+                       !lowerName.includes('months'));
+            });
+            
+            if (gpsFieldName) {
+                try {
+                    const textField = form.getTextField(gpsFieldName);
+                    textField.setText(data.gps);
+                    textField.setAlignment(TextAlignment.Center);
+                } catch (textFieldError) {
+                    // Field might not be a text field, try other types
+                    try {
+                        const dropdownField = form.getDropdown(gpsFieldName);
+                        const options = dropdownField.getOptions();
+                        const matchingOption = options.find(opt => 
+                            opt.toLowerCase() === data.gps.toLowerCase()
+                        );
+                        if (matchingOption) {
+                            dropdownField.select(matchingOption);
+                        }
+                    } catch (dropdownError) {
+                        console.warn(`Could not set GPS field "${gpsFieldName}":`, dropdownError);
+                    }
+                }
+            }
         }
         
         // Set font size to 8 for text fields on pages 5-14 (0-indexed: pages 4-13)
