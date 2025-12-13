@@ -19,6 +19,18 @@ declare global {
     }
 }
 
+// Helper function to capitalize first letter of each word
+const capitalizeWords = (text: string): string => {
+    if (!text || !text.trim()) return text;
+    return text
+        .split(' ')
+        .map(word => {
+            if (!word) return word;
+            return word.charAt(0).toUpperCase() + word.slice(1).toLowerCase();
+        })
+        .join(' ');
+};
+
 // Input field component with copy button - defined outside to prevent recreation on each render
 const InputWithCopy: React.FC<{
     label: string;
@@ -164,6 +176,7 @@ const SalePrep: React.FC = () => {
     const [highlightedVehicleIndex, setHighlightedVehicleIndex] = useState<number>(-1);
     const [isGeneratingWarranty, setIsGeneratingWarranty] = useState(false);
     const [isGeneratingContractPacket, setIsGeneratingContractPacket] = useState(false);
+    const [isGeneratingContractPacketLocal, setIsGeneratingContractPacketLocal] = useState(false);
     const [deletingLogId, setDeletingLogId] = useState<number | null>(null);
 
     const vehicleSearchRef = useRef<HTMLDivElement>(null);
@@ -364,6 +377,7 @@ const SalePrep: React.FC = () => {
             vin: vehicle.vin || '',
             vinLast4: vehicle.vin ? vehicle.vin.slice(-4) : '',
             color: vehicle.exterior || prev.color, // Autopopulate color from vehicle
+            gps: vehicle.gps || prev.gps, // Autopopulate GPS from vehicle
             // Note: bodyStyle is NOT autopopulated - must be filled manually
         }));
         setVehicleSearchTerm('');
@@ -497,6 +511,14 @@ const SalePrep: React.FC = () => {
             if (formatted !== value) {
                 setFormData(prev => ({ ...prev, ssn: formatted }));
             }
+        }
+    };
+
+    // Handle text field blur to auto-capitalize words
+    const handleCapitalizeBlur = (fieldName: keyof FormData, value: string) => {
+        const capitalized = capitalizeWords(value);
+        if (capitalized !== value) {
+            setFormData(prev => ({ ...prev, [fieldName]: capitalized }));
         }
     };
 
@@ -734,7 +756,7 @@ const SalePrep: React.FC = () => {
         }
     };
 
-    // Generate contract packet
+    // Generate contract packet (Railway/Production)
     const handleGenerateContractPacket = async () => {
         if (!canGenerateContractPacket()) {
             alert('Please fill in all fields before generating the contract packet.');
@@ -788,6 +810,96 @@ const SalePrep: React.FC = () => {
             alert('Failed to generate contract packet. Please try again.');
         } finally {
             setIsGeneratingContractPacket(false);
+        }
+    };
+
+    // Generate contract packet (Local Server)
+    const handleGenerateContractPacketLocal = async () => {
+        if (!canGenerateContractPacket()) {
+            alert('Please fill in all fields before generating the contract packet.');
+            return;
+        }
+
+        setIsGeneratingContractPacketLocal(true);
+        try {
+            // Get vehicle data from selected vehicle or find by VIN
+            let vehicle: Vehicle | undefined = selectedVehicle;
+            if (!vehicle && formData.vin) {
+                vehicle = inventory.find(v => v.vin === formData.vin);
+            }
+
+            // Prepare contract packet data
+            const contractData: ContractPacketData = {
+                firstName: formData.firstName,
+                lastName: formData.lastName,
+                phone: formData.phone,
+                dob: formData.dob,
+                dlNumber: formData.dlNumber,
+                ssn: formData.ssn,
+                address: formData.address,
+                city: formData.city,
+                state: formData.state,
+                zip: formData.zip,
+                county: formData.county,
+                vin: formData.vin,
+                vinLast4: formData.vinLast4,
+                stockNumber: formData.stockNumber,
+                bodyStyle: formData.bodyStyle,
+                color: formData.color,
+                gps: formData.gps,
+                miles: formData.miles,
+                warrantyMonths: formData.warrantyMonths,
+                warrantyMiles: formData.warrantyMiles,
+                // Vehicle fields (if available)
+                year: vehicle?.year,
+                make: vehicle?.make,
+                model: vehicle?.model,
+                trim: vehicle?.trim,
+                price: vehicle?.price,
+                downPayment: vehicle?.downPayment,
+            };
+
+            // Call local server endpoint
+            const localServerUrl = 'http://localhost:5001/api/contract-packet';
+            const response = await fetch(localServerUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(contractData),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: 'Unknown error' }));
+                throw new Error(errorData.message || `Server error: ${response.status}`);
+            }
+
+            // Get the PDF blob and trigger download
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            
+            // Get filename from Content-Disposition header or use default
+            const contentDisposition = response.headers.get('Content-Disposition');
+            let filename = 'Contract_Packet.pdf';
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="?(.+?)"?$/);
+                if (filenameMatch) {
+                    filename = filenameMatch[1];
+                }
+            }
+            
+            link.download = filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+        } catch (error) {
+            console.error('Error generating contract packet (local):', error);
+            alert(`Failed to generate contract packet on local server. Make sure the PDF server is running on port 5001.\n\nError: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        } finally {
+            setIsGeneratingContractPacketLocal(false);
         }
     };
 
@@ -925,6 +1037,25 @@ const SalePrep: React.FC = () => {
                                 )}
                             </LiquidButton>
                             <LiquidButton
+                                onClick={handleGenerateContractPacketLocal}
+                                disabled={isGeneratingContractPacketLocal || !canGenerateContractPacket()}
+                                size="default"
+                                color="blue"
+                                className="flex items-center gap-2"
+                            >
+                                {isGeneratingContractPacketLocal ? (
+                                    <>
+                                        <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                                        <span>Generating...</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        <DocumentTextIcon className="h-5 w-5" />
+                                        <span>Generate Contract (Local)</span>
+                                    </>
+                                )}
+                            </LiquidButton>
+                            <LiquidButton
                                 onClick={handleSave}
                                 disabled={isSaving}
                                 size="default"
@@ -1025,6 +1156,7 @@ const SalePrep: React.FC = () => {
                                     value={formData.firstName}
                                     fieldName="firstName"
                                     onChange={(value) => setFormData(prev => ({ ...prev, firstName: value }))}
+                                    onBlur={(value) => handleCapitalizeBlur('firstName', value)}
                                     placeholder="Enter first name"
                                     copiedField={copiedField}
                                     onCopy={copyToClipboard}
@@ -1035,6 +1167,7 @@ const SalePrep: React.FC = () => {
                                     value={formData.lastName}
                                     fieldName="lastName"
                                     onChange={(value) => setFormData(prev => ({ ...prev, lastName: value }))}
+                                    onBlur={(value) => handleCapitalizeBlur('lastName', value)}
                                     placeholder="Enter last name"
                                     copiedField={copiedField}
                                     onCopy={copyToClipboard}
@@ -1053,6 +1186,12 @@ const SalePrep: React.FC = () => {
                                             value={formData.address}
                                             onChange={(e) => handleAddressInputChange(e.target.value)}
                                             onKeyDown={handleAddressKeyDown}
+                                            onBlur={() => {
+                                                // Only capitalize if dropdown is not showing
+                                                if (!showAddressDropdown) {
+                                                    handleCapitalizeBlur('address', formData.address);
+                                                }
+                                            }}
                                             placeholder="Start typing address..."
                                             className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors"
                                         />
@@ -1097,6 +1236,7 @@ const SalePrep: React.FC = () => {
                                     value={formData.city}
                                     fieldName="city"
                                     onChange={(value) => setFormData(prev => ({ ...prev, city: value }))}
+                                    onBlur={(value) => handleCapitalizeBlur('city', value)}
                                     placeholder="City"
                                     copiedField={copiedField}
                                     onCopy={copyToClipboard}
@@ -1125,6 +1265,7 @@ const SalePrep: React.FC = () => {
                                     value={formData.county}
                                     fieldName="county"
                                     onChange={(value) => setFormData(prev => ({ ...prev, county: value }))}
+                                    onBlur={(value) => handleCapitalizeBlur('county', value)}
                                     placeholder="County"
                                     copiedField={copiedField}
                                     onCopy={copyToClipboard}
@@ -1154,6 +1295,7 @@ const SalePrep: React.FC = () => {
                                     value={formData.dlNumber}
                                     fieldName="dlNumber"
                                     onChange={(value) => setFormData(prev => ({ ...prev, dlNumber: value }))}
+                                    onBlur={(value) => handleCapitalizeBlur('dlNumber', value)}
                                     placeholder="Driver's License Number"
                                     copiedField={copiedField}
                                     onCopy={copyToClipboard}
@@ -1277,6 +1419,7 @@ const SalePrep: React.FC = () => {
                                         value={formData.color}
                                         fieldName="color"
                                         onChange={(value) => setFormData(prev => ({ ...prev, color: value }))}
+                                        onBlur={(value) => handleCapitalizeBlur('color', value)}
                                         placeholder="Vehicle Color"
                                         copiedField={copiedField}
                                         onCopy={copyToClipboard}
@@ -1287,6 +1430,7 @@ const SalePrep: React.FC = () => {
                                         value={formData.gps}
                                         fieldName="gps"
                                         onChange={(value) => setFormData(prev => ({ ...prev, gps: value }))}
+                                        onBlur={(value) => handleCapitalizeBlur('gps', value)}
                                         placeholder="GPS Information"
                                         copiedField={copiedField}
                                         onCopy={copyToClipboard}
