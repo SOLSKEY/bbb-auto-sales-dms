@@ -1,8 +1,8 @@
-
 import React, { useContext, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { UserContext } from '../App';
 import { UserCircleIcon, Cog6ToothIcon, ArrowRightOnRectangleIcon } from '@heroicons/react/24/solid';
+import HeaderWidgetContainer from './HeaderWidgetContainer';
 
 const Header: React.FC<{ title: string; onLogout?: () => void }> = ({ title, onLogout }) => {
     const userContext = useContext(UserContext);
@@ -42,6 +42,12 @@ const Header: React.FC<{ title: string; onLogout?: () => void }> = ({ title, onL
     return (
         <header className="flex items-center justify-between p-4 glass-card-outline mx-4 mt-4 mb-2 h-16 relative z-40">
             <h1 className="text-2xl font-bold text-primary-contrast tracking-tight">{title}</h1>
+            
+            {/* Center: Widget Container - Hidden on mobile */}
+            <div className="hidden lg:block">
+                <HeaderWidgetContainer />
+            </div>
+            
             <div className="flex items-center space-x-4">
                 <div ref={profileRef} className="relative z-50">
                     <button
