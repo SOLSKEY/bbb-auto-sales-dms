@@ -179,7 +179,7 @@ const MonthlySalesComparisonChart: React.FC<MonthlySalesComparisonChartProps> = 
             </div>
             <div ref={chartContainerRef} className="flex-1 min-h-0 w-full" style={{ minHeight: `${height}px` }}>
                 <ResponsiveContainer width="100%" height={chartHeight}>
-                    <ComposedChart data={data} margin={{ top: 20, right: 20, left: -10, bottom: 5 }}>
+                    <ComposedChart data={data} margin={{ top: 35, right: 20, left: -10, bottom: 5 }}>
                         <defs>
                             {gradientDefs.map(gradient => {
                                 if (gradient.year === currentYear) {
@@ -246,6 +246,7 @@ const MonthlySalesComparisonChart: React.FC<MonthlySalesComparisonChartProps> = 
                                         stroke={gradient.from}
                                         strokeWidth={2.5}
                                         hide={!isVisible}
+                                        isAnimationActive={false}
                                     >
                                         <LabelList
                                             dataKey={String(year)}

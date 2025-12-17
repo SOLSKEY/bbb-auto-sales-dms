@@ -507,7 +507,8 @@ textarea {
 }
 
 /* Exception: Neon green for MonthlySalesComparisonChart step area labels with dark stroke for readability */
-.recharts-area .recharts-label-list text {
+/* Note: recharts-label-list is a SIBLING of recharts-area at the SVG root level, not a child */
+.recharts-label-list text {
   fill: #00ff88 !important;
   stroke: rgba(0, 0, 0, 0.8) !important;
   stroke-width: 2px !important;

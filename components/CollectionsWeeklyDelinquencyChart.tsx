@@ -16,17 +16,22 @@ import { ChevronDownIcon } from '@heroicons/react/24/solid';
 
 const MS_IN_DAY = 24 * 60 * 60 * 1000;
 
-// Red gradient palette - different shades of red for each year, all maintaining red theme
-const redGradients = [
-    { from: '#ff6b6b', to: '#ff5252', base: '#ff5252' }, // Bright Red
-    { from: '#ff5252', to: '#f44336', base: '#f44336' }, // Red
-    { from: '#f44336', to: '#e53935', base: '#e53935' }, // Darker Red
-    { from: '#e53935', to: '#d32f2f', base: '#d32f2f' }, // Deep Red
-    { from: '#d32f2f', to: '#c62828', base: '#c62828' }, // Dark Red
-    { from: '#c62828', to: '#b71c1c', base: '#b71c1c' }, // Very Dark Red
-    { from: '#ff8a80', to: '#ff5252', base: '#ff5252' }, // Light Red
-    { from: '#ff5252', to: '#d32f2f', base: '#d32f2f' }, // Medium Red
+// Color palette matching MonthlySalesComparisonChart
+const yearGradients = [
+    { from: '#00f0ff', to: '#00d4ff', base: '#00d4ff' }, // Bright Cyan
+    { from: '#ff00d4', to: '#ff00a8', base: '#ff00a8' }, // Bright Pink/Magenta
+    { from: '#00ff88', to: '#00ff70', base: '#00ff70' }, // Bright Green
+    { from: '#ffff00', to: '#ffd700', base: '#ffd700' }, // Bright Yellow/Gold
+    { from: '#ff3333', to: '#ff0000', base: '#ff0000' }, // Bright Red
+    { from: '#cc00ff', to: '#aa00ff', base: '#aa00ff' }, // Bright Purple
+    { from: '#0088ff', to: '#0066ff', base: '#0066ff' }, // Bright Blue
+    { from: '#00ffcc', to: '#00ffaa', base: '#00ffaa' }, // Bright Teal
+    { from: '#ff00ff', to: '#dd00ff', base: '#dd00ff' }, // Bright Magenta
+    { from: '#ffaa00', to: '#ff8800', base: '#ff8800' }, // Bright Orange
 ];
+
+// Current year color - red
+const currentYearColor = { from: '#ff3333', to: '#ff0000', base: '#ff0000' }; // Bright Red
 
 const getYearFirstWeekStart = (year: number) => getWeekStartUtc(new Date(year, 0, 1));
 
@@ -220,21 +225,55 @@ const CollectionsWeeklyDelinquencyChart: React.FC<CollectionsWeeklyDelinquencyCh
         setVisibleYears(defaultVisibleYears);
     }, [defaultVisibleYears]);
 
+    // Get the actual current year
+    const currentYear = new Date().getFullYear();
+
     // Generate gradient definitions for each year (using sorted years to maintain color consistency)
     const gradientDefs = useMemo(() => {
         const sortedYears = [...years].sort((a, b) => a - b);
-        return sortedYears.map((year, index) => {
-            const gradient = redGradients[index % redGradients.length];
+        return sortedYears.map((year) => {
+            let colorScheme;
+            
+            // Current year always gets red
+            if (year === currentYear) {
+                colorScheme = currentYearColor;
+            }
+            // 2024 gets yellow (matching MonthlySalesComparisonChart)
+            else if (year === 2024) {
+                colorScheme = { from: '#ffff00', to: '#ffd700', base: '#ffd700' }; // Yellow/Gold
+            }
+            // 2023 gets cyan blue (matching MonthlySalesComparisonChart)
+            else if (year === 2023) {
+                colorScheme = { from: '#00f0ff', to: '#00d4ff', base: '#00d4ff' }; // Bright Cyan
+            }
+            // Other years use colors from MonthlySalesComparisonChart palette
+            else {
+                // Get all years that have already been assigned specific colors
+                const reservedYears = new Set([currentYear, 2024, 2023]);
+                const otherYears = sortedYears.filter(y => !reservedYears.has(y));
+                const yearIndex = otherYears.indexOf(year);
+                
+                // Skip colors already used for current year (red), 2024 (yellow), and 2023 (cyan)
+                const availableColors = yearGradients.filter(color => {
+                    const isYellow = color.from === '#ffff00';
+                    const isCyan = color.from === '#00f0ff';
+                    const isRed = color.from === '#ff3333';
+                    return !isYellow && !isCyan && !isRed;
+                });
+                
+                // Assign colors from available palette, cycling through if needed
+                colorScheme = availableColors[yearIndex % availableColors.length] || yearGradients[0];
+            }
+            
             return {
                 year,
                 id: `gradient-${year}`,
-                ...gradient,
+                ...colorScheme,
             };
         });
-    }, [years]);
+    }, [years, currentYear]);
 
     const activeKeys = barKeys.filter(key => visibleYears[key]);
-    const currentYear = activeKeys.length ? Math.max(...activeKeys.map(Number)) : Math.max(...barKeys.map(Number));
 
     if (!chartData.length) {
         return (

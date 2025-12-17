@@ -1063,18 +1063,41 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
         const images = Array.from(el.querySelectorAll('img'));
         const allImagesLoaded = images.every(img => img.complete && img.naturalHeight !== 0);
         
-        // For sales page, check for charts/canvas elements
-        if (selector.includes('sales-analytics')) {
-          const charts = el.querySelectorAll('canvas');
-          const hasCharts = charts.length > 0;
-          // Check if charts have been rendered (canvas has content)
-          const chartsRendered = Array.from(charts).some(canvas => {
-            const ctx = canvas.getContext('2d');
-            if (!ctx) return false;
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            // Check if canvas has non-transparent pixels (indicating it's been drawn)
-            return imageData.data.some((val, idx) => idx % 4 !== 3 && val !== 0);
-          });
+        // For sales page, check for charts (SVG Recharts or Canvas)
+        if (selector.includes('sales') || selector.includes('p-12')) {
+          // Check for Recharts SVG charts
+          const svgCharts = el.querySelectorAll('svg.recharts-surface, .recharts-responsive-container svg');
+          const canvasCharts = el.querySelectorAll('canvas');
+          
+          const hasCharts = svgCharts.length > 0 || canvasCharts.length > 0;
+          
+          // For SVG charts, check if LabelList has rendered
+          let chartsRendered = false;
+          if (svgCharts.length > 0) {
+            for (const svg of svgCharts) {
+              const labelLists = svg.querySelectorAll('g.recharts-label-list text');
+              if (labelLists.length > 0) {
+                chartsRendered = true;
+                break;
+              }
+              // Also check for area/bar paths as fallback
+              const chartPaths = svg.querySelectorAll('path.recharts-area-area, rect.recharts-bar-rectangle');
+              if (chartPaths.length > 0) {
+                chartsRendered = true;
+              }
+            }
+          }
+          
+          // Canvas chart check (existing logic)
+          if (canvasCharts.length > 0 && !chartsRendered) {
+            chartsRendered = Array.from(canvasCharts).some(canvas => {
+              const ctx = canvas.getContext('2d');
+              if (!ctx) return false;
+              const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+              return imageData.data.some((val, idx) => idx % 4 !== 3 && val !== 0);
+            });
+          }
+          
           return (hasText || hasChildren || hasImages) && allImagesLoaded && (hasCharts ? chartsRendered : true);
         }
         
@@ -1088,6 +1111,93 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
     // Final wait to ensure everything is stable
     await new Promise(resolve => setTimeout(resolve, 2000));
     console.log('✅ Final stabilization wait complete');
+
+    // Wait for Recharts SVG charts to fully render (including LabelList text elements)
+    console.log('📊 Waiting for Recharts SVG charts and LabelList to render...');
+    try {
+      // Disable Recharts CSS animations
+      await page.evaluate(() => {
+        const style = document.createElement('style');
+        style.textContent = `
+          .recharts-wrapper * {
+            animation: none !important;
+            transition: none !important;
+          }
+        `;
+        document.head.appendChild(style);
+      });
+
+      // Wait for LabelList text elements to be rendered
+      await page.waitForFunction(() => {
+        const svgs = document.querySelectorAll('svg');
+        let foundLabelLists = false;
+
+        for (const svg of svgs) {
+          // Look for LabelList groups (Recharts renders these)
+          const labelListGroups = svg.querySelectorAll('g.recharts-label-list');
+
+          if (labelListGroups.length > 0) {
+            let visibleCount = 0;
+            labelListGroups.forEach(group => {
+              const texts = group.querySelectorAll('text');
+              texts.forEach(text => {
+                const style = window.getComputedStyle(text);
+                const rect = text.getBoundingClientRect();
+                const textContent = (text.textContent || '').trim();
+
+                if (textContent.length > 0 &&
+                    style.display !== 'none' &&
+                    style.visibility !== 'hidden' &&
+                    style.opacity !== '0' &&
+                    rect.width > 0 &&
+                    rect.height > 0) {
+                  visibleCount++;
+                }
+              });
+            });
+
+            if (visibleCount > 0) {
+              foundLabelLists = true;
+            }
+          }
+
+          // Fallback: check for numeric text elements positioned in the chart
+          const allTexts = svg.querySelectorAll('text');
+          for (const text of allTexts) {
+            const textContent = (text.textContent || '').trim();
+            const hasPosition = text.hasAttribute('x') && text.hasAttribute('y');
+            const cleanedText = textContent.replace(/[$,]/g, '');
+            const isNumeric = /^\d+([.,]\d+)?([kKmMbB])?$/.test(cleanedText) || /^\d+$/.test(cleanedText);
+
+            if (hasPosition && isNumeric && textContent.length > 0) {
+              const style = window.getComputedStyle(text);
+              const rect = text.getBoundingClientRect();
+              const x = parseFloat(text.getAttribute('x') || '0');
+              const y = parseFloat(text.getAttribute('y') || '0');
+
+              if (style.display !== 'none' &&
+                  style.visibility !== 'hidden' &&
+                  style.opacity !== '0' &&
+                  rect.width > 0 &&
+                  rect.height > 0 &&
+                  x > 0 && y > 0) {
+                foundLabelLists = true;
+                break;
+              }
+            }
+          }
+        }
+
+        return foundLabelLists;
+      }, { timeout: 15000 });
+      console.log('✅ Recharts LabelList text elements detected');
+    } catch (error) {
+      console.log('⚠️ LabelList detection timeout, continuing anyway...');
+    }
+
+    // Additional wait for LabelList to fully paint
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    console.log('✅ LabelList rendering wait complete');
 
     // Mimic DevTools device toolbar: Set DPR to 2.0 and zoom to 50%
     console.log('⚙️ Setting DPR to 2.0 and zoom to 50%...');
