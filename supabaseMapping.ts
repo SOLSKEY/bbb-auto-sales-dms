@@ -35,6 +35,7 @@ export const VEHICLE_FIELD_MAP = {
   vehicleId: 'Vehicle ID',
   images: 'image_urls',
   binNumber: 'Bin Number',
+  gps: 'GPS',
 };
 
 export const SALE_FIELD_MAP = {

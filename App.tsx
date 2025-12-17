@@ -1,14 +1,15 @@
 
 
-import React, { useState, createContext, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
+import React, { useState, createContext, useMemo, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
-// Lazy load pages for better performance
+// Import critical pages directly (not lazy) to prevent suspension on tab switch
+import Inventory from './pages/Inventory';
+import SalePrep from './pages/SalePrep';
+// Lazy load less critical pages for better performance
 const Dashboard = lazy(() => import('./pages/Dashboard'));
-const Inventory = lazy(() => import('./pages/Inventory'));
 const Sales = lazy(() => import('./pages/Sales'));
-const SalePrep = lazy(() => import('./pages/SalePrep'));
 const Collections = lazy(() => import('./pages/Collections'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Data = lazy(() => import('./pages/Data'));
@@ -147,6 +148,12 @@ const App: React.FC = () => {
         const day = String(now.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
     }, []);
+
+    // Track last data refresh time for stale-time checks
+    const lastRefreshTimeRef = useRef<number>(Date.now());
+
+    // Track if initial data load has completed to prevent re-running on session updates
+    const hasInitiallyLoadedRef = useRef<boolean>(false);
 
     // Track authentication session
     useEffect(() => {
@@ -357,13 +364,24 @@ const App: React.FC = () => {
             console.error('Error loading data:', error);
         } finally {
             if (showLoading) setIsLoading(false);
+            lastRefreshTimeRef.current = Date.now();
         }
     }, [session]);
 
-    // Load initial data from Supabase
+    // Load initial data from Supabase (only once, not on every session update)
     useEffect(() => {
-        loadData();
-    }, [loadData]);
+        if (!session) {
+            // Reset flag when user logs out so data loads again on login
+            hasInitiallyLoadedRef.current = false;
+            return;
+        }
+
+        if (!hasInitiallyLoadedRef.current) {
+            console.log('[App] Running initial data load...');
+            loadData();
+            hasInitiallyLoadedRef.current = true;
+        }
+    }, [session, loadData]);
 
     // Day-change detection - refresh data when a new day starts
     useEffect(() => {
@@ -384,31 +402,26 @@ const App: React.FC = () => {
         return () => clearInterval(interval);
     }, [session, getCurrentDateString, loadData]);
 
-    // Refresh data when navigating between pages
+    // Refresh data when tab becomes visible (only if data is stale)
     useEffect(() => {
         if ((window as any).IS_EXPORT_MODE || !session) return;
-        
-        // Skip refresh on initial mount (handled by initial load)
-        const normalizedPath = location.pathname.replace(/\/+$/, '') || '/dashboard';
-        if (normalizedPath === '/login' || normalizedPath.startsWith('/print')) return;
 
-        // Refresh data when route changes (but not on initial mount)
-        const timeoutId = setTimeout(() => {
-            console.log('Route changed, refreshing data...');
-            loadData(false); // Don't show loading spinner for navigation refresh
-        }, 100);
-
-        return () => clearTimeout(timeoutId);
-    }, [location.pathname, session, loadData]);
-
-    // Refresh data when tab becomes visible (user switches back to the tab)
-    useEffect(() => {
-        if ((window as any).IS_EXPORT_MODE || !session) return;
+        const STALE_TIME_MS = 5 * 60 * 1000; // 5 minutes
 
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                console.log('Tab became visible, refreshing data...');
-                loadData(false); // Don't show loading spinner for visibility refresh
+                console.log('[Visibility] Tab became visible');
+                const timeSinceLastRefresh = Date.now() - lastRefreshTimeRef.current;
+                console.log('[Visibility] Time since last refresh:', Math.floor(timeSinceLastRefresh / 1000), 'seconds');
+
+                if (timeSinceLastRefresh > STALE_TIME_MS) {
+                    console.log('[Visibility] Data stale, refreshing in background...');
+                    loadData(false);
+                } else {
+                    console.log('[Visibility] Data still fresh, skipping refresh');
+                }
+            } else {
+                console.log('[Visibility] Tab became hidden');
             }
         };
 

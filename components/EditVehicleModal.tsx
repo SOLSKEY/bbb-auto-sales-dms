@@ -464,6 +464,7 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
         { name: 'vehicleId', label: 'Vehicle ID', type: 'text', placeholder: 'Auto-generated (e.g., 19 Maxima 2636)' },
         { name: 'price', label: 'Price', type: 'number' },
         { name: 'downPayment', label: 'Down Payment', type: 'number' },
+        { name: 'gps', label: 'GPS', type: 'text' },
     ];
 
 

@@ -44,7 +44,8 @@ const InputWithCopy: React.FC<{
     onCopy: (value: string, fieldName: string) => void;
     onBlur?: (value: string) => void;
     required?: boolean;
-}> = ({ label, value, fieldName, onChange, type = 'text', placeholder, className = '', copiedField, onCopy, onBlur, required = false }) => {
+    hasError?: boolean;
+}> = ({ label, value, fieldName, onChange, type = 'text', placeholder, className = '', copiedField, onCopy, onBlur, required = false, hasError = false }) => {
     const hasValue = value.trim().length > 0;
     const isCopied = copiedField === fieldName;
 
@@ -61,7 +62,7 @@ const InputWithCopy: React.FC<{
                     onChange={(e) => onChange(e.target.value)}
                     onBlur={() => onBlur && onBlur(value)}
                     placeholder={placeholder}
-                    className={`w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors ${className}`}
+                    className={`w-full bg-glass-panel border ${hasError ? 'border-red-500 text-red-400' : 'border-border-low'} focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors ${className}`}
                 />
                 {hasValue && (
                     <button
@@ -79,6 +80,9 @@ const InputWithCopy: React.FC<{
                     </button>
                 )}
             </div>
+            {hasError && (
+                <p className="text-red-500 text-xs mt-1">Please fill out this field</p>
+            )}
         </div>
     );
 };
@@ -175,6 +179,7 @@ const SalePrep: React.FC = () => {
     const [isGeneratingContractPacket, setIsGeneratingContractPacket] = useState(false);
     const [isGeneratingContractPacketLocal, setIsGeneratingContractPacketLocal] = useState(false);
     const [deletingLogId, setDeletingLogId] = useState<number | null>(null);
+    const [showErrors, setShowErrors] = useState(false);
 
     const vehicleSearchRef = useRef<HTMLDivElement>(null);
     const addressInputRef = useRef<HTMLInputElement>(null);
@@ -290,14 +295,23 @@ const SalePrep: React.FC = () => {
                     let zip = '';
                     let county = '';
 
+                    // Collect city candidates first, then prioritize
+                    let neighborhoodCity = '';
+                    let sublocalityCity = '';
+                    let localityCity = '';
+
                     place.address_components.forEach((component: any) => {
                         const types = component.types;
                         if (types.includes('street_number')) {
                             streetNumber = component.long_name;
                         } else if (types.includes('route')) {
                             route = component.long_name;
+                        } else if (types.includes('neighborhood')) {
+                            neighborhoodCity = component.long_name;
+                        } else if (types.includes('sublocality_level_1')) {
+                            sublocalityCity = component.long_name;
                         } else if (types.includes('locality')) {
-                            city = component.long_name;
+                            localityCity = component.long_name;
                         } else if (types.includes('administrative_area_level_1')) {
                             // State code (short_name) - should always be 2 characters like "TN"
                             state = (component.short_name || component.long_name || '').toUpperCase().slice(0, 2);
@@ -307,6 +321,9 @@ const SalePrep: React.FC = () => {
                             county = component.long_name;
                         }
                     });
+
+                    // Prioritize neighborhood or sublocality_level_1 over locality for city
+                    city = neighborhoodCity || sublocalityCity || localityCity;
 
                     // Remove "County" suffix from county name if present
                     let cleanedCounty = county;
@@ -374,7 +391,7 @@ const SalePrep: React.FC = () => {
             vin: vehicle.vin || '',
             vinLast4: vehicle.vin ? vehicle.vin.slice(-4) : '',
             color: vehicle.exterior || prev.color, // Autopopulate color from vehicle
-            gps: vehicle.gps || prev.gps, // Autopopulate GPS from vehicle
+            gps: vehicle.gps ?? prev.gps, // Autopopulate GPS from vehicle (use ?? to allow empty strings)
             // Note: bodyStyle is NOT autopopulated - must be filled manually
         }));
         setVehicleSearchTerm('');
@@ -674,6 +691,27 @@ const SalePrep: React.FC = () => {
         return allFieldsFilled;
     };
 
+    // Helper function to check if a required field is empty
+    const isRequiredFieldEmpty = (fieldName: keyof FormData): boolean => {
+        const value = formData[fieldName];
+        return typeof value === 'string' && value.trim() === '';
+    };
+
+    // Check if form is valid for contract packet generation
+    const isFormValid = canGenerateContractPacket();
+
+    // Clear errors when form becomes valid
+    useEffect(() => {
+        if (isFormValid && showErrors) {
+            setShowErrors(false);
+        }
+    }, [isFormValid, showErrors]);
+
+    // Helper to determine if a field should show error
+    const shouldShowFieldError = (fieldName: keyof FormData): boolean => {
+        return showErrors && isRequiredFieldEmpty(fieldName);
+    };
+
     // Generate warranty contract
     const handleGenerateWarranty = async () => {
         if (!canGenerateWarranty()) {
@@ -723,7 +761,7 @@ const SalePrep: React.FC = () => {
     // Generate contract packet (Railway/Production)
     const handleGenerateContractPacket = async () => {
         if (!canGenerateContractPacket()) {
-            alert('Please fill in all fields before generating the contract packet.');
+            setShowErrors(true);
             return;
         }
 
@@ -779,7 +817,7 @@ const SalePrep: React.FC = () => {
     // Generate contract packet (Local Server)
     const handleGenerateContractPacketLocal = async () => {
         if (!canGenerateContractPacket()) {
-            alert('Please fill in all fields before generating the contract packet.');
+            setShowErrors(true);
             return;
         }
 
@@ -979,10 +1017,10 @@ const SalePrep: React.FC = () => {
                         <div className="flex items-center gap-2">
                             <LiquidButton
                                 onClick={handleGenerateContractPacket}
-                                disabled={isGeneratingContractPacket || !canGenerateContractPacket()}
+                                disabled={isGeneratingContractPacket}
                                 size="default"
                                 color="blue"
-                                className="flex items-center gap-2"
+                                className={`flex items-center gap-2 ${!isFormValid ? 'opacity-50 cursor-pointer' : ''}`}
                             >
                                 {isGeneratingContractPacket ? (
                                     <>
@@ -998,10 +1036,10 @@ const SalePrep: React.FC = () => {
                             </LiquidButton>
                             <LiquidButton
                                 onClick={handleGenerateContractPacketLocal}
-                                disabled={isGeneratingContractPacketLocal || !canGenerateContractPacket()}
+                                disabled={isGeneratingContractPacketLocal}
                                 size="default"
                                 color="blue"
-                                className="flex items-center gap-2"
+                                className={`flex items-center gap-2 ${!isFormValid ? 'opacity-50 cursor-pointer' : ''}`}
                             >
                                 {isGeneratingContractPacketLocal ? (
                                     <>
@@ -1066,40 +1104,50 @@ const SalePrep: React.FC = () => {
                             </div>
                             <div className="grid grid-cols-2 gap-6">
                                 {/* Months Field */}
-                                <div className="flex items-center gap-3">
-                                    <label className="text-sm font-medium text-muted uppercase tracking-wide whitespace-nowrap">
-                                        Warranty Months
-                                        <span className="text-red-500 ml-1">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.warrantyMonths}
-                                        onChange={(e) => {
-                                            const months = e.target.value;
-                                            const miles = months ? (parseInt(months) * 1000).toString() : '';
-                                            setFormData(prev => ({
-                                                ...prev,
-                                                warrantyMonths: months,
-                                                warrantyMiles: miles,
-                                            }));
-                                        }}
-                                        placeholder="Enter months"
-                                        className="flex-1 bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors"
-                                    />
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-3">
+                                        <label className="text-sm font-medium text-muted uppercase tracking-wide whitespace-nowrap">
+                                            Warranty Months
+                                            <span className="text-red-500 ml-1">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={formData.warrantyMonths}
+                                            onChange={(e) => {
+                                                const months = e.target.value;
+                                                const miles = months ? (parseInt(months) * 1000).toString() : '';
+                                                setFormData(prev => ({
+                                                    ...prev,
+                                                    warrantyMonths: months,
+                                                    warrantyMiles: miles,
+                                                }));
+                                            }}
+                                            placeholder="Enter months"
+                                            className={`flex-1 bg-glass-panel border ${shouldShowFieldError('warrantyMonths') ? 'border-red-500 text-red-400' : 'border-border-low'} focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors`}
+                                        />
+                                    </div>
+                                    {shouldShowFieldError('warrantyMonths') && (
+                                        <p className="text-red-500 text-xs mt-1 ml-0">Please fill out this field</p>
+                                    )}
                                 </div>
                                 {/* Miles Field (Read-only) */}
-                                <div className="flex items-center gap-3">
-                                    <label className="text-sm font-medium text-muted uppercase tracking-wide whitespace-nowrap">
-                                        Warranty Miles
-                                        <span className="text-red-500 ml-1">*</span>
-                                    </label>
-                                    <input
-                                        type="text"
-                                        value={formData.warrantyMiles}
-                                        readOnly
-                                        placeholder="Auto-calculated"
-                                        className="flex-1 bg-glass-panel border border-border-low text-primary rounded-md p-2 focus:outline-none transition-colors opacity-75 cursor-not-allowed"
-                                    />
+                                <div className="space-y-1">
+                                    <div className="flex items-center gap-3">
+                                        <label className="text-sm font-medium text-muted uppercase tracking-wide whitespace-nowrap">
+                                            Warranty Miles
+                                            <span className="text-red-500 ml-1">*</span>
+                                        </label>
+                                        <input
+                                            type="text"
+                                            value={formData.warrantyMiles}
+                                            readOnly
+                                            placeholder="Auto-calculated"
+                                            className={`flex-1 bg-glass-panel border ${shouldShowFieldError('warrantyMiles') ? 'border-red-500 text-red-400' : 'border-border-low'} text-primary rounded-md p-2 focus:outline-none transition-colors opacity-75 cursor-not-allowed`}
+                                        />
+                                    </div>
+                                    {shouldShowFieldError('warrantyMiles') && (
+                                        <p className="text-red-500 text-xs mt-1 ml-0">Please fill out this field</p>
+                                    )}
                                 </div>
                             </div>
                         </LiquidContainer>
@@ -1121,6 +1169,7 @@ const SalePrep: React.FC = () => {
                                     copiedField={copiedField}
                                     onCopy={copyToClipboard}
                                     required={true}
+                                    hasError={shouldShowFieldError('firstName')}
                                 />
                                 <InputWithCopy
                                     label="Last Name"
@@ -1132,12 +1181,14 @@ const SalePrep: React.FC = () => {
                                     copiedField={copiedField}
                                     onCopy={copyToClipboard}
                                     required={true}
+                                    hasError={shouldShowFieldError('lastName')}
                                 />
                                 
                                 {/* Address with autocomplete */}
                                 <div className="relative" ref={vehicleSearchRef}>
                                     <label className="block text-sm font-medium text-muted mb-1 uppercase tracking-wide">
                                         Address
+                                        <span className="text-red-500 ml-1">*</span>
                                     </label>
                                     <div className="relative">
                                         <input
@@ -1153,7 +1204,7 @@ const SalePrep: React.FC = () => {
                                                 }
                                             }}
                                             placeholder="Start typing address..."
-                                            className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors"
+                                            className={`w-full bg-glass-panel border ${shouldShowFieldError('address') ? 'border-red-500 text-red-400' : 'border-border-low'} focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors`}
                                         />
                                         {formData.address && (
                                             <button
@@ -1171,6 +1222,9 @@ const SalePrep: React.FC = () => {
                                             </button>
                                         )}
                                     </div>
+                                    {shouldShowFieldError('address') && (
+                                        <p className="text-red-500 text-xs mt-1">Please fill out this field</p>
+                                    )}
                                     {showAddressDropdown && addressPredictions.length > 0 && (
                                         <div className="absolute z-50 w-full mt-1 bg-[rgba(18,18,18,0.98)] border border-border-low rounded-md shadow-lg max-h-60 overflow-y-auto backdrop-blur-sm">
                                             {addressPredictions.map((prediction, idx) => (
@@ -1200,6 +1254,8 @@ const SalePrep: React.FC = () => {
                                     placeholder="City"
                                     copiedField={copiedField}
                                     onCopy={copyToClipboard}
+                                    required={true}
+                                    hasError={shouldShowFieldError('city')}
                                 />
                                 <InputWithCopy
                                     label="State"
@@ -1210,6 +1266,8 @@ const SalePrep: React.FC = () => {
                                     copiedField={copiedField}
                                     onCopy={copyToClipboard}
                                     className="uppercase"
+                                    required={true}
+                                    hasError={shouldShowFieldError('state')}
                                 />
                                 <InputWithCopy
                                     label="Zip"
@@ -1219,6 +1277,8 @@ const SalePrep: React.FC = () => {
                                     placeholder="Zip Code"
                                     copiedField={copiedField}
                                     onCopy={copyToClipboard}
+                                    required={true}
+                                    hasError={shouldShowFieldError('zip')}
                                 />
                                 <InputWithCopy
                                     label="County"
@@ -1229,6 +1289,8 @@ const SalePrep: React.FC = () => {
                                     placeholder="County"
                                     copiedField={copiedField}
                                     onCopy={copyToClipboard}
+                                    required={true}
+                                    hasError={shouldShowFieldError('county')}
                                 />
                                 <InputWithCopy
                                     label="Phone"
@@ -1239,6 +1301,8 @@ const SalePrep: React.FC = () => {
                                     placeholder="(555) 123-4567"
                                     copiedField={copiedField}
                                     onCopy={copyToClipboard}
+                                    required={true}
+                                    hasError={shouldShowFieldError('phone')}
                                 />
                                 <InputWithCopy
                                     label="DOB"
@@ -1249,6 +1313,8 @@ const SalePrep: React.FC = () => {
                                     placeholder="MM/DD/YYYY"
                                     copiedField={copiedField}
                                     onCopy={copyToClipboard}
+                                    required={true}
+                                    hasError={shouldShowFieldError('dob')}
                                 />
                                 <InputWithCopy
                                     label="DL #"
@@ -1316,6 +1382,7 @@ const SalePrep: React.FC = () => {
                                     <div className="space-y-1">
                                         <label className="block text-sm font-medium text-muted mb-1 uppercase tracking-wide">
                                             VIN
+                                            <span className="text-red-500 ml-1">*</span>
                                         </label>
                                         <div className="relative flex items-center gap-2">
                                             <input
@@ -1323,7 +1390,7 @@ const SalePrep: React.FC = () => {
                                                 value={formData.vin}
                                                 onChange={(e) => setFormData(prev => ({ ...prev, vin: e.target.value.toUpperCase() }))}
                                                 placeholder="Vehicle VIN"
-                                                className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors uppercase"
+                                                className={`w-full bg-glass-panel border ${shouldShowFieldError('vin') ? 'border-red-500 text-red-400' : 'border-border-low'} focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors uppercase`}
                                             />
                                             {formData.vin && (
                                                 <button
@@ -1341,17 +1408,21 @@ const SalePrep: React.FC = () => {
                                                 </button>
                                             )}
                                         </div>
+                                        {shouldShowFieldError('vin') && (
+                                            <p className="text-red-500 text-xs mt-1">Please fill out this field</p>
+                                        )}
                                     </div>
                                     
                                     {/* Body Style Dropdown */}
                                     <div className="space-y-1">
                                         <label className="block text-sm font-medium text-muted mb-1 uppercase tracking-wide">
                                             Body Style
+                                            <span className="text-red-500 ml-1">*</span>
                                         </label>
                                         <select
                                             value={formData.bodyStyle}
                                             onChange={(e) => setFormData(prev => ({ ...prev, bodyStyle: e.target.value }))}
-                                            className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors"
+                                            className={`w-full bg-glass-panel border ${shouldShowFieldError('bodyStyle') ? 'border-red-500 text-red-400' : 'border-border-low'} focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors`}
                                         >
                                             <option value="">Select Body Style</option>
                                             <option value="Convertible">Convertible</option>
@@ -1361,6 +1432,9 @@ const SalePrep: React.FC = () => {
                                             <option value="SUV">SUV</option>
                                             <option value="Pickup">Pickup</option>
                                         </select>
+                                        {shouldShowFieldError('bodyStyle') && (
+                                            <p className="text-red-500 text-xs mt-1">Please fill out this field</p>
+                                        )}
                                     </div>
                                     
                                     {/* Color Field */}
@@ -1373,6 +1447,8 @@ const SalePrep: React.FC = () => {
                                         placeholder="Vehicle Color"
                                         copiedField={copiedField}
                                         onCopy={copyToClipboard}
+                                        required={true}
+                                        hasError={shouldShowFieldError('color')}
                                     />
                                     
                                     <InputWithCopy
@@ -1389,6 +1465,7 @@ const SalePrep: React.FC = () => {
                                     <div className="space-y-1">
                                         <label className="block text-sm font-medium text-muted mb-1 uppercase tracking-wide">
                                             Stock Number
+                                            <span className="text-red-500 ml-1">*</span>
                                         </label>
                                         <div className="relative flex items-center gap-2">
                                             <input
@@ -1396,7 +1473,7 @@ const SalePrep: React.FC = () => {
                                                 value={formData.stockNumber}
                                                 onChange={(e) => setFormData(prev => ({ ...prev, stockNumber: e.target.value }))}
                                                 placeholder="Stock Number"
-                                                className="w-full bg-glass-panel border border-border-low focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors"
+                                                className={`w-full bg-glass-panel border ${shouldShowFieldError('stockNumber') ? 'border-red-500 text-red-400' : 'border-border-low'} focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors`}
                                             />
                                             <button
                                                 type="button"
@@ -1422,6 +1499,9 @@ const SalePrep: React.FC = () => {
                                                 </button>
                                             )}
                                         </div>
+                                        {shouldShowFieldError('stockNumber') && (
+                                            <p className="text-red-500 text-xs mt-1">Please fill out this field</p>
+                                        )}
                                     </div>
                                     
                                     <InputWithCopy
@@ -1432,6 +1512,8 @@ const SalePrep: React.FC = () => {
                                         placeholder="Last 4 digits"
                                         copiedField={copiedField}
                                         onCopy={copyToClipboard}
+                                        required={true}
+                                        hasError={shouldShowFieldError('vinLast4')}
                                     />
                                     
                                     <InputWithCopy
@@ -1443,6 +1525,7 @@ const SalePrep: React.FC = () => {
                                         copiedField={copiedField}
                                         onCopy={copyToClipboard}
                                         required={true}
+                                        hasError={shouldShowFieldError('miles')}
                                     />
                                 </div>
                             </LiquidContainer>

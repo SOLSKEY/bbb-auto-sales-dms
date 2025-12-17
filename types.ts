@@ -56,6 +56,7 @@ export interface Vehicle {
   vin: string;
   images: string[];
   binNumber?: number | null;
+  gps?: string;
 }
 
 
