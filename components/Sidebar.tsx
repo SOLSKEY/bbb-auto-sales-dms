@@ -46,7 +46,7 @@ const BbbLogo = () => (
         <img
             src="/bbb-logo.png"
             alt="BBB Auto Sales"
-            className="w-40 object-contain drop-shadow-lg"
+            className="w-full object-contain drop-shadow-lg"
         />
     </div>
 );
