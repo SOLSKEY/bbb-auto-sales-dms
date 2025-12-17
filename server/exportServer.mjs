@@ -282,7 +282,44 @@ app.post('/api/export-sales-report', async (req, res) => {
           return hasValidPaths || hasValidRects || areas.length > 0;
         });
         
-        return hasChartContent;
+        // Additionally, wait for LabelList text elements if they exist
+        // This ensures numbers on step area charts are rendered
+        const allSvgs = document.querySelectorAll('svg');
+        let hasLabelListRendered = true; // Default to true if no LabelList expected
+        for (const svg of allSvgs) {
+          // Check if this chart has LabelList (text elements with content)
+          const textElements = svg.querySelectorAll('text');
+          const labelTexts = Array.from(textElements).filter(text => {
+            const textContent = text.textContent || '';
+            const hasContent = textContent.trim().length > 0;
+            const hasPosition = text.hasAttribute('x') && text.hasAttribute('y');
+            // Check if it's a number (LabelList typically shows numeric values)
+            const isNumeric = /^\d+([.,]\d+)?$/.test(textContent.trim().replace(/[$,]/g, ''));
+            return hasContent && hasPosition && isNumeric;
+          });
+          
+          // If we found text elements that look like LabelList, ensure they're rendered
+          if (labelTexts.length > 0) {
+            // Check if at least some LabelList texts are visible and positioned
+            const visibleLabelTexts = labelTexts.filter(text => {
+              const style = window.getComputedStyle(text);
+              const rect = text.getBoundingClientRect();
+              return style.display !== 'none' && 
+                     style.visibility !== 'hidden' && 
+                     style.opacity !== '0' &&
+                     rect.width > 0 && 
+                     rect.height > 0;
+            });
+            
+            // If we have LabelList elements but none are visible yet, wait
+            if (visibleLabelTexts.length === 0) {
+              hasLabelListRendered = false;
+              break;
+            }
+          }
+        }
+        
+        return hasChartContent && hasLabelListRendered;
       }, { timeout: 15000 });
       console.log('✅ Recharts charts detected with data');
     } catch (error) {
@@ -292,7 +329,7 @@ app.post('/api/export-sales-report', async (req, res) => {
     // Wait for any Recharts animations to complete (default animation duration is ~1000ms)
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // Additional wait to ensure all charts are fully painted and stable
+    // Additional wait to ensure all charts are fully painted and stable, including LabelList
     await new Promise(resolve => setTimeout(resolve, 3000));
     console.log('✅ Chart rendering complete');
 
@@ -743,7 +780,44 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
           return hasValidPaths || hasValidRects || areas.length > 0;
         });
         
-        return hasChartContent;
+        // Additionally, wait for LabelList text elements if they exist
+        // This ensures numbers on step area charts are rendered
+        const allSvgs = document.querySelectorAll('svg');
+        let hasLabelListRendered = true; // Default to true if no LabelList expected
+        for (const svg of allSvgs) {
+          // Check if this chart has LabelList (text elements with content)
+          const textElements = svg.querySelectorAll('text');
+          const labelTexts = Array.from(textElements).filter(text => {
+            const textContent = text.textContent || '';
+            const hasContent = textContent.trim().length > 0;
+            const hasPosition = text.hasAttribute('x') && text.hasAttribute('y');
+            // Check if it's a number (LabelList typically shows numeric values)
+            const isNumeric = /^\d+([.,]\d+)?$/.test(textContent.trim().replace(/[$,]/g, ''));
+            return hasContent && hasPosition && isNumeric;
+          });
+          
+          // If we found text elements that look like LabelList, ensure they're rendered
+          if (labelTexts.length > 0) {
+            // Check if at least some LabelList texts are visible and positioned
+            const visibleLabelTexts = labelTexts.filter(text => {
+              const style = window.getComputedStyle(text);
+              const rect = text.getBoundingClientRect();
+              return style.display !== 'none' && 
+                     style.visibility !== 'hidden' && 
+                     style.opacity !== '0' &&
+                     rect.width > 0 && 
+                     rect.height > 0;
+            });
+            
+            // If we have LabelList elements but none are visible yet, wait
+            if (visibleLabelTexts.length === 0) {
+              hasLabelListRendered = false;
+              break;
+            }
+          }
+        }
+        
+        return hasChartContent && hasLabelListRendered;
       }, { timeout: 15000 });
       console.log('✅ Recharts charts detected with data');
     } catch (error) {
@@ -753,7 +827,7 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
     // Wait for any Recharts animations to complete (default animation duration is ~1000ms)
     await new Promise(resolve => setTimeout(resolve, 2000));
     
-    // Additional wait to ensure all charts are fully painted and stable
+    // Additional wait to ensure all charts are fully painted and stable, including LabelList
     await new Promise(resolve => setTimeout(resolve, 3000));
     console.log('✅ Chart rendering complete');
 

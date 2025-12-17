@@ -246,9 +246,95 @@ app.post('/api/export-sales-report', async (req, res) => {
     await page.waitForSelector(selector, { timeout: 10000 });
     console.log('✅ Container found');
 
-    // Give charts time to render
+    // Wait for Recharts charts to fully render, including LabelList text elements
+    console.log('📊 Waiting for Recharts to fully render...');
+    try {
+      await page.waitForFunction(() => {
+        const containers = document.querySelectorAll('.recharts-responsive-container');
+        if (containers.length === 0) return false;
+        
+        // Check that containers have actual width/height
+        const hasDimensions = Array.from(containers).every(container => {
+          const rect = container.getBoundingClientRect();
+          return rect.width > 0 && rect.height > 0;
+        });
+        
+        if (!hasDimensions) return false;
+        
+        // Check for actual chart content - Recharts renders paths, lines, and rects
+        const svgElements = document.querySelectorAll('svg');
+        if (svgElements.length === 0) return false;
+        
+        // Check for chart-specific elements with actual data
+        const hasChartContent = Array.from(svgElements).some(svg => {
+          const paths = svg.querySelectorAll('path[d]');
+          const rects = svg.querySelectorAll('rect[width][height]');
+          const areas = svg.querySelectorAll('path.recharts-area-curve');
+          
+          const hasValidPaths = Array.from(paths).some(path => {
+            const d = path.getAttribute('d');
+            return d && d.length > 10;
+          });
+          
+          const hasValidRects = Array.from(rects).some(rect => {
+            const width = parseFloat(rect.getAttribute('width') || '0');
+            const height = parseFloat(rect.getAttribute('height') || '0');
+            return width > 0 && height > 0;
+          });
+          
+          return hasValidPaths || hasValidRects || areas.length > 0;
+        });
+        
+        // Additionally, wait for LabelList text elements if they exist
+        // This ensures numbers on step area charts are rendered
+        const allSvgs = document.querySelectorAll('svg');
+        let hasLabelListRendered = true; // Default to true if no LabelList expected
+        for (const svg of allSvgs) {
+          // Check if this chart has LabelList (text elements with content)
+          const textElements = svg.querySelectorAll('text');
+          const labelTexts = Array.from(textElements).filter(text => {
+            const textContent = text.textContent || '';
+            const hasContent = textContent.trim().length > 0;
+            const hasPosition = text.hasAttribute('x') && text.hasAttribute('y');
+            // Check if it's a number (LabelList typically shows numeric values)
+            const isNumeric = /^\d+([.,]\d+)?$/.test(textContent.trim().replace(/[$,]/g, ''));
+            return hasContent && hasPosition && isNumeric;
+          });
+          
+          // If we found text elements that look like LabelList, ensure they're rendered
+          if (labelTexts.length > 0) {
+            // Check if at least some LabelList texts are visible and positioned
+            const visibleLabelTexts = labelTexts.filter(text => {
+              const style = window.getComputedStyle(text);
+              const rect = text.getBoundingClientRect();
+              return style.display !== 'none' && 
+                     style.visibility !== 'hidden' && 
+                     style.opacity !== '0' &&
+                     rect.width > 0 && 
+                     rect.height > 0;
+            });
+            
+            // If we have LabelList elements but none are visible yet, wait
+            if (visibleLabelTexts.length === 0) {
+              hasLabelListRendered = false;
+              break;
+            }
+          }
+        }
+        
+        return hasChartContent && hasLabelListRendered;
+      }, { timeout: 15000 });
+      console.log('✅ Recharts charts detected with data');
+    } catch (error) {
+      console.log('⚠️ Chart detection timeout, continuing anyway...');
+    }
+    
+    // Wait for any Recharts animations to complete (default animation duration is ~1000ms)
     await new Promise(resolve => setTimeout(resolve, 2000));
-    console.log('✅ Waited for charts to render');
+    
+    // Additional wait to ensure all charts are fully painted and stable, including LabelList
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    console.log('✅ Chart rendering complete');
 
     console.log('📷 Taking screenshot...');
 
