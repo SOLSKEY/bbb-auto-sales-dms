@@ -337,11 +337,12 @@ app.post('/api/export-sales-report', async (req, res) => {
     }
     
     // Wait for any Recharts animations to complete (default animation duration is ~1000ms)
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    // We wait 4s to ensure all animations are fully finished and stabilized
+    await new Promise(resolve => setTimeout(resolve, 4000));
     
-    // Additional wait to ensure all charts are fully painted and stable, including LabelList
-    await new Promise(resolve => setTimeout(resolve, 3000));
-    console.log('✅ Chart rendering complete');
+    // Additional wait for stability
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    console.log('✅ Chart rendering and animations complete');
 
     console.log('📷 Taking screenshot...');
 
@@ -411,7 +412,7 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
       filename: 'Sales_Report.pdf'
     },
     collections: {
-      targetUrl: `${APP_URL}/collections?printView=true`,
+      targetUrl: `${APP_URL}/collections`,
       selector: '#collections-analytics-export',
       filename: 'Collections_Report.pdf'
     },

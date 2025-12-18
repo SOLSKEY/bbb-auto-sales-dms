@@ -392,7 +392,6 @@ const CollectionsWeeklyDelinquencyChart: React.FC<CollectionsWeeklyDelinquencyCh
                                 radius={[4, 4, 0, 0]}
                                 stroke={gradient.from}
                                 strokeWidth={1}
-                                isAnimationActive={!isPrintView}
                             />
                         );
                     })}
