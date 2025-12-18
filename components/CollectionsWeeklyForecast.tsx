@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { usePrintView } from '../hooks/usePrintView';
 import type { DailyCollectionSummary } from '../types';
 import {
     ResponsiveContainer,
@@ -129,6 +130,7 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
     today = new Date(),
     compact = false,
 }) => {
+    const { isPrintView } = usePrintView();
     const [selectedWeekKey, setSelectedWeekKey] = useState<string | null>(null);
 
     useEffect(() => {
@@ -644,6 +646,7 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
                             strokeWidth={2}
                             fill="rgba(209, 213, 219, 0.35)"
                             activeDot={{ r: 5 }}
+                            isAnimationActive={!isPrintView}
                         />
                         <Bar
                             dataKey="actual"
@@ -653,6 +656,7 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
                             radius={[4, 4, 0, 0]}
                             stroke={actualBarGradient.from}
                             strokeWidth={1}
+                            isAnimationActive={!isPrintView}
                         />
                     </ComposedChart>
                 </ResponsiveContainer>

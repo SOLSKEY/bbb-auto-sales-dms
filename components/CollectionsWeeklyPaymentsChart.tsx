@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { usePrintView } from '../hooks/usePrintView';
 import type { DailyCollectionSummary } from '../types';
 import {
     ResponsiveContainer,
@@ -54,6 +55,7 @@ interface CollectionsWeeklyPaymentsChartProps {
 }
 
 const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartProps> = ({ payments }) => {
+    const { isPrintView } = usePrintView();
     const { chartData, years, lineKeys, defaultVisibleYears, xTicks } = useMemo(() => {
         if (!payments || payments.length === 0) {
             return {
@@ -433,6 +435,7 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
                                     strokeWidth: 2,
                                 }}
                                 connectNulls
+                                isAnimationActive={!isPrintView}
                             />
                         );
                     })}

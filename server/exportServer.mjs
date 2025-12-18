@@ -258,18 +258,21 @@ app.post('/api/export-sales-report', async (req, res) => {
         if (svgElements.length === 0) return false;
         
         // Check for chart-specific elements with actual data
-        const hasChartContent = Array.from(svgElements).some(svg => {
+        // For Collections, we want to ensure ALL charts that have data are rendered
+        const hasChartContent = Array.from(svgElements).every(svg => {
           // Check for line charts (paths with d attribute)
           const paths = svg.querySelectorAll('path[d]');
           // Check for bar charts (rects with width/height)
           const rects = svg.querySelectorAll('rect[width][height]');
           // Check for area charts (paths)
           const areas = svg.querySelectorAll('path.recharts-area-curve');
+          // Check for pie charts (path.recharts-pie-sector)
+          const sectors = svg.querySelectorAll('path.recharts-pie-sector');
           
           // Ensure paths have actual path data (not empty)
           const hasValidPaths = Array.from(paths).some(path => {
             const d = path.getAttribute('d');
-            return d && d.length > 10; // Path data should be substantial
+            return d && d.length > 20; // Path data should be substantial
           });
           
           // Ensure rects have actual dimensions
@@ -278,8 +281,14 @@ app.post('/api/export-sales-report', async (req, res) => {
             const height = parseFloat(rect.getAttribute('height') || '0');
             return width > 0 && height > 0;
           });
+
+          // Ensure sectors have path data
+          const hasValidSectors = Array.from(sectors).some(sector => {
+            const d = sector.getAttribute('d');
+            return d && d.length > 20;
+          });
           
-          return hasValidPaths || hasValidRects || areas.length > 0;
+          return hasValidPaths || hasValidRects || areas.length > 0 || hasValidSectors;
         });
         
         // Additionally, wait for LabelList text elements if they exist
@@ -396,7 +405,7 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
       filename: 'Sales_Report.pdf'
     },
     collections: {
-      targetUrl: `${APP_URL}/collections`,
+      targetUrl: `${APP_URL}/collections?printView=true`,
       selector: '#collections-analytics-export',
       filename: 'Collections_Report.pdf'
     },
@@ -756,18 +765,21 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
         if (svgElements.length === 0) return false;
         
         // Check for chart-specific elements with actual data
-        const hasChartContent = Array.from(svgElements).some(svg => {
+        // For Collections, we want to ensure ALL charts that have data are rendered
+        const hasChartContent = Array.from(svgElements).every(svg => {
           // Check for line charts (paths with d attribute)
           const paths = svg.querySelectorAll('path[d]');
           // Check for bar charts (rects with width/height)
           const rects = svg.querySelectorAll('rect[width][height]');
           // Check for area charts (paths)
           const areas = svg.querySelectorAll('path.recharts-area-curve');
+          // Check for pie charts (path.recharts-pie-sector)
+          const sectors = svg.querySelectorAll('path.recharts-pie-sector');
           
           // Ensure paths have actual path data (not empty)
           const hasValidPaths = Array.from(paths).some(path => {
             const d = path.getAttribute('d');
-            return d && d.length > 10; // Path data should be substantial
+            return d && d.length > 20; // Path data should be substantial
           });
           
           // Ensure rects have actual dimensions
@@ -776,8 +788,14 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
             const height = parseFloat(rect.getAttribute('height') || '0');
             return width > 0 && height > 0;
           });
+
+          // Ensure sectors have path data
+          const hasValidSectors = Array.from(sectors).some(sector => {
+            const d = sector.getAttribute('d');
+            return d && d.length > 20;
+          });
           
-          return hasValidPaths || hasValidRects || areas.length > 0;
+          return hasValidPaths || hasValidRects || areas.length > 0 || hasValidSectors;
         });
         
         // Additionally, wait for LabelList text elements if they exist

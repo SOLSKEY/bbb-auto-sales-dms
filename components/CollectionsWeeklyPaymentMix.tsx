@@ -1,4 +1,5 @@
 import React from 'react';
+import { usePrintView } from '../hooks/usePrintView';
 import { LiquidContainer } from '@/components/ui/liquid-container';
 import {
     ResponsiveContainer,
@@ -24,6 +25,7 @@ const formatPercent = (value: number) =>
     `${value.toLocaleString(undefined, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}%`;
 
 const CollectionsWeeklyPaymentMix: React.FC<CollectionsWeeklyPaymentMixProps> = ({ data, total, compact = false }) => {
+    const { isPrintView } = usePrintView();
     // Cyan blue gradient for Cash, Hot pink gradient for BOA
     const gradients = data.map((entry, index) => {
         const isCash = entry.label.toLowerCase() === 'cash';
@@ -79,7 +81,7 @@ const CollectionsWeeklyPaymentMix: React.FC<CollectionsWeeklyPaymentMixProps> = 
                                 paddingAngle={2}
                                 stroke="rgba(255, 255, 255, 0.1)"
                                 strokeWidth={1}
-                                isAnimationActive
+                                isAnimationActive={!isPrintView}
                             >
                                 {data.map((entry, index) => {
                                     const gradient = gradients[index];

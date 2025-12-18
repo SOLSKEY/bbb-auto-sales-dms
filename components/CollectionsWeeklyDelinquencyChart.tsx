@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
+import { usePrintView } from '../hooks/usePrintView';
 import {
     ResponsiveContainer,
     BarChart,
@@ -49,6 +50,7 @@ const formatPercent = (value: number) =>
     `${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}%`;
 
 const CollectionsWeeklyDelinquencyChart: React.FC<CollectionsWeeklyDelinquencyChartProps> = ({ delinquency }) => {
+    const { isPrintView } = usePrintView();
     const { chartData, years, barKeys, defaultVisibleYears, xTicks, yDomainMax, yTicks } = useMemo(() => {
         if (!delinquency || delinquency.length === 0) {
             return {
@@ -390,6 +392,7 @@ const CollectionsWeeklyDelinquencyChart: React.FC<CollectionsWeeklyDelinquencyCh
                                 radius={[4, 4, 0, 0]}
                                 stroke={gradient.from}
                                 strokeWidth={1}
+                                isAnimationActive={!isPrintView}
                             />
                         );
                     })}

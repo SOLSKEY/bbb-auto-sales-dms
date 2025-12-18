@@ -7,7 +7,7 @@ app.use(cors());
 
 app.use(express.json({ limit: '50mb' }));
 
-const DEFAULT_TARGET_PATH = '/?page=Collections&pdf=collections';
+const DEFAULT_TARGET_PATH = '/?page=Collections&pdf=collections&printView=true';
 
 app.get('/api/export/collections', async (req, res) => {
     const target = req.query.target ? String(req.query.target) : null;
