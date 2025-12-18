@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="mobile-web-app-capable" content="yes">
     <title>BBB Auto Sales DMS</title>
     <link rel="icon" type="image/png" href="/bbb-logo.png" />
-    <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -165,76 +165,9 @@
         display: none !important;
       }
     </style>
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            colors: {
-              // Legacy compatibility (keeping for existing code)
-              'gunmetal-dark': '#0a0a0a',
-              'gunmetal': 'rgba(18, 18, 18, 0.6)',
-              'gunmetal-light': 'rgba(255, 255, 255, 0.08)',
-              'accent-red': '#FF312E',
-              'accent-orange': '#FF5A1F',
-              // New premium palette
-              'bg-base': '#0a0a0a',
-              'glass-panel': 'rgba(18, 18, 18, 0.6)',
-              'glass-input': 'rgba(30, 30, 35, 0.8)',
-              'text-primary': '#FFFFFF',
-              'text-secondary': '#C6C6C6',
-              'text-muted': '#FFFFFF',
-              'placeholder': '#B8B8B8',
-              'lava-core': '#FF312E',
-              'lava-warm': '#FF5A1F',
-              'lava-cool': '#C82025',
-              'border-low': 'rgba(255, 255, 255, 0.08)',
-              'border-high': 'rgba(255, 255, 255, 0.12)',
-            },
-            fontFamily: {
-              sans: ['Inter Tight', '-apple-system', 'sans-serif'],
-              orbitron: ['Inter Tight', 'sans-serif'],
-            },
-            letterSpacing: {
-              'tight-lg': '-0.02em',
-              'tight-md': '-0.005em',
-            },
-            borderRadius: {
-              'card': '16px',
-              'panel': '22px',
-            },
-            boxShadow: {
-              'glass': '0 8px 32px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.05)',
-              'lava': '0 4px 16px rgba(255, 49, 46, 0.3)',
-            },
-            backdropBlur: {
-              'glass': '40px',
-            },
-          }
-        }
-      }
-    </script>
-  <script type="importmap">
-{
-  "imports": {
-    "react/": "https://aistudiocdn.com/react@^19.2.0/",
-    "react": "https://aistudiocdn.com/react@^19.2.0",
-    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.27.0",
-    "react-dom/": "https://aistudiocdn.com/react-dom@^19.2.0/",
-    "recharts": "https://aistudiocdn.com/recharts@^3.3.0",
-    "@heroicons/react/": "https://aistudiocdn.com/@heroicons/react@^2.2.0/",
-    "@fullcalendar/core/": "https://aistudiocdn.com/@fullcalendar/core@^6.1.15/",
-    "@fullcalendar/react": "https://aistudiocdn.com/@fullcalendar/react@^6.1.15",
-    "@fullcalendar/daygrid": "https://aistudiocdn.com/@fullcalendar/daygrid@^6.1.15",
-    "@fullcalendar/timegrid": "https://aistudiocdn.com/@fullcalendar/timegrid@^6.1.15",
-    "@fullcalendar/list": "https://aistudiocdn.com/@fullcalendar/list@^6.1.15",
-    "@fullcalendar/interaction": "https://aistudiocdn.com/@fullcalendar/interaction@^6.1.15",
-    "@fullcalendar/core": "https://aistudiocdn.com/@fullcalendar/core@^6.1.19"
-  }
-}
-</script>
-<link rel="stylesheet" href="/index.css">
-<script type="text/javascript" src="/fsapi.js"></script>
-</head>
+    <link rel="stylesheet" href="/index.css">
+    <script type="text/javascript" src="/fsapi.js"></script>
+  </head>
   <body class="bg-bg-base">
     <div id="root"></div>
     <script type="module" src="/index.tsx"></script>
