@@ -4,24 +4,18 @@ import * as React from "react"
 import { cn } from "@/lib/utils"
 
 // 1. Helper function to generate the complex shadow string
-const createShadow = (r: number, g: number, b: number) => {
-    const color = `${r},${g},${b}`
-    return `shadow-[0_0_6px_rgba(0,0,0,0.03),0_2px_6px_rgba(0,0,0,0.08),inset_3px_3px_0.5px_-3px_rgba(0,0,0,0.9),inset_-3px_-3px_0.5px_-3px_rgba(0,0,0,0.85),inset_1px_1px_1px_-0.5px_rgba(0,0,0,0.6),inset_-1px_-1px_1px_-0.5px_rgba(0,0,0,0.6),inset_0_0_6px_6px_rgba(0,0,0,0.12),inset_0_0_2px_2px_rgba(0,0,0,0.06),0_0_12px_rgba(${color},0.15)] dark:shadow-[0_0_8px_rgba(0,0,0,0.03),0_2px_6px_rgba(0,0,0,0.08),inset_3px_3px_0.5px_-3.5px_rgba(${color},0.09),inset_-3px_-3px_0.5px_-3.5px_rgba(${color},0.85),inset_1px_1px_1px_-0.5px_rgba(${color},0.6),inset_-1px_-1px_1px_-0.5px_rgba(${color},0.6),inset_0_0_6px_6px_rgba(${color},0.12),inset_0_0_2px_2px_rgba(${color},0.06),0_0_12px_rgba(0,0,0,0.15)]`
+const containerVariants = {
+    "cyan-blue": { r: 6, g: 182, b: 212 }, // Cyan-500
+    white: { r: 255, g: 255, b: 255 }, // Pure White
+    "neon-pink": { r: 236, g: 72, b: 153 }, // Pink-500
+    "neon-green": { r: 34, g: 197, b: 94 }, // Green-500
+    "neon-orange": { r: 249, g: 115, b: 22 }, // Orange-500
+    "neon-red": { r: 239, g: 68, b: 68 }, // Red-500
+    "neon-purple": { r: 168, g: 85, b: 247 }, // Purple-500
+    yellow: { r: 234, g: 179, b: 8 }, // Yellow-500
 }
 
-// 2. Define all the variants
-const containerShadows = {
-    "cyan-blue": createShadow(6, 182, 212), // Cyan-500
-    white: createShadow(255, 255, 255), // Pure White
-    "neon-pink": createShadow(236, 72, 153), // Pink-500
-    "neon-green": createShadow(34, 197, 94), // Green-500
-    "neon-orange": createShadow(249, 115, 22), // Orange-500
-    "neon-red": createShadow(239, 68, 68), // Red-500
-    "neon-purple": createShadow(168, 85, 247), // Purple-500
-    yellow: createShadow(234, 179, 8), // Yellow-500
-}
-
-type LiquidColorVariant = keyof typeof containerShadows
+type LiquidColorVariant = keyof typeof containerVariants
 
 interface LiquidContainerProps extends React.HTMLAttributes<HTMLDivElement> {
     variant?: LiquidColorVariant
@@ -33,35 +27,54 @@ export function LiquidContainer({
     className,
     variant = "cyan-blue", // Default
     disableBackdropFilter = false,
+    style,
     ...props
 }: LiquidContainerProps) {
+    const colors = containerVariants[variant] || containerVariants["cyan-blue"];
+    const colorStr = `${colors.r}, ${colors.g}, ${colors.b}`;
+
+    // Generate the shadow string manually to ensure it matches the "CDN" look exactly
+    // but without the outer glow in dark mode as requested.
+    const shadowStyle = {
+        boxShadow: `
+            0 0 6px rgba(0,0,0,0.03),
+            0 2px 6px rgba(0,0,0,0.08),
+            inset 3px 3px 0.5px -3.5px rgba(${colorStr}, 0.15),
+            inset -3px -3px 0.5px -3.5px rgba(${colorStr}, 0.85),
+            inset 1px 1px 1px -0.5px rgba(${colorStr}, 0.6),
+            inset -1px -1px 1px -0.5px rgba(${colorStr}, 0.6),
+            inset 0 0 6px 6px rgba(${colorStr}, 0.12),
+            inset 0 0 2px 2px rgba(${colorStr}, 0.06),
+            0 0 12px rgba(0,0,0,0.15)
+        `.replace(/\s+/g, ' ').trim(),
+        border: `1px solid rgba(${colorStr}, 0.4)`, // Colored outline
+        backgroundColor: 'rgba(0, 0, 0, 0.2)', // Glass transparency
+        ...style
+    };
+
     return (
         <div
-            className={cn("relative", disableBackdropFilter ? "" : "isolate", className)}
+            className={cn("relative rounded-2xl transition-all duration-500", disableBackdropFilter ? "" : "isolate", className)}
+            style={shadowStyle}
             {...props}
         >
-            {/* 1. The Liquid/Shadow Layer */}
-            <div
-                className={cn(
-                    "absolute inset-0 -z-10 rounded-2xl transition-all duration-500 pointer-events-none",
-                    containerShadows[variant]
-                )}
-            />
-
-            {/* 2. The Glass Distortion Layer */}
+            {/* 1. The Glass Distortion Layer */}
             {!disableBackdropFilter && (
                 <div
                     className="absolute inset-0 -z-20 overflow-hidden rounded-2xl pointer-events-none"
-                    style={{ backdropFilter: 'url("#container-glass")' }}
+                    style={{ 
+                        backdropFilter: 'blur(10px) url("#container-glass")',
+                        WebkitBackdropFilter: 'blur(10px) url("#container-glass")'
+                    }}
                 />
             )}
 
-            {/* 3. The Content Area */}
+            {/* 2. The Content Area */}
             <div className="relative z-10 h-full w-full" style={{ overflow: 'visible' }}>
                 {children}
             </div>
 
-            {/* 4. The Filter Definition (Hidden, required for effect) */}
+            {/* 3. The Filter Definition (Hidden, required for effect) */}
             {!disableBackdropFilter && <GlassFilter />}
         </div>
     )
