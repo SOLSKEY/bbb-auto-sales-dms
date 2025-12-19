@@ -445,13 +445,15 @@ const InventoryTextOutWidget: React.FC = () => {
             {/* Popover - Positioned below header */}
             {isOpen && (
                 <div 
-                    className="absolute top-full right-0 mt-2 z-[9999] max-h-[70vh] flex flex-col glass-card-accent"
+                    className="absolute top-full right-0 mt-2 z-[9999] max-h-[calc(100vh-160px)] flex flex-col glass-card-accent !absolute !top-full !bottom-auto"
                     style={{
                         width: '18.2rem',
                         borderRadius: '16px',
                         background: 'linear-gradient(180deg, rgba(10, 10, 15, 0.98) 0%, rgba(5, 5, 10, 0.99) 100%)',
                         backdropFilter: 'blur(20px)',
                         WebkitBackdropFilter: 'blur(20px)',
+                        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.2)',
+                        border: '1px solid rgba(6, 182, 212, 0.3)',
                     }}
                 >
                     {/* Header */}
