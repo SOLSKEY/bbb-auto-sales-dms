@@ -5,6 +5,7 @@ import {
   WrenchScrewdriverIcon,
   ChartBarIcon,
   TableCellsIcon,
+  CalendarDaysIcon,
   Cog6ToothIcon,
   UserCircleIcon,
   ShieldCheckIcon,
@@ -30,6 +31,7 @@ interface MenuItem {
 const menuItems: MenuItem[] = [
   { id: 'dashboard', label: 'Dashboard', icon: HomeIcon, path: '/dashboard' },
   { id: 'sale-prep', label: 'Sale Prep', icon: WrenchScrewdriverIcon, path: '/sale-prep' },
+  { id: 'appointments-leads', label: 'Appointments & Leads', icon: CalendarDaysIcon, path: '/appointments-leads' },
   { id: 'reports', label: 'Reports', icon: ChartBarIcon, path: '/reports', adminOnly: true },
   { id: 'data', label: 'Data', icon: TableCellsIcon, path: '/data', adminOnly: true },
   { id: 'settings', label: 'Settings', icon: Cog6ToothIcon, path: '/settings' },

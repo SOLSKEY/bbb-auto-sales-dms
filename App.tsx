@@ -22,6 +22,7 @@ const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 const AdminUserPermissions = lazy(() => import('./pages/AdminUserPermissions'));
 const AccountSettings = lazy(() => import('./pages/AccountSettings'));
 const PrintDailyClosing = lazy(() => import('./pages/PrintDailyClosing'));
+const AppointmentsLeads = lazy(() => import('./pages/AppointmentsLeads'));
 import type { User, Role, Vehicle, Sale, UserAccount, UserAccessPolicy, AppSectionKey } from './types';
 import Header from './components/Header';
 import { supabase } from './supabaseClient';
@@ -41,6 +42,7 @@ const APP_PAGES: AppSectionKey[] = [
     'Reports',
     'Data',
     'Calendar',
+    'Appointments & Leads',
     'Team Chat',
     'CRM',
     'Settings',
@@ -90,6 +92,7 @@ const PATH_TITLE_MAP: Record<string, string> = {
     '/reports': 'Reports',
     '/data': 'Data',
     '/calendar': 'Calendar',
+    '/appointments-leads': 'Appointments & Leads',
     '/team-chat': 'Team Chat',
     '/messaging': 'Messaging',
     '/dashboard/crm': 'CRM',
@@ -555,6 +558,7 @@ const App: React.FC = () => {
         '/reports': 'Reports',
         '/data': 'Data',
         '/calendar': 'Calendar',
+        '/appointments-leads': 'Appointments & Leads',
         '/team-chat': 'Team Chat',
         '/settings': 'Settings',
     };
@@ -685,6 +689,9 @@ const App: React.FC = () => {
             } />
             <Route path="/calendar" element={
                 !permissionsLoading && !canViewPage('Calendar') ? NotAuthorized : <Calendar />
+            } />
+            <Route path="/appointments-leads" element={
+                !permissionsLoading && !canViewPage('Appointments & Leads') ? NotAuthorized : <AppointmentsLeads />
             } />
             {/* Disabled pages - redirect to dashboard */}
             <Route path="/team-chat" element={<Navigate to="/dashboard" replace />} />

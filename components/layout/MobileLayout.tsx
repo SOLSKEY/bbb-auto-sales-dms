@@ -19,6 +19,7 @@ const PATH_TITLE_MAP: Record<string, string> = {
   '/reports': 'Reports',
   '/data': 'Data',
   '/calendar': 'Calendar',
+  '/appointments-leads': 'Appointments & Leads',
   '/team-chat': 'Team Chat',
   '/messaging': 'Messaging',
   '/dashboard/crm': 'CRM',

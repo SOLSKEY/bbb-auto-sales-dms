@@ -16,6 +16,7 @@ export type AppSectionKey =
   | 'Reports'
   | 'Data'
   | 'Calendar'
+  | 'Appointments & Leads'
   | 'Team Chat'
   | 'CRM'
   | 'Settings';
@@ -228,4 +229,87 @@ export interface LoggedReport<T = any> {
     loggedAt: string;
     reportDate: string;
     data: T;
+}
+
+// --- Appointments & Leads Types ---
+
+export type AppointmentStatus = 'scheduled' | 'confirmed' | 'showed' | 'sold' | 'no_show' | 'cancelled';
+
+export interface CalendarAppointment {
+    id: string;
+    user_id: string;
+    title: string | null;
+    customer_name: string | null;
+    customer_phone: string | null;
+    lead_source: string | null;
+    appointment_time: string; // ISO timestamp
+    down_payment_budget: number | null;
+    notes: string | null;
+    status: AppointmentStatus;
+    vehicle_ids: string[] | null; // UUIDs of inventory items
+    model_interests: string[] | null; // e.g., ['Chrysler 300', 'Camaro']
+    created_at: string;
+    updated_at: string;
+}
+
+export type FollowUpMethod = 'call' | 'text' | 'email' | 'in_person';
+export type FollowUpOutcome = 'no_answer' | 'spoke_not_ready' | 'spoke_interested' | 'scheduled_appointment' | 'not_interested';
+
+export interface FollowUpLog {
+    date: string; // ISO date
+    method: FollowUpMethod;
+    outcome: FollowUpOutcome;
+    notes: string;
+}
+
+export type ArchiveReason = 'no_show' | 'cancelled' | 'vehicle_sold' | 'not_ready';
+
+export interface CalendarLead {
+    id: string;
+    user_id: string;
+    customer_name: string | null;
+    customer_phone: string | null;
+    lead_source: string | null;
+    down_payment_budget: number | null;
+    notes: string | null;
+    model_interests: string[] | null;
+    potential_date: string | null; // ISO date
+    was_appointment: boolean;
+    original_appointment_id: string | null;
+    original_appointment_date: string | null; // ISO timestamp
+    archive_reason: ArchiveReason | null;
+    follow_ups: FollowUpLog[];
+    created_at: string;
+    updated_at: string;
+}
+
+export interface UserColor {
+    user_id: string;
+    color: string; // Hex color code
+    assigned_by: 'auto' | 'admin';
+    updated_at: string;
+}
+
+// User color palette for auto-assignment
+export const USER_COLOR_PALETTE = [
+    { name: 'Amber', hex: '#f59e0b', r: 245, g: 158, b: 11 },
+    { name: 'Emerald', hex: '#10b981', r: 16, g: 185, b: 129 },
+    { name: 'Violet', hex: '#8b5cf6', r: 139, g: 92, b: 246 },
+    { name: 'Pink', hex: '#ec4899', r: 236, g: 72, b: 153 },
+    { name: 'Cyan', hex: '#06b6d4', r: 6, g: 182, b: 212 },
+    { name: 'Orange', hex: '#f97316', r: 249, g: 115, b: 22 },
+] as const;
+
+// Appointment notification types
+export type AppointmentReminderType = 'day_before' | 'day_of' | 'one_hour_before';
+
+export interface AppointmentNotification {
+    id: string;
+    appointmentId: string;
+    appointmentTitle: string;
+    customer: string;
+    appointmentTime: string;
+    reminderType: AppointmentReminderType;
+    createdAt: string;
+    read: boolean;
 }
