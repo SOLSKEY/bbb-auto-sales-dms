@@ -31,17 +31,33 @@ const SALES_PAGE_URL = `${APP_URL}/sales`;
 const LOGIN_PAGE_URL = `${APP_URL}/login`;
 
 // Configure CORS to allow requests from your production domain
+const allowedOrigins = [
+  'https://bbbhq.app',
+  'http://localhost:3000',
+  'http://localhost:5173',
+  process.env.APP_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: [
-    'https://bbbhq.app',
-    'http://localhost:3000',
-    'http://localhost:5173',
-    process.env.APP_URL
-  ].filter(Boolean),
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.log(`⚠️ CORS: Blocking request from unlisted origin: ${origin}`);
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  exposedHeaders: ['Content-Type', 'Content-Disposition']
 }));
+
+// Handle preflight requests explicitly
+app.options('*', cors());
+
 app.use(express.json());
 
 // Helper function to check if app server is accessible
@@ -1323,12 +1339,23 @@ app.post('/api/shortcut-screenshot', async (req, res) => {
     const pdfBuffer = convertBase64ToPDF(screenshotBase64, dimensions);
     console.log('✅ PDF generated successfully');
 
-    // Step 3: Send PDF response
+    // Step 3: Send PDF response with explicit CORS headers
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
     res.send(pdfBuffer);
   } catch (error) {
     console.error('❌ Shortcut automation failed:', error);
+    // Ensure CORS headers are set even on error responses
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
     res.status(500).json({
       error: 'Shortcut automation failed',
       message: error.message ?? 'Unknown error',
