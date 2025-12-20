@@ -70,7 +70,14 @@ const InventoryTextOutWidget: React.FC = () => {
     const formatVehicle = (vehicle: Vehicle | Sale): string => {
         const year = vehicle.year ? String(vehicle.year).slice(-2) : '';
         const model = vehicle.model || '';
-        const vinLast4 = vehicle.vinLast4 || (vehicle.vin ? vehicle.vin.slice(-4) : '');
+        // Extract VIN last 4 and ensure it's a string with leading zeros preserved
+        const vinLast4Raw = vehicle.vinLast4 
+            ? String(vehicle.vinLast4)
+            : (vehicle.vin && vehicle.vin.length >= 4 
+                ? vehicle.vin.slice(-4)
+                : '');
+        // Pad to 4 digits with leading zeros and ensure exactly 4 characters
+        const vinLast4 = vinLast4Raw ? String(vinLast4Raw).padStart(4, '0').slice(-4) : '';
         return `${year} ${model} ${vinLast4}`.trim();
     };
 
