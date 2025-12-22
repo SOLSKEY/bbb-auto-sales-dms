@@ -29,6 +29,8 @@ export default defineConfig(({ mode }) => {
         dedupe: ['pdf-lib'],
         // Ensure proper module resolution for dynamic imports
         preserveSymlinks: false,
+        // Explicitly resolve extensions for better cross-platform compatibility
+        extensions: ['.mjs', '.js', '.mts', '.ts', '.jsx', '.tsx', '.json'],
       },
       build: {
         chunkSizeWarningLimit: 1500,

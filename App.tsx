@@ -13,7 +13,7 @@ const Collections = lazy(() => import('./pages/Collections'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Data = lazy(() => import('./pages/Data'));
 const Calendar = lazy(() => import('./pages/Calendar'));
-const AppointmentsAndLeads = lazy(() => import('./pages/AppointmentsAndLeads'));
+const AppointmentsAndLeads = lazy(() => import('./pages/AppointmentsAndLeads.tsx'));
 const TeamChat = lazy(() => import('./pages/TeamChat'));
 const Messaging = lazy(() => import('./pages/Messaging'));
 const Settings = lazy(() => import('./pages/Settings'));
