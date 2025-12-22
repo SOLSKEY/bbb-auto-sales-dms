@@ -800,3 +800,454 @@ svg {
   height: 100% !important;
   overflow: visible !important;
 }
+
+/* ═══════════════════════════════════════════════════════
+   Liquid Glass Design System
+   ═══════════════════════════════════════════════════════ */
+
+/* CSS Variables for Liquid Colors */
+:root {
+  --liquid-r: 6;
+  --liquid-g: 182;
+  --liquid-b: 212;
+}
+
+/* Color Variant Classes */
+.liquid-cyan { --liquid-r: 6; --liquid-g: 182; --liquid-b: 212; }
+.liquid-white { --liquid-r: 255; --liquid-g: 255; --liquid-b: 255; }
+.liquid-green { --liquid-r: 34; --liquid-g: 197; --liquid-b: 94; }
+.liquid-red { --liquid-r: 239; --liquid-g: 68; --liquid-b: 68; }
+.liquid-purple { --liquid-r: 168; --liquid-g: 85; --liquid-b: 247; }
+.liquid-yellow { --liquid-r: 234; --liquid-g: 179; --liquid-b: 8; }
+.liquid-amber { --liquid-r: 245; --liquid-g: 158; --liquid-b: 11; }
+.liquid-orange { --liquid-r: 249; --liquid-g: 115; --liquid-b: 22; }
+.liquid-pink { --liquid-r: 236; --liquid-g: 72; --liquid-b: 153; }
+.liquid-indigo { --liquid-r: 99; --liquid-g: 102; --liquid-b: 241; }
+.liquid-blue { --liquid-r: 59; --liquid-g: 130; --liquid-b: 246; }
+
+/* Base Surface */
+.liquid-surface {
+    position: relative;
+    border-radius: 16px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.4);
+    box-shadow:
+        0 0 6px rgba(0, 0, 0, 0.03),
+        0 2px 6px rgba(0, 0, 0, 0.08),
+        inset 3px 3px 0.5px -3.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15),
+        inset -3px -3px 0.5px -3.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.85),
+        inset 1px 1px 1px -0.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6),
+        inset -1px -1px 1px -0.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6),
+        inset 0 0 6px 6px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.12),
+        inset 0 0 2px 2px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.06),
+        0 0 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Removed hover glow effect from static containers - only interactive elements should have hover effects */
+
+/* Button */
+.liquid-btn {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: fit-content;
+    min-width: fit-content;
+    max-width: 100%;
+    white-space: nowrap;
+    flex-shrink: 0;
+    border-radius: 9999px;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.4);
+    color: #ffffff;
+    box-sizing: border-box;
+    overflow: visible;
+    box-shadow:
+        0 0 6px rgba(0, 0, 0, 0.03),
+        0 2px 6px rgba(0, 0, 0, 0.08),
+        inset 3px 3px 0.5px -3.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15),
+        inset -3px -3px 0.5px -3.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.85),
+        inset 1px 1px 1px -0.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6),
+        inset -1px -1px 1px -0.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6),
+        inset 0 0 6px 6px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.12),
+        inset 0 0 2px 2px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.06),
+        0 0 12px rgba(0, 0, 0, 0.15);
+}
+
+.liquid-btn:hover {
+    border-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.7);
+    box-shadow:
+        0 0 6px rgba(0, 0, 0, 0.03),
+        0 2px 6px rgba(0, 0, 0, 0.08),
+        inset 0 0 30px 8px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.5),
+        inset 0 0 60px 4px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.3),
+        0 0 20px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.4);
+}
+
+.liquid-btn:active { transform: scale(0.98); }
+.liquid-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Button sizes - padding ensures text fits properly */
+.liquid-btn.size-1 { 
+    height: 24px; 
+    min-height: 24px;
+    padding: 0 10px; 
+    font-size: 12px; 
+    line-height: 24px;
+}
+.liquid-btn.size-2 { 
+    height: 32px; 
+    min-height: 32px;
+    padding: 0 14px; 
+    font-size: 13px; 
+    line-height: 32px;
+}
+.liquid-btn.size-3 { 
+    height: 40px; 
+    min-height: 40px;
+    padding: 0 18px; 
+    font-size: 14px; 
+    line-height: 40px;
+}
+.liquid-btn.size-4 { 
+    height: 48px; 
+    min-height: 48px;
+    padding: 0 24px; 
+    font-size: 16px; 
+    line-height: 48px;
+}
+
+/* Ensure icons in buttons are properly aligned */
+.liquid-btn svg {
+    flex-shrink: 0;
+    display: block;
+    width: 1em;
+    height: 1em;
+    vertical-align: middle;
+}
+
+/* Button text should not overflow - ensure text fits within button */
+.liquid-btn {
+    overflow: visible;
+}
+
+.liquid-btn > *:not(svg) {
+    white-space: nowrap;
+    overflow: visible;
+}
+
+.liquid-btn span {
+    display: inline-block;
+    white-space: nowrap;
+    overflow: visible;
+}
+
+/* Badge */
+.liquid-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: fit-content;
+    min-width: fit-content;
+    max-width: 100%;
+    border-radius: 9999px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    background-color: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.5);
+    color: #ffffff;
+    white-space: nowrap;
+    box-sizing: border-box;
+    overflow: visible;
+    box-shadow:
+        0 0 4px rgba(0, 0, 0, 0.03),
+        0 1px 4px rgba(0, 0, 0, 0.08),
+        inset 2px 2px 0.5px -2.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.2),
+        inset -2px -2px 0.5px -2.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.8),
+        inset 0 0 4px 4px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15),
+        0 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.liquid-badge.size-1 { 
+    height: 20px; 
+    min-height: 20px;
+    padding: 0 6px; 
+    font-size: 11px; 
+    line-height: 20px;
+}
+.liquid-badge.size-2 { 
+    height: 24px; 
+    min-height: 24px;
+    padding: 0 8px; 
+    font-size: 12px; 
+    line-height: 24px;
+}
+.liquid-badge.size-3 { 
+    height: 28px; 
+    min-height: 28px;
+    padding: 0 10px; 
+    font-size: 13px; 
+    line-height: 28px;
+}
+
+/* Badge text should not overflow - ensure text fits within badge */
+.liquid-badge {
+    overflow: visible;
+}
+
+.liquid-badge > * {
+    white-space: nowrap;
+    overflow: visible;
+}
+
+.liquid-badge span {
+    display: inline-block;
+    white-space: nowrap;
+    overflow: visible;
+}
+
+/* Badge active state - same glow effect as button hover */
+.liquid-badge.active {
+    border-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.7);
+    box-shadow:
+        0 0 6px rgba(0, 0, 0, 0.03),
+        0 2px 6px rgba(0, 0, 0, 0.08),
+        inset 0 0 30px 8px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.5),
+        inset 0 0 60px 4px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.3),
+        0 0 20px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.4);
+}
+
+/* Card */
+.liquid-card {
+    position: relative;
+    border-radius: 16px;
+    padding: 24px;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    background-color: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.4);
+    box-shadow:
+        0 0 6px rgba(0, 0, 0, 0.03),
+        0 2px 6px rgba(0, 0, 0, 0.08),
+        inset 3px 3px 0.5px -3.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15),
+        inset -3px -3px 0.5px -3.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.85),
+        inset 1px 1px 1px -0.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6),
+        inset -1px -1px 1px -0.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6),
+        inset 0 0 6px 6px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.12),
+        inset 0 0 2px 2px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.06),
+        0 0 12px rgba(0, 0, 0, 0.15);
+}
+
+/* Removed hover glow effect from static containers - only interactive elements should have hover effects */
+
+/* Input */
+.liquid-input {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100% !important;
+    min-width: 0;
+    box-sizing: border-box;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+    background-color: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.3);
+    color: #ffffff;
+    font-family: inherit;
+    box-shadow:
+        0 0 4px rgba(0, 0, 0, 0.03),
+        0 1px 4px rgba(0, 0, 0, 0.06),
+        inset 2px 2px 0.5px -2.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.1),
+        inset -2px -2px 0.5px -2.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6),
+        inset 0 0 4px 4px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.08),
+        0 0 8px rgba(0, 0, 0, 0.1);
+}
+
+.liquid-input:focus-within {
+    border-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6);
+    box-shadow:
+        0 0 4px rgba(0, 0, 0, 0.03),
+        0 1px 4px rgba(0, 0, 0, 0.06),
+        inset 0 0 20px 4px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.2),
+        0 0 12px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.2);
+}
+
+.liquid-input input,
+.liquid-input select,
+.liquid-input textarea {
+    flex: 1;
+    width: 100%;
+    min-width: 0;
+    background: transparent;
+    border: none;
+    outline: none;
+    color: inherit;
+    font-family: inherit;
+    margin: 0;
+    padding: 0;
+}
+
+.liquid-input input {
+    height: 100%;
+}
+
+.liquid-input select {
+    height: 100%;
+    cursor: pointer;
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+}
+
+.liquid-input textarea {
+    min-height: 100%;
+    resize: vertical;
+    overflow-y: auto;
+}
+
+.liquid-input input::placeholder,
+.liquid-input textarea::placeholder {
+    color: #696e77;
+    opacity: 1;
+}
+
+.liquid-input select option {
+    background-color: rgba(18, 18, 18, 0.95);
+    color: #ffffff;
+}
+
+/* Input sizes */
+.liquid-input.size-1 { height: 28px; padding: 0 8px; font-size: 12px; }
+.liquid-input.size-2 { height: 36px; padding: 0 12px; font-size: 14px; }
+.liquid-input.size-3 { height: 44px; padding: 0 16px; font-size: 16px; }
+
+/* Tabs */
+.liquid-tabs-list {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px;
+    border-radius: 12px;
+    background-color: rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.25);
+    box-shadow:
+        0 0 4px rgba(0, 0, 0, 0.03),
+        0 1px 4px rgba(0, 0, 0, 0.06),
+        inset 2px 2px 0.5px -2.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.1),
+        inset -2px -2px 0.5px -2.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.5),
+        inset 0 0 4px 4px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.06);
+}
+
+.liquid-tab {
+    padding: 8px 16px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #b0b4ba;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+    width: fit-content;
+    min-width: fit-content;
+    max-width: 100%;
+    box-sizing: border-box;
+    overflow: visible;
+}
+
+.liquid-tab:hover {
+    color: #ffffff;
+    background: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.1);
+}
+
+.liquid-tab.active {
+    color: #ffffff;
+    background-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.25);
+    box-shadow:
+        inset 0 0 10px 2px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.2),
+        0 0 6px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15);
+}
+
+/* Status Badge Variants */
+.status-scheduled { --liquid-r: 59; --liquid-g: 130; --liquid-b: 246; }
+.status-confirmed { --liquid-r: 6; --liquid-g: 182; --liquid-b: 212; }
+.status-showed { --liquid-r: 168; --liquid-g: 85; --liquid-b: 247; }
+.status-sold { --liquid-r: 34; --liquid-g: 197; --liquid-b: 94; }
+.status-no-show { --liquid-r: 239; --liquid-g: 68; --liquid-b: 68; }
+.status-no_show { --liquid-r: 239; --liquid-g: 68; --liquid-b: 68; }
+.status-cancelled { --liquid-r: 107; --liquid-g: 114; --liquid-b: 128; }
+
+/* Priority Badge Variants */
+.priority-hot { --liquid-r: 239; --liquid-g: 68; --liquid-b: 68; }
+.priority-warm { --liquid-r: 245; --liquid-g: 158; --liquid-b: 11; }
+.priority-cold { --liquid-r: 59; --liquid-g: 130; --liquid-b: 246; }
+
+/* Model Tag */
+.model-tag {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    background-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15);
+    border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.3);
+    color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 1);
+}
+
+/* Appointment Event */
+.appointment-event {
+    position: relative;
+    border-left: 3px solid transparent;
+    padding-left: 6px;
+    margin: 2px;
+}
+
+/* User Color Dot */
+.user-color-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--dot-color, rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 1));
+    flex-shrink: 0;
+}
+
+/* Time Display */
+.time-display {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum";
+}
+
+/* FAB Button */
+.fab-button {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.3);
+    border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.5);
+    box-shadow:
+        0 4px 12px rgba(0, 0, 0, 0.3),
+        0 0 20px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.4);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    z-index: 100;
+}
+
+.fab-button:hover {
+    transform: scale(1.1);
+    box-shadow:
+        0 6px 16px rgba(0, 0, 0, 0.4),
+        0 0 30px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6);
+}

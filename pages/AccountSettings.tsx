@@ -1,9 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import { supabase } from '../supabaseClient';
 import { GlassButton } from '@/components/ui/glass-button';
 import { UserCircleIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/24/solid';
+import { UserContext } from '../App';
+import { useUserColors } from '../hooks/useUserColors';
+import { USER_COLOR_PALETTE } from '../types';
 
 const AccountSettings: React.FC = () => {
+    const userContext = useContext(UserContext);
+    const currentUserId = userContext?.user?.id;
+    const { getUserColor, setUserColor, userColors, refresh } = useUserColors();
+    
     const [email, setEmail] = useState('');
     const [username, setUsername] = useState('');
     const [currentPassword, setCurrentPassword] = useState('');
@@ -12,12 +19,29 @@ const AccountSettings: React.FC = () => {
     const [isLoading, setIsLoading] = useState(true);
     const [isSavingUsername, setIsSavingUsername] = useState(false);
     const [isChangingPassword, setIsChangingPassword] = useState(false);
+    const [isSavingColor, setIsSavingColor] = useState(false);
     const [usernameMessage, setUsernameMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [colorMessage, setColorMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    
+    // Get current user's color
+    const currentUserColor = currentUserId ? getUserColor(currentUserId) : USER_COLOR_PALETTE[0].hex;
+    const [selectedColor, setSelectedColor] = useState(currentUserColor);
+    
+    // Get used colors (to show which are taken)
+    const usedColors = new Set(Object.values(userColors));
 
     useEffect(() => {
         loadUserData();
+        refresh();
     }, []);
+    
+    useEffect(() => {
+        if (currentUserId) {
+            const userColor = getUserColor(currentUserId);
+            setSelectedColor(userColor);
+        }
+    }, [currentUserId, getUserColor, userColors]);
 
     const loadUserData = async () => {
         try {
@@ -214,6 +238,120 @@ const AccountSettings: React.FC = () => {
                             </GlassButton>
                         </div>
                     </form>
+                </div>
+
+                {/* User Color Section */}
+                <div className="mb-8">
+                    <h3 className="text-lg font-semibold text-primary mb-4 border-b border-border-low pb-2">
+                        User Color
+                    </h3>
+                    <div className="space-y-4">
+                        <p className="text-sm text-muted">
+                            Choose a color to identify your appointments and activities in the calendar. Each color can only be used by one user.
+                        </p>
+                        
+                        <div className="grid grid-cols-4 sm:grid-cols-6 gap-3">
+                            {USER_COLOR_PALETTE.map((color) => {
+                                const isSelected = selectedColor === color.hex;
+                                const isTaken = usedColors.has(color.hex) && !isSelected;
+                                const isCurrentUserColor = currentUserId && userColors[currentUserId] === color.hex;
+                                
+                                return (
+                                    <button
+                                        key={color.hex}
+                                        type="button"
+                                        onClick={() => {
+                                            if (!isTaken || isCurrentUserColor) {
+                                                setSelectedColor(color.hex);
+                                                setColorMessage(null);
+                                            }
+                                        }}
+                                        disabled={isTaken && !isCurrentUserColor}
+                                        className={`
+                                            relative w-full aspect-square rounded-lg border-2 transition-all
+                                            ${isSelected 
+                                                ? 'border-white scale-110 shadow-lg shadow-current ring-2 ring-white/50' 
+                                                : isTaken && !isCurrentUserColor
+                                                ? 'border-gray-600 opacity-40 cursor-not-allowed'
+                                                : 'border-transparent hover:border-white/50 hover:scale-105'
+                                            }
+                                        `}
+                                        style={{
+                                            backgroundColor: color.hex,
+                                            boxShadow: isSelected ? `0 0 20px ${color.hex}80` : undefined,
+                                        }}
+                                        title={isTaken && !isCurrentUserColor ? `${color.name} (Taken)` : color.name}
+                                    >
+                                        {isSelected && (
+                                            <CheckCircleIcon className="absolute top-1 right-1 h-5 w-5 text-white drop-shadow-lg" />
+                                        )}
+                                        {isTaken && !isCurrentUserColor && (
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <XCircleIcon className="h-6 w-6 text-gray-400" />
+                                            </div>
+                                        )}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                        
+                        {colorMessage && (
+                            <div className={`flex items-center gap-2 p-3 rounded-md ${
+                                colorMessage.type === 'success'
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                    : 'bg-red-500/20 text-red-300 border border-red-500/40'
+                            }`}>
+                                {colorMessage.type === 'success' ? (
+                                    <CheckCircleIcon className="h-5 w-5" />
+                                ) : (
+                                    <XCircleIcon className="h-5 w-5" />
+                                )}
+                                <span className="text-sm">{colorMessage.text}</span>
+                            </div>
+                        )}
+                        
+                        <div className="flex justify-end">
+                            <GlassButton
+                                type="button"
+                                onClick={async () => {
+                                    if (!currentUserId) return;
+                                    
+                                    // Check if color is already taken by another user
+                                    const colorTakenBy = Object.entries(userColors).find(
+                                        ([userId, color]) => color === selectedColor && userId !== currentUserId
+                                    );
+                                    
+                                    if (colorTakenBy) {
+                                        setColorMessage({ 
+                                            type: 'error', 
+                                            text: 'This color is already taken by another user. Please choose a different color.' 
+                                        });
+                                        return;
+                                    }
+                                    
+                                    setIsSavingColor(true);
+                                    setColorMessage(null);
+                                    
+                                    const success = await setUserColor(currentUserId, selectedColor, 'admin');
+                                    
+                                    if (success) {
+                                        setColorMessage({ type: 'success', text: 'User color updated successfully!' });
+                                        await refresh();
+                                        setTimeout(() => {
+                                            setColorMessage(null);
+                                        }, 2000);
+                                    } else {
+                                        setColorMessage({ type: 'error', text: 'Failed to update user color. Please try again.' });
+                                    }
+                                    
+                                    setIsSavingColor(false);
+                                }}
+                                disabled={isSavingColor || selectedColor === currentUserColor}
+                            >
+                                {isSavingColor ? 'Saving...' : 'Save Color'}
+                            </GlassButton>
+                        </div>
+                    </div>
                 </div>
 
                 {/* Password Change Section */}
