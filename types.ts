@@ -327,4 +327,3 @@ export const USER_COLOR_PALETTE = [
     { name: 'Lime', hex: '#84cc16' },           // Lime Green
     { name: 'Teal', hex: '#14b8a6' },           // Teal
 ] as const;
-// Build verification: Mon Dec 22 17:22:40 CST 2025
