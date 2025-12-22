@@ -16,6 +16,7 @@ export type AppSectionKey =
   | 'Reports'
   | 'Data'
   | 'Calendar'
+  | 'Appointments & Leads'
   | 'Team Chat'
   | 'CRM'
   | 'Settings';
@@ -56,7 +57,6 @@ export interface Vehicle {
   vin: string;
   images: string[];
   binNumber?: number | null;
-  gps?: string;
 }
 
 
@@ -229,3 +229,101 @@ export interface LoggedReport<T = any> {
     reportDate: string;
     data: T;
 }
+
+// --- Appointments & Leads Types ---
+
+export type AppointmentStatus = 'scheduled' | 'confirmed' | 'showed' | 'sold' | 'no_show' | 'cancelled';
+export type LeadPriority = 'hot' | 'warm' | 'cold';
+export type FollowUpMethod = 'call' | 'text' | 'email' | 'in_person';
+export type FollowUpOutcome = 'no_answer' | 'spoke_not_ready' | 'spoke_interested' | 'scheduled_appointment';
+
+export interface Appointment {
+    id: string;
+    user_id: string | null;
+    title: string | null;
+    customer_name: string;
+    customer_phone: string | null;
+    lead_source: string | null;
+    appointment_time: string;
+    down_payment_budget: number | null;
+    notes: string | null;
+    status: AppointmentStatus;
+    vehicle_ids: string[];
+    model_interests: string[];
+    created_at: string;
+    updated_at: string;
+    // Virtual fields for display
+    user_color?: string;
+    user_name?: string;
+}
+
+export interface FollowUp {
+    id: string;
+    date: string;
+    method: FollowUpMethod;
+    outcome: FollowUpOutcome;
+    notes: string | null;
+}
+
+export interface Lead {
+    id: string;
+    user_id: string | null;
+    customer_name: string;
+    customer_phone: string | null;
+    lead_source: string | null;
+    down_payment_budget: number | null;
+    notes: string | null;
+    model_interests: string[];
+    potential_date: string | null;
+    priority: LeadPriority;
+    was_appointment: boolean;
+    original_appointment_id: string | null;
+    original_appointment_date: string | null;
+    follow_ups: FollowUp[];
+    created_at: string;
+    updated_at: string;
+    // Virtual fields for display
+    user_color?: string;
+    user_name?: string;
+}
+
+export interface UserColor {
+    user_id: string;
+    color: string;
+    assigned_by: 'auto' | 'admin';
+    updated_at: string;
+}
+
+export interface LeadSource {
+    id: number;
+    name: string;
+    usage_count: number;
+    created_at: string;
+}
+
+export interface AppointmentNotification {
+    id: string;
+    appointmentId: string;
+    appointmentTitle: string;
+    customer: string;
+    appointmentTime: string;
+    reminderType: 'day_before' | 'day_of' | 'two_hours_before' | 'one_hour_before';
+    createdAt: string;
+    read: boolean;
+}
+
+// User color palette for auto-assignment - Neon colors matching UI/UX
+export const USER_COLOR_PALETTE = [
+    { name: 'Cyan', hex: '#06b6d4' },           // Primary cyan
+    { name: 'Amber', hex: '#f59e0b' },          // Amber/Gold
+    { name: 'Emerald', hex: '#10b981' },        // Green
+    { name: 'Violet', hex: '#8b5cf6' },         // Purple
+    { name: 'Pink', hex: '#ec4899' },           // Neon Pink
+    { name: 'Orange', hex: '#f97316' },         // Orange
+    { name: 'Red', hex: '#ef4444' },            // Neon Red
+    { name: 'Blue', hex: '#3b82f6' },           // Blue
+    { name: 'Indigo', hex: '#6366f1' },         // Indigo
+    { name: 'Yellow', hex: '#eab308' },         // Yellow
+    { name: 'Lime', hex: '#84cc16' },           // Lime Green
+    { name: 'Teal', hex: '#14b8a6' },           // Teal
+] as const;
