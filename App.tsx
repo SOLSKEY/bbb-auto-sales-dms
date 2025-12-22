@@ -1,19 +1,19 @@
 
 
-import React, { useState, createContext, useMemo, useCallback, useEffect, useRef, lazy, Suspense } from 'react';
+import React, { useState, createContext, useMemo, useCallback, useEffect, lazy, Suspense } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
-// Import critical pages directly (not lazy) to prevent suspension on tab switch
-import Inventory from './pages/Inventory';
-import SalePrep from './pages/SalePrep';
-// Lazy load less critical pages for better performance
+// Lazy load pages for better performance
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+const Inventory = lazy(() => import('./pages/Inventory'));
 const Sales = lazy(() => import('./pages/Sales'));
+const SalePrep = lazy(() => import('./pages/SalePrep'));
 const Collections = lazy(() => import('./pages/Collections'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Data = lazy(() => import('./pages/Data'));
 const Calendar = lazy(() => import('./pages/Calendar'));
+const AppointmentsAndLeads = lazy(() => import('./pages/AppointmentsAndLeads'));
 const TeamChat = lazy(() => import('./pages/TeamChat'));
 const Messaging = lazy(() => import('./pages/Messaging'));
 const Settings = lazy(() => import('./pages/Settings'));
@@ -22,6 +22,8 @@ const AdminUsers = lazy(() => import('./pages/AdminUsers'));
 const AdminUserPermissions = lazy(() => import('./pages/AdminUserPermissions'));
 const AccountSettings = lazy(() => import('./pages/AccountSettings'));
 const PrintDailyClosing = lazy(() => import('./pages/PrintDailyClosing'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 import type { User, Role, Vehicle, Sale, UserAccount, UserAccessPolicy, AppSectionKey } from './types';
 import Header from './components/Header';
 import { supabase } from './supabaseClient';
@@ -31,6 +33,7 @@ import AdminCreateUserForm from './components/AdminCreateUserForm';
 import { usePrintView } from './hooks/usePrintView';
 import { useDeviceType } from './hooks/useDeviceType';
 import { MobileLayout } from './components/layout/MobileLayout';
+import { useAppointmentReminders } from './hooks/useAppointmentNotifications';
 
 const APP_PAGES: AppSectionKey[] = [
     'Dashboard',
@@ -41,6 +44,7 @@ const APP_PAGES: AppSectionKey[] = [
     'Reports',
     'Data',
     'Calendar',
+    'Appointments & Leads',
     'Team Chat',
     'CRM',
     'Settings',
@@ -90,6 +94,8 @@ const PATH_TITLE_MAP: Record<string, string> = {
     '/reports': 'Reports',
     '/data': 'Data',
     '/calendar': 'Calendar',
+    '/appointments': 'Appointments & Leads',
+    '/appointments-leads': 'Appointments & Leads',
     '/team-chat': 'Team Chat',
     '/messaging': 'Messaging',
     '/dashboard/crm': 'CRM',
@@ -116,10 +122,22 @@ const App: React.FC = () => {
     const navigate = useNavigate();
     const { isPrintView } = usePrintView();
     const { isMobile } = useDeviceType();
+    
+    // Initialize appointment reminders system
+    useAppointmentReminders();
 
-    // Bypass auth and layout for print route
+    // Bypass auth and layout for public routes
+    const publicRoutes = ['/print/daily-closing', '/privacy-policy', '/terms-of-service'];
+    if (publicRoutes.includes(location.pathname)) {
+        if (location.pathname === '/privacy-policy') {
+            return <PrivacyPolicy />;
+        }
+        if (location.pathname === '/terms-of-service') {
+            return <TermsOfService />;
+        }
     if (location.pathname === '/print/daily-closing') {
         return <PrintDailyClosing />;
+        }
     }
 
 
@@ -148,12 +166,6 @@ const App: React.FC = () => {
         const day = String(now.getDate()).padStart(2, '0');
         return `${year}-${month}-${day}`;
     }, []);
-
-    // Track last data refresh time for stale-time checks
-    const lastRefreshTimeRef = useRef<number>(Date.now());
-
-    // Track if initial data load has completed to prevent re-running on session updates
-    const hasInitiallyLoadedRef = useRef<boolean>(false);
 
     // Track authentication session
     useEffect(() => {
@@ -364,24 +376,13 @@ const App: React.FC = () => {
             console.error('Error loading data:', error);
         } finally {
             if (showLoading) setIsLoading(false);
-            lastRefreshTimeRef.current = Date.now();
         }
     }, [session]);
 
-    // Load initial data from Supabase (only once, not on every session update)
+    // Load initial data from Supabase
     useEffect(() => {
-        if (!session) {
-            // Reset flag when user logs out so data loads again on login
-            hasInitiallyLoadedRef.current = false;
-            return;
-        }
-
-        if (!hasInitiallyLoadedRef.current) {
-            console.log('[App] Running initial data load...');
-            loadData();
-            hasInitiallyLoadedRef.current = true;
-        }
-    }, [session, loadData]);
+        loadData();
+    }, [loadData]);
 
     // Day-change detection - refresh data when a new day starts
     useEffect(() => {
@@ -402,26 +403,31 @@ const App: React.FC = () => {
         return () => clearInterval(interval);
     }, [session, getCurrentDateString, loadData]);
 
-    // Refresh data when tab becomes visible (only if data is stale)
+    // Refresh data when navigating between pages
+    useEffect(() => {
+        if ((window as any).IS_EXPORT_MODE || !session) return;
+        
+        // Skip refresh on initial mount (handled by initial load)
+        const normalizedPath = location.pathname.replace(/\/+$/, '') || '/dashboard';
+        if (normalizedPath === '/login' || normalizedPath.startsWith('/print')) return;
+
+        // Refresh data when route changes (but not on initial mount)
+        const timeoutId = setTimeout(() => {
+            console.log('Route changed, refreshing data...');
+            loadData(false); // Don't show loading spinner for navigation refresh
+        }, 100);
+
+        return () => clearTimeout(timeoutId);
+    }, [location.pathname, session, loadData]);
+
+    // Refresh data when tab becomes visible (user switches back to the tab)
     useEffect(() => {
         if ((window as any).IS_EXPORT_MODE || !session) return;
 
-        const STALE_TIME_MS = 5 * 60 * 1000; // 5 minutes
-
         const handleVisibilityChange = () => {
             if (document.visibilityState === 'visible') {
-                console.log('[Visibility] Tab became visible');
-                const timeSinceLastRefresh = Date.now() - lastRefreshTimeRef.current;
-                console.log('[Visibility] Time since last refresh:', Math.floor(timeSinceLastRefresh / 1000), 'seconds');
-
-                if (timeSinceLastRefresh > STALE_TIME_MS) {
-                    console.log('[Visibility] Data stale, refreshing in background...');
-                    loadData(false);
-                } else {
-                    console.log('[Visibility] Data still fresh, skipping refresh');
-                }
-            } else {
-                console.log('[Visibility] Tab became hidden');
+                console.log('Tab became visible, refreshing data...');
+                loadData(false); // Don't show loading spinner for visibility refresh
             }
         };
 
@@ -555,6 +561,8 @@ const App: React.FC = () => {
         '/reports': 'Reports',
         '/data': 'Data',
         '/calendar': 'Calendar',
+        '/appointments': 'Appointments & Leads',
+        '/appointments-leads': 'Appointments & Leads',
         '/team-chat': 'Team Chat',
         '/settings': 'Settings',
     };
@@ -572,6 +580,9 @@ const App: React.FC = () => {
 
         // Don't redirect from login page
         if (normalizedPath === '/login') return;
+
+        // Don't redirect public routes
+        if (normalizedPath === '/privacy-policy' || normalizedPath === '/terms-of-service' || normalizedPath === '/print/daily-closing') return;
 
         const permissionKey = routeToPermissionKey[normalizedPath];
         if (permissionKey) {
@@ -622,6 +633,13 @@ const App: React.FC = () => {
         if (location.pathname === '/login') {
             return <Login />;
         }
+        // Allow public routes without authentication
+        if (location.pathname === '/privacy-policy') {
+            return <PrivacyPolicy />;
+        }
+        if (location.pathname === '/terms-of-service') {
+            return <TermsOfService />;
+        }
         // Redirect to login for any other route when not authenticated
         return <Navigate to="/login" replace />;
     }
@@ -659,6 +677,9 @@ const App: React.FC = () => {
             </div>
         }>
             <Routes>
+            {/* Public routes - no authentication required */}
+            <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+            <Route path="/terms-of-service" element={<TermsOfService />} />
             {/* Redirect /login to /dashboard if already authenticated (handled by session check above) */}
             <Route path="/login" element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={
@@ -685,6 +706,12 @@ const App: React.FC = () => {
             } />
             <Route path="/calendar" element={
                 !permissionsLoading && !canViewPage('Calendar') ? NotAuthorized : <Calendar />
+            } />
+            <Route path="/appointments" element={
+                !permissionsLoading && !canViewPage('Appointments & Leads') ? NotAuthorized : <AppointmentsAndLeads />
+            } />
+            <Route path="/appointments-leads" element={
+                !permissionsLoading && !canViewPage('Appointments & Leads') ? NotAuthorized : <AppointmentsAndLeads />
             } />
             {/* Disabled pages - redirect to dashboard */}
             <Route path="/team-chat" element={<Navigate to="/dashboard" replace />} />
