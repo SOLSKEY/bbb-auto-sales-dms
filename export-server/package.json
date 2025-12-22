@@ -1,0 +1,17 @@
+{
+  "name": "export-server",
+  "version": "1.0.0",
+  "description": "Export server for BBB Auto Sales DMS - Puppeteer PDF generation",
+  "main": "exportServer.mjs",
+  "type": "module",
+  "scripts": {
+    "start": "node exportServer.mjs"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "cors": "^2.8.5",
+    "puppeteer": "^23.9.0",
+    "jspdf": "^3.0.3",
+    "dotenv": "^17.2.3"
+  }
+}
