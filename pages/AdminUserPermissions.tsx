@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { adminApi } from '../lib/adminApi';
 import { UserContext } from '../App';
+import { formatPhoneNumber, isValidPhoneNumber, extractDigits } from '../utils/phoneNumber';
 
 const AdminUserPermissions: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -9,6 +10,7 @@ const AdminUserPermissions: React.FC = () => {
     const isAdmin = useMemo(() => userContext?.user.role === 'admin', [userContext?.user.role]);
     const [userEmail, setUserEmail] = useState<string>('');
     const [username, setUsername] = useState<string>('');
+    const [phoneNumber, setPhoneNumber] = useState<string>('');
     const [userRole, setUserRole] = useState<'user' | 'admin'>('user');
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
@@ -28,6 +30,14 @@ const AdminUserPermissions: React.FC = () => {
                 if (userData) {
                     setUserEmail(userData.email ?? 'unknown@user');
                     setUsername(userData.username ?? '');
+                    // Format phone number for display (remove +1 prefix, show just digits)
+                    const storedPhone = userData.phone_number ?? '';
+                    if (storedPhone) {
+                        const digits = extractDigits(storedPhone.replace(/^\+1[- ]?/, ''));
+                        setPhoneNumber(digits);
+                    } else {
+                        setPhoneNumber('');
+                    }
                     const role = (userData.role as 'user' | 'admin') ?? 'user';
                     setUserRole(role);
                 }
@@ -48,9 +58,23 @@ const AdminUserPermissions: React.FC = () => {
         setError(null);
         setSuccess(null);
         try {
+            // Format phone number before saving (always store as +1-XXX-XXX-XXXX)
+            const trimmedPhone = phoneNumber.trim();
+            let formattedPhone: string | null = null;
+            
+            if (trimmedPhone) {
+                if (!isValidPhoneNumber(trimmedPhone)) {
+                    setError('Please enter a valid 10-digit phone number');
+                    setSaving(false);
+                    return;
+                }
+                formattedPhone = formatPhoneNumber(trimmedPhone);
+            }
+
             await adminApi.updateUser(id, {
                 role: userRole,
                 username: username.trim() || null,
+                phone_number: formattedPhone,
             });
 
             console.log('Successfully updated user:', id);
@@ -118,6 +142,29 @@ const AdminUserPermissions: React.FC = () => {
                             />
                         </label>
                         <p className="mt-2 text-xs text-secondary">Usernames must be unique. Leave empty to remove the username.</p>
+                    </div>
+
+                    {/* Phone Number Section */}
+                    <div className="rounded-2xl border border-border-low bg-glass-panel/70 p-6">
+                        <h2 className="mb-4 text-lg font-semibold text-primary">Phone Number</h2>
+                        <label className="block text-sm font-medium text-secondary">
+                            Phone Number
+                            <input
+                                type="tel"
+                                value={phoneNumber}
+                                onChange={event => setPhoneNumber(event.target.value)}
+                                onBlur={() => {
+                                    // Auto-format on blur if valid
+                                    if (phoneNumber && isValidPhoneNumber(phoneNumber)) {
+                                        const digits = extractDigits(phoneNumber);
+                                        setPhoneNumber(digits);
+                                    }
+                                }}
+                                className="mt-2 w-full rounded-lg border border-border-low bg-[rgba(35,35,40,0.9)] px-3 py-2 text-primary placeholder:text-[#D5D5D5] focus:border-lava-core focus:outline-none"
+                                placeholder="Enter 10-digit phone number (e.g., 5551234567)"
+                            />
+                        </label>
+                        <p className="mt-2 text-xs text-secondary">Enter 10-digit phone number (area code + 7 digits). Country code +1 will be added automatically. You can type it in any format.</p>
                     </div>
 
                     {/* Role Section */}

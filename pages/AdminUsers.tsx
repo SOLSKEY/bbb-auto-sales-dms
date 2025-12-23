@@ -7,6 +7,7 @@ interface ManagedUser {
     id: string;
     email: string;
     username: string | null;
+    phone_number: string | null;
     role: 'user' | 'admin';
 }
 
@@ -30,6 +31,7 @@ const AdminUsers: React.FC = () => {
                     id: user.id,
                     email: user.email ?? 'unknown@user',
                     username: user.username ?? null,
+                    phone_number: user.phone_number ?? null,
                     role: (user.role as 'user' | 'admin') ?? 'user',
                 }));
                 setUsers(sanitized);
@@ -97,6 +99,7 @@ const AdminUsers: React.FC = () => {
                             <tr>
                                 <th className="px-6 py-3 font-semibold">Email</th>
                                 <th className="px-6 py-3 font-semibold">Username</th>
+                                <th className="px-6 py-3 font-semibold">Phone Number</th>
                                 <th className="px-6 py-3 font-semibold">Role</th>
                                 <th className="px-6 py-3 font-semibold text-right">Actions</th>
                             </tr>
@@ -106,6 +109,7 @@ const AdminUsers: React.FC = () => {
                                 <tr key={user.id}>
                                     <td className="px-6 py-4 font-medium">{user.email}</td>
                                     <td className="px-6 py-4 text-secondary">{user.username || '—'}</td>
+                                    <td className="px-6 py-4 text-secondary">{user.phone_number || '—'}</td>
                                     <td className="px-6 py-4">
                                         <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
                                             user.role === 'admin' 
@@ -128,7 +132,7 @@ const AdminUsers: React.FC = () => {
                             ))}
                             {users.length === 0 && (
                                 <tr>
-                                    <td colSpan={4} className="px-6 py-4 text-center text-secondary">
+                                    <td colSpan={5} className="px-6 py-4 text-center text-secondary">
                                         No users found.
                                     </td>
                                 </tr>

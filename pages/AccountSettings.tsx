@@ -5,6 +5,7 @@ import { UserCircleIcon, CheckCircleIcon, XCircleIcon } from '@heroicons/react/2
 import { UserContext } from '../App';
 import { useUserColors } from '../hooks/useUserColors';
 import { USER_COLOR_PALETTE } from '../types';
+import { formatPhoneNumber, isValidPhoneNumber, extractDigits } from '../utils/phoneNumber';
 
 const AccountSettings: React.FC = () => {
     const userContext = useContext(UserContext);
@@ -13,14 +14,20 @@ const AccountSettings: React.FC = () => {
     
     const [email, setEmail] = useState('');
     const [username, setUsername] = useState('');
+    const [phoneNumber, setPhoneNumber] = useState('');
+    const [smsNotificationsEnabled, setSmsNotificationsEnabled] = useState(true);
     const [currentPassword, setCurrentPassword] = useState('');
     const [newPassword, setNewPassword] = useState('');
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isLoading, setIsLoading] = useState(true);
     const [isSavingUsername, setIsSavingUsername] = useState(false);
+    const [isSavingPhoneNumber, setIsSavingPhoneNumber] = useState(false);
+    const [isSavingSmsNotifications, setIsSavingSmsNotifications] = useState(false);
     const [isChangingPassword, setIsChangingPassword] = useState(false);
     const [isSavingColor, setIsSavingColor] = useState(false);
     const [usernameMessage, setUsernameMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [phoneNumberMessage, setPhoneNumberMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    const [smsNotificationsMessage, setSmsNotificationsMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [passwordMessage, setPasswordMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     const [colorMessage, setColorMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
     
@@ -56,6 +63,45 @@ const AccountSettings: React.FC = () => {
             // Get username from user_metadata
             const storedUsername = user.user_metadata?.username ?? '';
             setUsername(storedUsername);
+
+            // Get phone_number and sms_notifications_enabled from profiles table
+            // Handle case where sms_notifications_enabled column might not exist yet
+            const { data: profile, error: profileError } = await supabase
+                .from('profiles')
+                .select('phone_number, sms_notifications_enabled')
+                .eq('id', user.id)
+                .maybeSingle();
+
+            if (profileError) {
+                // If column doesn't exist, try without it
+                if (profileError.code === '42703') {
+                    console.warn('sms_notifications_enabled column does not exist yet. Loading without it.');
+                    const { data: profileWithoutSms, error: profileError2 } = await supabase
+                        .from('profiles')
+                        .select('phone_number')
+                        .eq('id', user.id)
+                        .maybeSingle();
+                    
+                    if (!profileError2 && profileWithoutSms) {
+                        setPhoneNumber(profileWithoutSms?.phone_number ?? '');
+                        setSmsNotificationsEnabled(true); // Default to true
+                    }
+                } else {
+                    console.error('Error loading profile:', profileError);
+                }
+            } else {
+                // Format phone number if it exists (remove +1 prefix for display, user will type 10 digits)
+                const storedPhone = profile?.phone_number ?? '';
+                if (storedPhone) {
+                    // If it has +1 prefix, remove it for display (user only types 10 digits)
+                    const digits = extractDigits(storedPhone.replace(/^\+1[- ]?/, ''));
+                    setPhoneNumber(digits);
+                } else {
+                    setPhoneNumber('');
+                }
+                // Default to true if not set (for existing users)
+                setSmsNotificationsEnabled(profile?.sms_notifications_enabled ?? true);
+            }
         } catch (error) {
             console.error('Error loading user data:', error);
         } finally {
@@ -99,6 +145,122 @@ const AccountSettings: React.FC = () => {
             setUsernameMessage({ type: 'error', text: error.message || 'Failed to update username' });
         } finally {
             setIsSavingUsername(false);
+        }
+    };
+
+    const handlePhoneNumberBlur = () => {
+        // Auto-format on blur if valid
+        if (phoneNumber && isValidPhoneNumber(phoneNumber)) {
+            const digits = extractDigits(phoneNumber);
+            setPhoneNumber(digits); // Show just digits while typing, will format on save
+        }
+    };
+
+    const handlePhoneNumberUpdate = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setPhoneNumberMessage(null);
+
+        if (!currentUserId) {
+            setPhoneNumberMessage({ type: 'error', text: 'User ID not found' });
+            return;
+        }
+
+        // Validate phone number if provided
+        const trimmedPhone = phoneNumber.trim();
+        if (trimmedPhone && !isValidPhoneNumber(trimmedPhone)) {
+            setPhoneNumberMessage({ type: 'error', text: 'Please enter a valid 10-digit phone number' });
+            return;
+        }
+
+        try {
+            setIsSavingPhoneNumber(true);
+
+            // Format phone number before saving (always store as +1-XXX-XXX-XXXX)
+            const formattedPhone = trimmedPhone ? formatPhoneNumber(trimmedPhone) : null;
+
+            // Update phone_number in profiles table
+            const { error } = await supabase
+                .from('profiles')
+                .upsert({
+                    id: currentUserId,
+                    phone_number: formattedPhone,
+                }, {
+                    onConflict: 'id'
+                });
+
+            if (error) throw error;
+
+            // Update local state to show formatted version
+            setPhoneNumber(formattedPhone ? extractDigits(formattedPhone.replace(/^\+1[- ]?/, '')) : '');
+            setPhoneNumberMessage({ type: 'success', text: 'Phone number updated successfully!' });
+
+            // Reload user data to reflect changes
+            setTimeout(() => {
+                loadUserData();
+                setPhoneNumberMessage(null);
+            }, 2000);
+        } catch (error: any) {
+            console.error('Error updating phone number:', error);
+            setPhoneNumberMessage({ type: 'error', text: error.message || 'Failed to update phone number' });
+        } finally {
+            setIsSavingPhoneNumber(false);
+        }
+    };
+
+    const handleSmsNotificationsToggle = async () => {
+        setSmsNotificationsMessage(null);
+
+        if (!currentUserId) {
+            setSmsNotificationsMessage({ type: 'error', text: 'User ID not found' });
+            return;
+        }
+
+        const newValue = !smsNotificationsEnabled;
+
+        try {
+            setIsSavingSmsNotifications(true);
+
+            // Try to update sms_notifications_enabled in profiles table
+            // Handle case where column might not exist yet
+            const { error } = await supabase
+                .from('profiles')
+                .upsert({
+                    id: currentUserId,
+                    sms_notifications_enabled: newValue,
+                }, {
+                    onConflict: 'id'
+                });
+
+            if (error) {
+                // If column doesn't exist, inform user they need to run migration
+                if (error.code === '42703') {
+                    setSmsNotificationsMessage({ 
+                        type: 'error', 
+                        text: 'SMS notifications feature not available yet. Please run the database migration first.' 
+                    });
+                    setSmsNotificationsEnabled(!newValue); // Revert
+                    return;
+                }
+                throw error;
+            }
+
+            setSmsNotificationsEnabled(newValue);
+            setSmsNotificationsMessage({ 
+                type: 'success', 
+                text: `SMS notifications ${newValue ? 'enabled' : 'disabled'} successfully!` 
+            });
+
+            // Clear message after 2 seconds
+            setTimeout(() => {
+                setSmsNotificationsMessage(null);
+            }, 2000);
+        } catch (error: any) {
+            console.error('Error updating SMS notifications setting:', error);
+            setSmsNotificationsMessage({ type: 'error', text: error.message || 'Failed to update SMS notification setting' });
+            // Revert the toggle on error
+            setSmsNotificationsEnabled(!newValue);
+        } finally {
+            setIsSavingSmsNotifications(false);
         }
     };
 
@@ -238,6 +400,117 @@ const AccountSettings: React.FC = () => {
                             </GlassButton>
                         </div>
                     </form>
+                </div>
+
+                {/* Phone Number Section */}
+                <div className="mb-8">
+                    <h3 className="text-lg font-semibold text-primary mb-4 border-b border-border-low pb-2">
+                        Contact Information
+                    </h3>
+                    <form onSubmit={handlePhoneNumberUpdate} className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-medium text-muted mb-2 uppercase tracking-wide">
+                                Phone Number
+                            </label>
+                            <input
+                                type="tel"
+                                value={phoneNumber}
+                                onChange={(e) => {
+                                    // Allow any input format while typing
+                                    setPhoneNumber(e.target.value);
+                                }}
+                                onBlur={handlePhoneNumberBlur}
+                                placeholder="Enter 10-digit phone number (e.g., 5551234567)"
+                                className="w-full bg-[rgba(35,35,40,0.9)] border border-border-low focus:border-lava-core text-primary placeholder:text-[#D5D5D5] rounded-md p-3 focus:outline-none transition-colors"
+                            />
+                            <p className="text-xs text-muted mt-1">
+                                Enter your 10-digit phone number (area code + 7 digits). Country code +1 will be added automatically. You can type it in any format.
+                            </p>
+                        </div>
+
+                        {phoneNumberMessage && (
+                            <div className={`flex items-center gap-2 p-3 rounded-md ${
+                                phoneNumberMessage.type === 'success'
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                    : 'bg-red-500/20 text-red-300 border border-red-500/40'
+                            }`}>
+                                {phoneNumberMessage.type === 'success' ? (
+                                    <CheckCircleIcon className="h-5 w-5" />
+                                ) : (
+                                    <XCircleIcon className="h-5 w-5" />
+                                )}
+                                <span className="text-sm">{phoneNumberMessage.text}</span>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end">
+                            <GlassButton
+                                type="submit"
+                                disabled={isSavingPhoneNumber}
+                            >
+                                {isSavingPhoneNumber ? 'Saving...' : 'Save Phone Number'}
+                            </GlassButton>
+                        </div>
+                    </form>
+                </div>
+
+                {/* SMS Notifications Section */}
+                <div className="mb-8">
+                    <h3 className="text-lg font-semibold text-primary mb-4 border-b border-border-low pb-2">
+                        Notification Preferences
+                    </h3>
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                                <label className="block text-sm font-medium text-muted mb-1 uppercase tracking-wide">
+                                    SMS Notifications
+                                </label>
+                                <p className="text-xs text-muted">
+                                    Receive SMS reminders for upcoming appointments. Make sure your phone number is set above.
+                                </p>
+                            </div>
+                            <div className="ml-4">
+                                <button
+                                    type="button"
+                                    onClick={handleSmsNotificationsToggle}
+                                    disabled={isSavingSmsNotifications}
+                                    className={`
+                                        relative inline-flex h-7 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-lava-core focus:ring-offset-2 focus:ring-offset-[rgba(35,35,40,0.9)]
+                                        ${smsNotificationsEnabled 
+                                            ? 'bg-lava-core' 
+                                            : 'bg-gray-600'
+                                        }
+                                        ${isSavingSmsNotifications ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
+                                    `}
+                                    role="switch"
+                                    aria-checked={smsNotificationsEnabled}
+                                    aria-label="Toggle SMS notifications"
+                                >
+                                    <span
+                                        className={`
+                                            inline-block h-5 w-5 transform rounded-full bg-white transition-transform
+                                            ${smsNotificationsEnabled ? 'translate-x-8' : 'translate-x-1'}
+                                        `}
+                                    />
+                                </button>
+                            </div>
+                        </div>
+
+                        {smsNotificationsMessage && (
+                            <div className={`flex items-center gap-2 p-3 rounded-md ${
+                                smsNotificationsMessage.type === 'success'
+                                    ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/40'
+                                    : 'bg-red-500/20 text-red-300 border border-red-500/40'
+                            }`}>
+                                {smsNotificationsMessage.type === 'success' ? (
+                                    <CheckCircleIcon className="h-5 w-5" />
+                                ) : (
+                                    <XCircleIcon className="h-5 w-5" />
+                                )}
+                                <span className="text-sm">{smsNotificationsMessage.text}</span>
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* User Color Section */}

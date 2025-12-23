@@ -240,9 +240,9 @@ export const adminApi = {
     },
 
     /**
-     * Update user (role and/or username) (admin only)
+     * Update user (role, username, and/or phone_number) (admin only)
      */
-    async updateUser(userId: string, data: { role?: 'user' | 'admin'; username?: string | null }) {
+    async updateUser(userId: string, data: { role?: 'user' | 'admin'; username?: string | null; phone_number?: string | null }) {
         const response = await makeAuthenticatedRequest(`/admin/users/${userId}`, {
             method: 'PATCH',
             body: JSON.stringify(data),
