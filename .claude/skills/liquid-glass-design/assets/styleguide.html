@@ -1,0 +1,2013 @@
+<!DOCTYPE html>
+<html lang="en" class="dark-theme" style="color-scheme: dark;">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radix Themes + Liquid Glass | Style Guide</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ═══════════════════════════════════════════════════════
+           CSS RESET
+           ═══════════════════════════════════════════════════════ */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* ═══════════════════════════════════════════════════════
+           LIQUID CONTAINER SYSTEM - CSS CUSTOM PROPERTIES
+           The core design system for all surfaces
+           ═══════════════════════════════════════════════════════ */
+        :root {
+            /* ─────────────────────────────────────────────────────
+               LIQUID COLOR PALETTE (RGB values for shadow mixing)
+               ───────────────────────────────────────────────────── */
+            --liquid-cyan: 6, 182, 212;
+            --liquid-white: 255, 255, 255;
+            --liquid-pink: 236, 72, 153;
+            --liquid-green: 34, 197, 94;
+            --liquid-orange: 249, 115, 22;
+            --liquid-red: 239, 68, 68;
+            --liquid-purple: 168, 85, 247;
+            --liquid-yellow: 234, 179, 8;
+            --liquid-indigo: 99, 102, 241;
+            --liquid-blue: 59, 130, 246;
+            
+            /* Default liquid color (cyan) */
+            --liquid-r: 6;
+            --liquid-g: 182;
+            --liquid-b: 212;
+            
+            /* ─────────────────────────────────────────────────────
+               SPACING SCALE (Radix-compatible)
+               ───────────────────────────────────────────────────── */
+            --space-1: 4px;
+            --space-2: 8px;
+            --space-3: 12px;
+            --space-4: 16px;
+            --space-5: 24px;
+            --space-6: 32px;
+            --space-7: 40px;
+            --space-8: 48px;
+            --space-9: 64px;
+            
+            /* ─────────────────────────────────────────────────────
+               RADIUS SCALE
+               ───────────────────────────────────────────────────── */
+            --radius-1: 3px;
+            --radius-2: 4px;
+            --radius-3: 6px;
+            --radius-4: 8px;
+            --radius-5: 12px;
+            --radius-6: 16px;
+            --radius-full: 9999px;
+            
+            /* ─────────────────────────────────────────────────────
+               TYPOGRAPHY SCALE
+               ───────────────────────────────────────────────────── */
+            --font-size-1: 12px;
+            --font-size-2: 14px;
+            --font-size-3: 16px;
+            --font-size-4: 18px;
+            --font-size-5: 20px;
+            --font-size-6: 24px;
+            --font-size-7: 28px;
+            --font-size-8: 35px;
+            --font-size-9: 60px;
+            
+            /* ─────────────────────────────────────────────────────
+               BACKGROUND & SURFACE COLORS
+               ───────────────────────────────────────────────────── */
+            --bg-base: #050505;
+            --bg-panel: rgba(18, 18, 18, 0.6);
+            --bg-surface: rgba(0, 0, 0, 0.2);
+            --text-primary: #ffffff;
+            --text-secondary: #b0b4ba;
+            --text-muted: #696e77;
+            --border-subtle: rgba(255, 255, 255, 0.08);
+            --border-default: rgba(255, 255, 255, 0.12);
+        }
+
+        /* ═══════════════════════════════════════════════════════
+           LIQUID SHADOW FORMULA - BASE MIXIN
+           This is the signature "liquid glass" effect created by 
+           layering multiple inset shadows with accent colors
+           ═══════════════════════════════════════════════════════ */
+        
+        /* Base liquid surface (applies to all surfaces) */
+        .liquid-surface {
+            position: relative;
+            border-radius: var(--radius-6);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.4);
+            box-shadow:
+                /* Outer shadows for depth */
+                0 0 6px rgba(0, 0, 0, 0.03),
+                0 2px 6px rgba(0, 0, 0, 0.08),
+                /* Inner bevel highlights (top-left) */
+                inset 3px 3px 0.5px -3.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15),
+                /* Inner bevel shadow (bottom-right) */
+                inset -3px -3px 0.5px -3.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.85),
+                /* Fine edge highlights */
+                inset 1px 1px 1px -0.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6),
+                inset -1px -1px 1px -0.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6),
+                /* Inner color glow */
+                inset 0 0 6px 6px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.12),
+                inset 0 0 2px 2px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.06),
+                /* Outer ambient shadow */
+                0 0 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .liquid-surface:hover {
+            border-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6);
+            box-shadow:
+                0 0 6px rgba(0, 0, 0, 0.03),
+                0 2px 6px rgba(0, 0, 0, 0.08),
+                /* Intensified inner glow on hover */
+                inset 0 0 30px 8px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.3),
+                inset 0 0 60px 4px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15),
+                /* Outer glow */
+                0 0 20px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.25);
+        }
+
+        /* ─────────────────────────────────────────────────────
+           LIQUID COLOR VARIANTS
+           Apply via data-liquid-color attribute or class
+           ───────────────────────────────────────────────────── */
+        
+        /* Cyan (Default) */
+        .liquid-cyan, [data-liquid-color="cyan"] {
+            --liquid-r: 6;
+            --liquid-g: 182;
+            --liquid-b: 212;
+        }
+        
+        /* White/Neutral */
+        .liquid-white, [data-liquid-color="white"] {
+            --liquid-r: 255;
+            --liquid-g: 255;
+            --liquid-b: 255;
+        }
+        
+        /* Green/Success */
+        .liquid-green, [data-liquid-color="green"] {
+            --liquid-r: 34;
+            --liquid-g: 197;
+            --liquid-b: 94;
+        }
+        
+        /* Red/Destructive */
+        .liquid-red, [data-liquid-color="red"] {
+            --liquid-r: 239;
+            --liquid-g: 68;
+            --liquid-b: 68;
+        }
+        
+        /* Purple/Premium */
+        .liquid-purple, [data-liquid-color="purple"] {
+            --liquid-r: 168;
+            --liquid-g: 85;
+            --liquid-b: 247;
+        }
+        
+        /* Yellow/Warning */
+        .liquid-yellow, [data-liquid-color="yellow"] {
+            --liquid-r: 234;
+            --liquid-g: 179;
+            --liquid-b: 8;
+        }
+        
+        /* Orange */
+        .liquid-orange, [data-liquid-color="orange"] {
+            --liquid-r: 249;
+            --liquid-g: 115;
+            --liquid-b: 22;
+        }
+        
+        /* Pink */
+        .liquid-pink, [data-liquid-color="pink"] {
+            --liquid-r: 236;
+            --liquid-g: 72;
+            --liquid-b: 153;
+        }
+        
+        /* Indigo */
+        .liquid-indigo, [data-liquid-color="indigo"] {
+            --liquid-r: 99;
+            --liquid-g: 102;
+            --liquid-b: 241;
+        }
+        
+        /* Blue */
+        .liquid-blue, [data-liquid-color="blue"] {
+            --liquid-r: 59;
+            --liquid-g: 130;
+            --liquid-b: 246;
+        }
+
+        /* ═══════════════════════════════════════════════════════
+           LIQUID BUTTON - Pill-shaped variant
+           ═══════════════════════════════════════════════════════ */
+        .liquid-btn {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            border-radius: var(--radius-full);
+            font-family: inherit;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.4);
+            color: var(--text-primary);
+            box-shadow:
+                0 0 6px rgba(0, 0, 0, 0.03),
+                0 2px 6px rgba(0, 0, 0, 0.08),
+                inset 3px 3px 0.5px -3.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15),
+                inset -3px -3px 0.5px -3.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.85),
+                inset 1px 1px 1px -0.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6),
+                inset -1px -1px 1px -0.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6),
+                inset 0 0 6px 6px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.12),
+                inset 0 0 2px 2px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.06),
+                0 0 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .liquid-btn:hover {
+            border-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.7);
+            box-shadow:
+                0 0 6px rgba(0, 0, 0, 0.03),
+                0 2px 6px rgba(0, 0, 0, 0.08),
+                inset 0 0 30px 8px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.5),
+                inset 0 0 60px 4px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.3),
+                0 0 20px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.4);
+        }
+        
+        .liquid-btn:active {
+            transform: scale(0.98);
+        }
+        
+        .liquid-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        /* Button sizes */
+        .liquid-btn.size-1 { height: 24px; padding: 0 10px; font-size: 12px; }
+        .liquid-btn.size-2 { height: 32px; padding: 0 14px; font-size: 13px; }
+        .liquid-btn.size-3 { height: 40px; padding: 0 18px; font-size: 14px; }
+        .liquid-btn.size-4 { height: 48px; padding: 0 24px; font-size: 16px; }
+
+        /* ═══════════════════════════════════════════════════════
+           LIQUID BADGE - Small inline indicator
+           ═══════════════════════════════════════════════════════ */
+        .liquid-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-full);
+            font-weight: 500;
+            transition: all 0.3s ease;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.5);
+            color: var(--text-primary);
+            box-shadow:
+                0 0 4px rgba(0, 0, 0, 0.03),
+                0 1px 4px rgba(0, 0, 0, 0.08),
+                inset 2px 2px 0.5px -2.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.2),
+                inset -2px -2px 0.5px -2.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.8),
+                inset 0 0 4px 4px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15),
+                0 0 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Badge sizes */
+        .liquid-badge.size-1 { height: 20px; padding: 0 6px; font-size: 11px; }
+        .liquid-badge.size-2 { height: 24px; padding: 0 8px; font-size: 12px; }
+        .liquid-badge.size-3 { height: 28px; padding: 0 10px; font-size: 13px; }
+
+        /* ═══════════════════════════════════════════════════════
+           LIQUID CARD - Container surfaces
+           ═══════════════════════════════════════════════════════ */
+        .liquid-card {
+            position: relative;
+            border-radius: var(--radius-6);
+            padding: var(--space-5);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.4);
+            box-shadow:
+                0 0 6px rgba(0, 0, 0, 0.03),
+                0 2px 6px rgba(0, 0, 0, 0.08),
+                inset 3px 3px 0.5px -3.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15),
+                inset -3px -3px 0.5px -3.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.85),
+                inset 1px 1px 1px -0.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6),
+                inset -1px -1px 1px -0.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6),
+                inset 0 0 6px 6px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.12),
+                inset 0 0 2px 2px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.06),
+                0 0 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .liquid-card:hover {
+            border-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6);
+            box-shadow:
+                0 0 6px rgba(0, 0, 0, 0.03),
+                0 2px 6px rgba(0, 0, 0, 0.08),
+                inset 0 0 30px 8px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.2),
+                inset 0 0 60px 4px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.1),
+                0 0 20px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15);
+        }
+
+        /* ═══════════════════════════════════════════════════════
+           LIQUID INPUT - Text fields and inputs
+           ═══════════════════════════════════════════════════════ */
+        .liquid-input {
+            position: relative;
+            display: flex;
+            align-items: center;
+            border-radius: var(--radius-4);
+            transition: all 0.3s ease;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.3);
+            color: var(--text-primary);
+            font-family: inherit;
+            box-shadow:
+                0 0 4px rgba(0, 0, 0, 0.03),
+                0 1px 4px rgba(0, 0, 0, 0.06),
+                inset 2px 2px 0.5px -2.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.1),
+                inset -2px -2px 0.5px -2.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6),
+                inset 0 0 4px 4px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.08),
+                0 0 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .liquid-input:focus-within {
+            border-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6);
+            box-shadow:
+                0 0 4px rgba(0, 0, 0, 0.03),
+                0 1px 4px rgba(0, 0, 0, 0.06),
+                inset 0 0 20px 4px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.2),
+                0 0 12px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.2);
+        }
+        
+        .liquid-input input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            outline: none;
+            color: inherit;
+            font-family: inherit;
+        }
+        
+        .liquid-input input::placeholder {
+            color: var(--text-muted);
+        }
+        
+        /* Input sizes */
+        .liquid-input.size-1 { height: 28px; padding: 0 8px; font-size: 12px; }
+        .liquid-input.size-2 { height: 36px; padding: 0 12px; font-size: 14px; }
+        .liquid-input.size-3 { height: 44px; padding: 0 16px; font-size: 16px; }
+
+        /* ═══════════════════════════════════════════════════════
+           LIQUID SELECT - Dropdown trigger
+           ═══════════════════════════════════════════════════════ */
+        .liquid-select {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            border-radius: var(--radius-4);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.3);
+            color: var(--text-primary);
+            box-shadow:
+                0 0 4px rgba(0, 0, 0, 0.03),
+                0 1px 4px rgba(0, 0, 0, 0.06),
+                inset 2px 2px 0.5px -2.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.1),
+                inset -2px -2px 0.5px -2.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6),
+                inset 0 0 4px 4px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.08),
+                0 0 8px rgba(0, 0, 0, 0.1);
+        }
+        
+        .liquid-select:hover {
+            border-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.5);
+            box-shadow:
+                0 0 4px rgba(0, 0, 0, 0.03),
+                0 1px 4px rgba(0, 0, 0, 0.06),
+                inset 0 0 15px 4px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15),
+                0 0 10px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15);
+        }
+        
+        .liquid-select .chevron {
+            opacity: 0.7;
+        }
+        
+        /* Select sizes */
+        .liquid-select.size-1 { height: 28px; padding: 0 10px; font-size: 12px; }
+        .liquid-select.size-2 { height: 36px; padding: 0 14px; font-size: 14px; }
+        .liquid-select.size-3 { height: 44px; padding: 0 18px; font-size: 16px; }
+
+        /* ═══════════════════════════════════════════════════════
+           LIQUID CHECKBOX - Toggle control
+           ═══════════════════════════════════════════════════════ */
+        .liquid-checkbox {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-2);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.3);
+            box-shadow:
+                0 0 4px rgba(0, 0, 0, 0.03),
+                0 1px 4px rgba(0, 0, 0, 0.06),
+                inset 1px 1px 0.5px -1.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15),
+                inset -1px -1px 0.5px -1.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.7),
+                inset 0 0 3px 3px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.1);
+        }
+        
+        .liquid-checkbox:hover {
+            border-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.5);
+        }
+        
+        .liquid-checkbox.checked {
+            background-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.3);
+            border-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6);
+            box-shadow:
+                0 0 4px rgba(0, 0, 0, 0.03),
+                0 1px 4px rgba(0, 0, 0, 0.06),
+                inset 0 0 10px 3px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.4),
+                0 0 8px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.2);
+        }
+        
+        .liquid-checkbox .check-icon {
+            opacity: 0;
+            transform: scale(0.5);
+            transition: all 0.2s ease;
+        }
+        
+        .liquid-checkbox.checked .check-icon {
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        /* Checkbox sizes */
+        .liquid-checkbox.size-1 { width: 16px; height: 16px; }
+        .liquid-checkbox.size-2 { width: 20px; height: 20px; }
+        .liquid-checkbox.size-3 { width: 24px; height: 24px; }
+
+        /* ═══════════════════════════════════════════════════════
+           LIQUID RADIO - Radio button
+           ═══════════════════════════════════════════════════════ */
+        .liquid-radio {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.3);
+            box-shadow:
+                0 0 4px rgba(0, 0, 0, 0.03),
+                0 1px 4px rgba(0, 0, 0, 0.06),
+                inset 1px 1px 0.5px -1.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15),
+                inset -1px -1px 0.5px -1.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.7),
+                inset 0 0 3px 3px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.1);
+        }
+        
+        .liquid-radio:hover {
+            border-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.5);
+        }
+        
+        .liquid-radio.checked {
+            background-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.3);
+            border-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6);
+            box-shadow:
+                0 0 4px rgba(0, 0, 0, 0.03),
+                0 1px 4px rgba(0, 0, 0, 0.06),
+                inset 0 0 10px 3px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.4),
+                0 0 8px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.2);
+        }
+        
+        .liquid-radio .radio-dot {
+            width: 50%;
+            height: 50%;
+            border-radius: 50%;
+            background: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.9);
+            opacity: 0;
+            transform: scale(0);
+            transition: all 0.2s ease;
+        }
+        
+        .liquid-radio.checked .radio-dot {
+            opacity: 1;
+            transform: scale(1);
+        }
+        
+        /* Radio sizes */
+        .liquid-radio.size-1 { width: 16px; height: 16px; }
+        .liquid-radio.size-2 { width: 20px; height: 20px; }
+        .liquid-radio.size-3 { width: 24px; height: 24px; }
+
+        /* ═══════════════════════════════════════════════════════
+           LIQUID SWITCH - Toggle switch
+           ═══════════════════════════════════════════════════════ */
+        .liquid-switch {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            border-radius: var(--radius-full);
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background-color: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.3);
+            box-shadow:
+                0 0 4px rgba(0, 0, 0, 0.03),
+                0 1px 4px rgba(0, 0, 0, 0.08),
+                inset 2px 2px 0.5px -2.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.1),
+                inset -2px -2px 0.5px -2.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.5),
+                inset 0 0 4px 4px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.08);
+        }
+        
+        .liquid-switch.checked {
+            background-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.4);
+            border-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6);
+            box-shadow:
+                0 0 4px rgba(0, 0, 0, 0.03),
+                0 1px 4px rgba(0, 0, 0, 0.08),
+                inset 0 0 15px 4px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.35),
+                0 0 10px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.2);
+        }
+        
+        .liquid-switch .thumb {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.9);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        /* Switch sizes */
+        .liquid-switch.size-1 { width: 32px; height: 18px; }
+        .liquid-switch.size-1 .thumb { width: 14px; height: 14px; left: 2px; top: 1px; }
+        .liquid-switch.size-1.checked .thumb { left: 16px; }
+        
+        .liquid-switch.size-2 { width: 42px; height: 24px; }
+        .liquid-switch.size-2 .thumb { width: 20px; height: 20px; left: 2px; top: 1px; }
+        .liquid-switch.size-2.checked .thumb { left: 20px; }
+        
+        .liquid-switch.size-3 { width: 52px; height: 30px; }
+        .liquid-switch.size-3 .thumb { width: 26px; height: 26px; left: 2px; top: 1px; }
+        .liquid-switch.size-3.checked .thumb { left: 24px; }
+
+        /* ═══════════════════════════════════════════════════════
+           LIQUID TABS - Tab navigation
+           ═══════════════════════════════════════════════════════ */
+        .liquid-tabs-list {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px;
+            border-radius: var(--radius-5);
+            background-color: rgba(0, 0, 0, 0.3);
+            border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.25);
+            box-shadow:
+                0 0 4px rgba(0, 0, 0, 0.03),
+                0 1px 4px rgba(0, 0, 0, 0.06),
+                inset 2px 2px 0.5px -2.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.1),
+                inset -2px -2px 0.5px -2.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.5),
+                inset 0 0 4px 4px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.06);
+        }
+        
+        .liquid-tab {
+            padding: 8px 16px;
+            border-radius: var(--radius-4);
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .liquid-tab:hover {
+            color: var(--text-primary);
+            background: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.1);
+        }
+        
+        .liquid-tab.active {
+            color: var(--text-primary);
+            background-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.25);
+            box-shadow:
+                inset 0 0 10px 2px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.2),
+                0 0 6px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15);
+        }
+
+        /* ═══════════════════════════════════════════════════════
+           LIQUID CALLOUT - Alert/notification container
+           ═══════════════════════════════════════════════════════ */
+        .liquid-callout {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 16px;
+            border-radius: var(--radius-5);
+            transition: all 0.3s ease;
+            background-color: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.4);
+            box-shadow:
+                0 0 6px rgba(0, 0, 0, 0.03),
+                0 2px 6px rgba(0, 0, 0, 0.08),
+                inset 3px 3px 0.5px -3.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15),
+                inset -3px -3px 0.5px -3.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.7),
+                inset 1px 1px 1px -0.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.5),
+                inset -1px -1px 1px -0.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.5),
+                inset 0 0 6px 6px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.1),
+                0 0 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .liquid-callout .callout-icon {
+            flex-shrink: 0;
+            color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 1);
+        }
+        
+        .liquid-callout .callout-content {
+            flex: 1;
+        }
+        
+        .liquid-callout .callout-title {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        /* ═══════════════════════════════════════════════════════
+           LIQUID TABLE - Data table wrapper
+           ═══════════════════════════════════════════════════════ */
+        .liquid-table-wrapper {
+            border-radius: var(--radius-5);
+            overflow: hidden;
+            background-color: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.3);
+            box-shadow:
+                0 0 6px rgba(0, 0, 0, 0.03),
+                0 2px 6px rgba(0, 0, 0, 0.08),
+                inset 3px 3px 0.5px -3.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.1),
+                inset -3px -3px 0.5px -3.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6),
+                inset 0 0 6px 6px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.08),
+                0 0 12px rgba(0, 0, 0, 0.15);
+        }
+        
+        .liquid-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .liquid-table th {
+            text-align: left;
+            padding: 12px 16px;
+            font-weight: 600;
+            font-size: 13px;
+            color: var(--text-secondary);
+            background: rgba(0, 0, 0, 0.2);
+            border-bottom: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.2);
+        }
+        
+        .liquid-table td {
+            padding: 12px 16px;
+            font-size: 14px;
+            border-bottom: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.1);
+        }
+        
+        .liquid-table tr:hover td {
+            background: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.05);
+        }
+        
+        .liquid-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* ═══════════════════════════════════════════════════════
+           LIQUID PROGRESS - Progress bar
+           ═══════════════════════════════════════════════════════ */
+        .liquid-progress {
+            width: 100%;
+            border-radius: var(--radius-full);
+            overflow: hidden;
+            background-color: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.2);
+            box-shadow:
+                inset 1px 1px 0.5px -1.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.1),
+                inset -1px -1px 0.5px -1.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.4),
+                inset 0 0 3px 3px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.05);
+        }
+        
+        .liquid-progress .bar {
+            height: 100%;
+            border-radius: var(--radius-full);
+            background: linear-gradient(
+                90deg,
+                rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6),
+                rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.8)
+            );
+            box-shadow:
+                inset 0 0 10px rgba(255, 255, 255, 0.2),
+                0 0 8px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.4);
+            transition: width 0.5s ease;
+        }
+        
+        /* Progress sizes */
+        .liquid-progress.size-1 { height: 6px; }
+        .liquid-progress.size-2 { height: 10px; }
+        .liquid-progress.size-3 { height: 14px; }
+
+        /* ═══════════════════════════════════════════════════════
+           LIQUID SLIDER - Range input
+           ═══════════════════════════════════════════════════════ */
+        .liquid-slider {
+            position: relative;
+            width: 100%;
+            height: 24px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .liquid-slider .track {
+            position: absolute;
+            width: 100%;
+            border-radius: var(--radius-full);
+            background-color: rgba(0, 0, 0, 0.4);
+            border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.2);
+            box-shadow:
+                inset 1px 1px 0.5px -1.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.1),
+                inset -1px -1px 0.5px -1.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.4);
+        }
+        
+        .liquid-slider .range {
+            position: absolute;
+            left: 0;
+            border-radius: var(--radius-full);
+            background: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.5);
+            box-shadow: 0 0 6px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.3);
+        }
+        
+        .liquid-slider .thumb {
+            position: absolute;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.95);
+            cursor: pointer;
+            box-shadow:
+                0 2px 4px rgba(0, 0, 0, 0.2),
+                0 0 8px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.3);
+            transition: transform 0.15s ease;
+        }
+        
+        .liquid-slider .thumb:hover {
+            transform: scale(1.1);
+        }
+        
+        /* Slider sizes */
+        .liquid-slider.size-1 .track { height: 4px; }
+        .liquid-slider.size-1 .range { height: 4px; }
+        .liquid-slider.size-1 .thumb { width: 12px; height: 12px; margin-left: -6px; }
+        
+        .liquid-slider.size-2 .track { height: 6px; }
+        .liquid-slider.size-2 .range { height: 6px; }
+        .liquid-slider.size-2 .thumb { width: 16px; height: 16px; margin-left: -8px; }
+        
+        .liquid-slider.size-3 .track { height: 8px; }
+        .liquid-slider.size-3 .range { height: 8px; }
+        .liquid-slider.size-3 .thumb { width: 20px; height: 20px; margin-left: -10px; }
+
+        /* ═══════════════════════════════════════════════════════
+           LIQUID AVATAR - User avatar with container
+           ═══════════════════════════════════════════════════════ */
+        .liquid-avatar {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: var(--radius-full);
+            overflow: hidden;
+            background-color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.2);
+            border: 2px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.4);
+            font-weight: 600;
+            box-shadow:
+                0 0 4px rgba(0, 0, 0, 0.03),
+                0 2px 4px rgba(0, 0, 0, 0.08),
+                inset 0 0 6px 3px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15),
+                0 0 8px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.1);
+        }
+        
+        .liquid-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        
+        /* Avatar sizes */
+        .liquid-avatar.size-1 { width: 24px; height: 24px; font-size: 10px; }
+        .liquid-avatar.size-2 { width: 32px; height: 32px; font-size: 12px; }
+        .liquid-avatar.size-3 { width: 40px; height: 40px; font-size: 14px; }
+        .liquid-avatar.size-4 { width: 48px; height: 48px; font-size: 16px; }
+        .liquid-avatar.size-5 { width: 64px; height: 64px; font-size: 20px; }
+        .liquid-avatar.size-6 { width: 80px; height: 80px; font-size: 24px; }
+
+        /* ═══════════════════════════════════════════════════════
+           LIQUID TOOLTIP - Hover tooltip
+           ═══════════════════════════════════════════════════════ */
+        .liquid-tooltip {
+            position: absolute;
+            padding: 8px 12px;
+            border-radius: var(--radius-3);
+            font-size: 13px;
+            white-space: nowrap;
+            pointer-events: none;
+            opacity: 0;
+            transform: translateY(4px);
+            transition: all 0.2s ease;
+            background-color: rgba(0, 0, 0, 0.8);
+            border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.5);
+            color: var(--text-primary);
+            box-shadow:
+                0 0 4px rgba(0, 0, 0, 0.03),
+                0 4px 8px rgba(0, 0, 0, 0.15),
+                inset 0 0 8px 4px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.12),
+                0 0 10px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15);
+        }
+        
+        .tooltip-trigger:hover .liquid-tooltip {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* ═══════════════════════════════════════════════════════
+           ANIMATED BACKGROUND
+           ═══════════════════════════════════════════════════════ */
+        .animated-bg {
+            background-color: #050505;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+            z-index: -1;
+        }
+
+        .animated-bg::before {
+            content: '';
+            position: absolute;
+            top: 10%;
+            left: 10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(6, 182, 212, 0.25) 0%, transparent 70%);
+            animation: moveOrb1 25s ease-in-out infinite;
+            pointer-events: none;
+            border-radius: 50%;
+            filter: blur(60px);
+        }
+
+        .animated-bg::after {
+            content: '';
+            position: absolute;
+            bottom: 10%;
+            right: 10%;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, rgba(168, 85, 247, 0.25) 0%, transparent 70%);
+            animation: moveOrb2 30s ease-in-out infinite;
+            pointer-events: none;
+            border-radius: 50%;
+            filter: blur(60px);
+        }
+
+        @keyframes moveOrb1 {
+            0% { transform: translate(0, 0); }
+            50% { transform: translate(300px, 200px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        @keyframes moveOrb2 {
+            0% { transform: translate(0, 0); }
+            50% { transform: translate(-200px, 100px); }
+            100% { transform: translate(0, 0); }
+        }
+
+        /* ═══════════════════════════════════════════════════════
+           LAYOUT & TYPOGRAPHY
+           ═══════════════════════════════════════════════════════ */
+        body {
+            font-family: 'Inter Tight', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            font-weight: 400;
+            background-color: var(--bg-base);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .header {
+            text-align: center;
+            padding: 3rem 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+            margin-bottom: 0.5rem;
+            background: linear-gradient(135deg, #06b6d4, #a855f7);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            color: var(--text-secondary);
+            font-size: 1.125rem;
+        }
+
+        /* Demo section container - also liquid styled */
+        .demo-section {
+            margin-bottom: 3rem;
+            padding: 2rem;
+            border-radius: 22px;
+            background-color: rgba(0, 0, 0, 0.25);
+            border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.25);
+            box-shadow:
+                0 0 6px rgba(0, 0, 0, 0.03),
+                0 2px 6px rgba(0, 0, 0, 0.08),
+                inset 3px 3px 0.5px -3.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.1),
+                inset -3px -3px 0.5px -3.5px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.6),
+                inset 0 0 8px 8px rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.06),
+                0 0 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .demo-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.2);
+        }
+
+        .demo-header h2 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        .demo-header .badge {
+            font-size: 12px;
+            padding: 4px 8px;
+            border-radius: 4px;
+            background: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.2);
+            border: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.3);
+        }
+
+        .demo-row {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .demo-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .demo-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            min-width: 100px;
+        }
+
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .demo-code {
+            display: inline-block;
+            font-family: 'SF Mono', Monaco, monospace;
+            font-size: 12px;
+            padding: 2px 6px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 4px;
+            color: rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 1);
+        }
+
+        /* Showcase table (for variants) */
+        .showcase-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1rem;
+        }
+        
+        .showcase-table th {
+            text-align: left;
+            padding: 8px 12px;
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text-secondary);
+            border-bottom: 1px solid rgba(var(--liquid-r), var(--liquid-g), var(--liquid-b), 0.15);
+        }
+        
+        .showcase-table td {
+            padding: 12px;
+            vertical-align: middle;
+        }
+
+        /* Color swatches */
+        .color-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 1rem;
+        }
+
+        .color-swatch {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .color-swatch .swatch {
+            height: 60px;
+            border-radius: var(--radius-4);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .color-swatch .label {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* SVG icons */
+        .icon {
+            width: 16px;
+            height: 16px;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .icon-sm { width: 12px; height: 12px; }
+        .icon-lg { width: 20px; height: 20px; }
+        .icon-xl { width: 24px; height: 24px; }
+
+        /* Utility classes */
+        .flex { display: flex; }
+        .flex-col { flex-direction: column; }
+        .items-center { align-items: center; }
+        .justify-center { justify-content: center; }
+        .gap-1 { gap: 4px; }
+        .gap-2 { gap: 8px; }
+        .gap-3 { gap: 12px; }
+        .gap-4 { gap: 16px; }
+        .gap-6 { gap: 24px; }
+        .mt-4 { margin-top: 16px; }
+        .mb-2 { margin-bottom: 8px; }
+        .p-2 { padding: 8px; }
+        .p-4 { padding: 16px; }
+        .p-6 { padding: 24px; }
+        .text-sm { font-size: 13px; }
+        .text-muted { color: var(--text-secondary); }
+        .font-medium { font-weight: 500; }
+        .font-semibold { font-weight: 600; }
+
+        /* Tab content */
+        .tab-content {
+            display: none;
+            padding: 16px;
+            border-radius: var(--radius-4);
+            background: rgba(0, 0, 0, 0.2);
+            margin-top: 12px;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="animated-bg"></div>
+    
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>Radix Themes + Liquid Glass</h1>
+            <p>A premium dark-mode design system with liquid glass morphism surfaces</p>
+        </header>
+        
+        <!-- ═══════════════════════════════════════════════════════
+             SECTION: Design System Overview
+             ═══════════════════════════════════════════════════════ -->
+        <section class="demo-section liquid-cyan">
+            <div class="demo-header">
+                <h2>Design System</h2>
+                <span class="badge">Core Concept</span>
+            </div>
+            
+            <div class="demo-row flex-col gap-4">
+                <p>The <strong>Liquid Container</strong> system applies a signature glass morphism effect to all UI surfaces using layered inset shadows. This creates a soft, beveled appearance with inner color glow.</p>
+                
+                <div class="liquid-card p-4" style="max-width: 600px;">
+                    <h4 class="font-semibold mb-2">Apply to:</h4>
+                    <ul style="list-style: none; padding-left: 0;">
+                        <li>✓ Buttons, Cards, Badges</li>
+                        <li>✓ Inputs, Selects, Dropdowns</li>
+                        <li>✓ Checkboxes, Radios, Switches</li>
+                        <li>✓ Tabs, Callouts, Tables</li>
+                        <li>✓ Any element with a background or border</li>
+                    </ul>
+                </div>
+                
+                <div class="liquid-card p-4 liquid-white" style="max-width: 600px;">
+                    <h4 class="font-semibold mb-2">Exclude:</h4>
+                    <ul style="list-style: none; padding-left: 0;">
+                        <li>✗ Standalone text (stays normal)</li>
+                        <li>✗ Icons without container backgrounds</li>
+                        <li>✗ Raw data values</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SECTION: Liquid Colors
+             ═══════════════════════════════════════════════════════ -->
+        <section class="demo-section">
+            <div class="demo-header">
+                <h2>Liquid Colors</h2>
+                <span class="badge">8 Variants</span>
+            </div>
+            
+            <div class="color-grid">
+                <div class="color-swatch">
+                    <div class="swatch liquid-surface liquid-cyan"></div>
+                    <span class="label">Cyan (Default)</span>
+                    <code class="demo-code">--liquid-cyan</code>
+                </div>
+                <div class="color-swatch">
+                    <div class="swatch liquid-surface liquid-white"></div>
+                    <span class="label">White</span>
+                    <code class="demo-code">--liquid-white</code>
+                </div>
+                <div class="color-swatch">
+                    <div class="swatch liquid-surface liquid-green"></div>
+                    <span class="label">Green</span>
+                    <code class="demo-code">--liquid-green</code>
+                </div>
+                <div class="color-swatch">
+                    <div class="swatch liquid-surface liquid-red"></div>
+                    <span class="label">Red</span>
+                    <code class="demo-code">--liquid-red</code>
+                </div>
+                <div class="color-swatch">
+                    <div class="swatch liquid-surface liquid-purple"></div>
+                    <span class="label">Purple</span>
+                    <code class="demo-code">--liquid-purple</code>
+                </div>
+                <div class="color-swatch">
+                    <div class="swatch liquid-surface liquid-yellow"></div>
+                    <span class="label">Yellow</span>
+                    <code class="demo-code">--liquid-yellow</code>
+                </div>
+                <div class="color-swatch">
+                    <div class="swatch liquid-surface liquid-orange"></div>
+                    <span class="label">Orange</span>
+                    <code class="demo-code">--liquid-orange</code>
+                </div>
+                <div class="color-swatch">
+                    <div class="swatch liquid-surface liquid-pink"></div>
+                    <span class="label">Pink</span>
+                    <code class="demo-code">--liquid-pink</code>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SECTION: Buttons
+             ═══════════════════════════════════════════════════════ -->
+        <section class="demo-section">
+            <div class="demo-header">
+                <h2>Buttons</h2>
+                <span class="badge">.liquid-btn</span>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">Colors:</span>
+                <button class="liquid-btn size-3 liquid-cyan">Cyan</button>
+                <button class="liquid-btn size-3 liquid-white">White</button>
+                <button class="liquid-btn size-3 liquid-green">Green</button>
+                <button class="liquid-btn size-3 liquid-red">Red</button>
+                <button class="liquid-btn size-3 liquid-purple">Purple</button>
+                <button class="liquid-btn size-3 liquid-yellow">Yellow</button>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">Sizes:</span>
+                <button class="liquid-btn size-1 liquid-cyan">Size 1</button>
+                <button class="liquid-btn size-2 liquid-cyan">Size 2</button>
+                <button class="liquid-btn size-3 liquid-cyan">Size 3</button>
+                <button class="liquid-btn size-4 liquid-cyan">Size 4</button>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">States:</span>
+                <button class="liquid-btn size-3 liquid-cyan">Normal</button>
+                <button class="liquid-btn size-3 liquid-cyan" disabled>Disabled</button>
+            </div>
+            
+            <table class="showcase-table">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Size 1</th>
+                        <th>Size 2</th>
+                        <th>Size 3</th>
+                        <th>Size 4</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="demo-label">Cyan</td>
+                        <td><button class="liquid-btn size-1 liquid-cyan">Button</button></td>
+                        <td><button class="liquid-btn size-2 liquid-cyan">Button</button></td>
+                        <td><button class="liquid-btn size-3 liquid-cyan">Button</button></td>
+                        <td><button class="liquid-btn size-4 liquid-cyan">Button</button></td>
+                    </tr>
+                    <tr>
+                        <td class="demo-label">White</td>
+                        <td><button class="liquid-btn size-1 liquid-white">Button</button></td>
+                        <td><button class="liquid-btn size-2 liquid-white">Button</button></td>
+                        <td><button class="liquid-btn size-3 liquid-white">Button</button></td>
+                        <td><button class="liquid-btn size-4 liquid-white">Button</button></td>
+                    </tr>
+                    <tr>
+                        <td class="demo-label">Green</td>
+                        <td><button class="liquid-btn size-1 liquid-green">Button</button></td>
+                        <td><button class="liquid-btn size-2 liquid-green">Button</button></td>
+                        <td><button class="liquid-btn size-3 liquid-green">Button</button></td>
+                        <td><button class="liquid-btn size-4 liquid-green">Button</button></td>
+                    </tr>
+                    <tr>
+                        <td class="demo-label">Red</td>
+                        <td><button class="liquid-btn size-1 liquid-red">Button</button></td>
+                        <td><button class="liquid-btn size-2 liquid-red">Button</button></td>
+                        <td><button class="liquid-btn size-3 liquid-red">Button</button></td>
+                        <td><button class="liquid-btn size-4 liquid-red">Button</button></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SECTION: Badges
+             ═══════════════════════════════════════════════════════ -->
+        <section class="demo-section">
+            <div class="demo-header">
+                <h2>Badges</h2>
+                <span class="badge">.liquid-badge</span>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">Colors:</span>
+                <span class="liquid-badge size-2 liquid-cyan">Cyan</span>
+                <span class="liquid-badge size-2 liquid-white">White</span>
+                <span class="liquid-badge size-2 liquid-green">Success</span>
+                <span class="liquid-badge size-2 liquid-red">Error</span>
+                <span class="liquid-badge size-2 liquid-purple">Premium</span>
+                <span class="liquid-badge size-2 liquid-yellow">Warning</span>
+                <span class="liquid-badge size-2 liquid-orange">Orange</span>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">Sizes:</span>
+                <span class="liquid-badge size-1 liquid-cyan">Size 1</span>
+                <span class="liquid-badge size-2 liquid-cyan">Size 2</span>
+                <span class="liquid-badge size-3 liquid-cyan">Size 3</span>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">Use cases:</span>
+                <span class="liquid-badge size-2 liquid-green">Active</span>
+                <span class="liquid-badge size-2 liquid-yellow">Pending</span>
+                <span class="liquid-badge size-2 liquid-red">Overdue</span>
+                <span class="liquid-badge size-2 liquid-purple">New</span>
+                <span class="liquid-badge size-2 liquid-cyan">12 items</span>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SECTION: Cards
+             ═══════════════════════════════════════════════════════ -->
+        <section class="demo-section">
+            <div class="demo-header">
+                <h2>Cards</h2>
+                <span class="badge">.liquid-card</span>
+            </div>
+            
+            <div class="demo-grid">
+                <div class="liquid-card liquid-cyan">
+                    <h4 class="font-semibold mb-2">Cyan Card</h4>
+                    <p class="text-sm text-muted">Default card style with cyan liquid glass effect.</p>
+                </div>
+                <div class="liquid-card liquid-white">
+                    <h4 class="font-semibold mb-2">White Card</h4>
+                    <p class="text-sm text-muted">Neutral card with white liquid glass effect.</p>
+                </div>
+                <div class="liquid-card liquid-purple">
+                    <h4 class="font-semibold mb-2">Purple Card</h4>
+                    <p class="text-sm text-muted">Premium card with purple liquid glass effect.</p>
+                </div>
+                <div class="liquid-card liquid-green">
+                    <h4 class="font-semibold mb-2">Green Card</h4>
+                    <p class="text-sm text-muted">Success card with green liquid glass effect.</p>
+                </div>
+            </div>
+            
+            <div class="mt-4">
+                <div class="liquid-card liquid-cyan" style="max-width: 400px;">
+                    <h4 class="font-semibold mb-2">Interactive Card Example</h4>
+                    <p class="text-sm text-muted mb-2">Cards have hover states that intensify the inner glow.</p>
+                    <div class="flex gap-2">
+                        <button class="liquid-btn size-2 liquid-white">Cancel</button>
+                        <button class="liquid-btn size-2 liquid-cyan">Save</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SECTION: Text Fields
+             ═══════════════════════════════════════════════════════ -->
+        <section class="demo-section">
+            <div class="demo-header">
+                <h2>Text Fields</h2>
+                <span class="badge">.liquid-input</span>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">Sizes:</span>
+            </div>
+            
+            <div class="flex flex-col gap-3" style="max-width: 400px;">
+                <div class="liquid-input size-1 liquid-cyan">
+                    <input type="text" placeholder="Size 1 input...">
+                </div>
+                <div class="liquid-input size-2 liquid-cyan">
+                    <input type="text" placeholder="Size 2 input...">
+                </div>
+                <div class="liquid-input size-3 liquid-cyan">
+                    <input type="text" placeholder="Size 3 input...">
+                </div>
+            </div>
+            
+            <div class="demo-row mt-4">
+                <span class="demo-label">Colors:</span>
+            </div>
+            
+            <div class="flex flex-col gap-3" style="max-width: 400px;">
+                <div class="liquid-input size-2 liquid-cyan">
+                    <input type="text" placeholder="Cyan input...">
+                </div>
+                <div class="liquid-input size-2 liquid-white">
+                    <input type="text" placeholder="White input...">
+                </div>
+                <div class="liquid-input size-2 liquid-purple">
+                    <input type="text" placeholder="Purple input...">
+                </div>
+            </div>
+            
+            <table class="showcase-table mt-4">
+                <thead>
+                    <tr>
+                        <th></th>
+                        <th>Size 1</th>
+                        <th>Size 2</th>
+                        <th>Size 3</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="demo-label">Cyan</td>
+                        <td><div class="liquid-input size-1 liquid-cyan"><input type="text" placeholder="Text..."></div></td>
+                        <td><div class="liquid-input size-2 liquid-cyan"><input type="text" placeholder="Text..."></div></td>
+                        <td><div class="liquid-input size-3 liquid-cyan"><input type="text" placeholder="Text..."></div></td>
+                    </tr>
+                    <tr>
+                        <td class="demo-label">White</td>
+                        <td><div class="liquid-input size-1 liquid-white"><input type="text" placeholder="Text..."></div></td>
+                        <td><div class="liquid-input size-2 liquid-white"><input type="text" placeholder="Text..."></div></td>
+                        <td><div class="liquid-input size-3 liquid-white"><input type="text" placeholder="Text..."></div></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SECTION: Select
+             ═══════════════════════════════════════════════════════ -->
+        <section class="demo-section">
+            <div class="demo-header">
+                <h2>Select</h2>
+                <span class="badge">.liquid-select</span>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">Colors:</span>
+                <div class="liquid-select size-2 liquid-cyan">
+                    <span>Select option</span>
+                    <svg class="icon chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4"></path></svg>
+                </div>
+                <div class="liquid-select size-2 liquid-white">
+                    <span>Select option</span>
+                    <svg class="icon chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4"></path></svg>
+                </div>
+                <div class="liquid-select size-2 liquid-purple">
+                    <span>Select option</span>
+                    <svg class="icon chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4"></path></svg>
+                </div>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">Sizes:</span>
+                <div class="liquid-select size-1 liquid-cyan">
+                    <span>Size 1</span>
+                    <svg class="icon-sm chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4"></path></svg>
+                </div>
+                <div class="liquid-select size-2 liquid-cyan">
+                    <span>Size 2</span>
+                    <svg class="icon chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4"></path></svg>
+                </div>
+                <div class="liquid-select size-3 liquid-cyan">
+                    <span>Size 3</span>
+                    <svg class="icon-lg chevron" viewBox="0 0 16 16" fill="currentColor"><path d="M4 6l4 4 4-4"></path></svg>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SECTION: Checkbox
+             ═══════════════════════════════════════════════════════ -->
+        <section class="demo-section">
+            <div class="demo-header">
+                <h2>Checkbox</h2>
+                <span class="badge">.liquid-checkbox</span>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">States:</span>
+                <div class="flex items-center gap-2">
+                    <div class="liquid-checkbox size-2 liquid-cyan" onclick="this.classList.toggle('checked')">
+                        <svg class="icon-sm check-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="4 8 7 11 12 5"></polyline>
+                        </svg>
+                    </div>
+                    <span class="text-sm">Unchecked (click me)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="liquid-checkbox size-2 liquid-cyan checked" onclick="this.classList.toggle('checked')">
+                        <svg class="icon-sm check-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="4 8 7 11 12 5"></polyline>
+                        </svg>
+                    </div>
+                    <span class="text-sm">Checked</span>
+                </div>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">Sizes:</span>
+                <div class="liquid-checkbox size-1 liquid-cyan checked">
+                    <svg class="icon-sm check-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4 8 7 11 12 5"></polyline>
+                    </svg>
+                </div>
+                <div class="liquid-checkbox size-2 liquid-cyan checked">
+                    <svg class="icon-sm check-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4 8 7 11 12 5"></polyline>
+                    </svg>
+                </div>
+                <div class="liquid-checkbox size-3 liquid-cyan checked">
+                    <svg class="icon check-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4 8 7 11 12 5"></polyline>
+                    </svg>
+                </div>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">Colors:</span>
+                <div class="liquid-checkbox size-2 liquid-cyan checked">
+                    <svg class="icon-sm check-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4 8 7 11 12 5"></polyline>
+                    </svg>
+                </div>
+                <div class="liquid-checkbox size-2 liquid-green checked">
+                    <svg class="icon-sm check-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4 8 7 11 12 5"></polyline>
+                    </svg>
+                </div>
+                <div class="liquid-checkbox size-2 liquid-purple checked">
+                    <svg class="icon-sm check-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4 8 7 11 12 5"></polyline>
+                    </svg>
+                </div>
+                <div class="liquid-checkbox size-2 liquid-red checked">
+                    <svg class="icon-sm check-icon" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2">
+                        <polyline points="4 8 7 11 12 5"></polyline>
+                    </svg>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SECTION: Radio
+             ═══════════════════════════════════════════════════════ -->
+        <section class="demo-section">
+            <div class="demo-header">
+                <h2>Radio</h2>
+                <span class="badge">.liquid-radio</span>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">Group:</span>
+                <div class="flex flex-col gap-3">
+                    <div class="flex items-center gap-2" onclick="selectRadio(this, 'group1')">
+                        <div class="liquid-radio size-2 liquid-cyan checked">
+                            <div class="radio-dot"></div>
+                        </div>
+                        <span class="text-sm">Option 1</span>
+                    </div>
+                    <div class="flex items-center gap-2" onclick="selectRadio(this, 'group1')">
+                        <div class="liquid-radio size-2 liquid-cyan">
+                            <div class="radio-dot"></div>
+                        </div>
+                        <span class="text-sm">Option 2</span>
+                    </div>
+                    <div class="flex items-center gap-2" onclick="selectRadio(this, 'group1')">
+                        <div class="liquid-radio size-2 liquid-cyan">
+                            <div class="radio-dot"></div>
+                        </div>
+                        <span class="text-sm">Option 3</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">Sizes:</span>
+                <div class="liquid-radio size-1 liquid-cyan checked">
+                    <div class="radio-dot"></div>
+                </div>
+                <div class="liquid-radio size-2 liquid-cyan checked">
+                    <div class="radio-dot"></div>
+                </div>
+                <div class="liquid-radio size-3 liquid-cyan checked">
+                    <div class="radio-dot"></div>
+                </div>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">Colors:</span>
+                <div class="liquid-radio size-2 liquid-cyan checked">
+                    <div class="radio-dot"></div>
+                </div>
+                <div class="liquid-radio size-2 liquid-green checked">
+                    <div class="radio-dot"></div>
+                </div>
+                <div class="liquid-radio size-2 liquid-purple checked">
+                    <div class="radio-dot"></div>
+                </div>
+                <div class="liquid-radio size-2 liquid-red checked">
+                    <div class="radio-dot"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SECTION: Switch
+             ═══════════════════════════════════════════════════════ -->
+        <section class="demo-section">
+            <div class="demo-header">
+                <h2>Switch</h2>
+                <span class="badge">.liquid-switch</span>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">States:</span>
+                <div class="flex items-center gap-2">
+                    <div class="liquid-switch size-2 liquid-cyan" onclick="this.classList.toggle('checked')">
+                        <div class="thumb"></div>
+                    </div>
+                    <span class="text-sm">Off (click me)</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <div class="liquid-switch size-2 liquid-cyan checked" onclick="this.classList.toggle('checked')">
+                        <div class="thumb"></div>
+                    </div>
+                    <span class="text-sm">On</span>
+                </div>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">Sizes:</span>
+                <div class="liquid-switch size-1 liquid-cyan checked">
+                    <div class="thumb"></div>
+                </div>
+                <div class="liquid-switch size-2 liquid-cyan checked">
+                    <div class="thumb"></div>
+                </div>
+                <div class="liquid-switch size-3 liquid-cyan checked">
+                    <div class="thumb"></div>
+                </div>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">Colors:</span>
+                <div class="liquid-switch size-2 liquid-cyan checked">
+                    <div class="thumb"></div>
+                </div>
+                <div class="liquid-switch size-2 liquid-green checked">
+                    <div class="thumb"></div>
+                </div>
+                <div class="liquid-switch size-2 liquid-purple checked">
+                    <div class="thumb"></div>
+                </div>
+                <div class="liquid-switch size-2 liquid-red checked">
+                    <div class="thumb"></div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SECTION: Tabs
+             ═══════════════════════════════════════════════════════ -->
+        <section class="demo-section">
+            <div class="demo-header">
+                <h2>Tabs</h2>
+                <span class="badge">.liquid-tabs-list</span>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">Standard:</span>
+            </div>
+            
+            <div class="liquid-tabs-list liquid-cyan">
+                <button class="liquid-tab active" onclick="switchTab(this, 'tab1')">Account</button>
+                <button class="liquid-tab" onclick="switchTab(this, 'tab2')">Settings</button>
+                <button class="liquid-tab" onclick="switchTab(this, 'tab3')">Billing</button>
+            </div>
+            
+            <div id="tab1" class="tab-content active">
+                <p class="text-sm text-muted">Account settings content goes here.</p>
+            </div>
+            <div id="tab2" class="tab-content">
+                <p class="text-sm text-muted">Settings content goes here.</p>
+            </div>
+            <div id="tab3" class="tab-content">
+                <p class="text-sm text-muted">Billing content goes here.</p>
+            </div>
+            
+            <div class="demo-row mt-4">
+                <span class="demo-label">Colors:</span>
+            </div>
+            
+            <div class="flex flex-col gap-3">
+                <div class="liquid-tabs-list liquid-cyan">
+                    <button class="liquid-tab active">Tab 1</button>
+                    <button class="liquid-tab">Tab 2</button>
+                </div>
+                <div class="liquid-tabs-list liquid-purple">
+                    <button class="liquid-tab active">Tab 1</button>
+                    <button class="liquid-tab">Tab 2</button>
+                </div>
+                <div class="liquid-tabs-list liquid-white">
+                    <button class="liquid-tab active">Tab 1</button>
+                    <button class="liquid-tab">Tab 2</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SECTION: Callouts
+             ═══════════════════════════════════════════════════════ -->
+        <section class="demo-section">
+            <div class="demo-header">
+                <h2>Callouts</h2>
+                <span class="badge">.liquid-callout</span>
+            </div>
+            
+            <div class="flex flex-col gap-4">
+                <div class="liquid-callout liquid-cyan">
+                    <svg class="icon-xl callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <path d="M12 16v-4"></path>
+                        <path d="M12 8h.01"></path>
+                    </svg>
+                    <div class="callout-content">
+                        <div class="callout-title">Information</div>
+                        <p class="text-sm text-muted">This is an informational callout with cyan accent.</p>
+                    </div>
+                </div>
+                
+                <div class="liquid-callout liquid-green">
+                    <svg class="icon-xl callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    <div class="callout-content">
+                        <div class="callout-title">Success</div>
+                        <p class="text-sm text-muted">Operation completed successfully.</p>
+                    </div>
+                </div>
+                
+                <div class="liquid-callout liquid-yellow">
+                    <svg class="icon-xl callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                        <line x1="12" y1="9" x2="12" y2="13"></line>
+                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                    </svg>
+                    <div class="callout-content">
+                        <div class="callout-title">Warning</div>
+                        <p class="text-sm text-muted">Please review before proceeding.</p>
+                    </div>
+                </div>
+                
+                <div class="liquid-callout liquid-red">
+                    <svg class="icon-xl callout-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="15" y1="9" x2="9" y2="15"></line>
+                        <line x1="9" y1="9" x2="15" y2="15"></line>
+                    </svg>
+                    <div class="callout-content">
+                        <div class="callout-title">Error</div>
+                        <p class="text-sm text-muted">Something went wrong. Please try again.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SECTION: Progress
+             ═══════════════════════════════════════════════════════ -->
+        <section class="demo-section">
+            <div class="demo-header">
+                <h2>Progress</h2>
+                <span class="badge">.liquid-progress</span>
+            </div>
+            
+            <div class="flex flex-col gap-4" style="max-width: 400px;">
+                <div>
+                    <span class="demo-label mb-2 block">Size 1 (40%)</span>
+                    <div class="liquid-progress size-1 liquid-cyan">
+                        <div class="bar" style="width: 40%"></div>
+                    </div>
+                </div>
+                <div>
+                    <span class="demo-label mb-2 block">Size 2 (60%)</span>
+                    <div class="liquid-progress size-2 liquid-green">
+                        <div class="bar" style="width: 60%"></div>
+                    </div>
+                </div>
+                <div>
+                    <span class="demo-label mb-2 block">Size 3 (80%)</span>
+                    <div class="liquid-progress size-3 liquid-purple">
+                        <div class="bar" style="width: 80%"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SECTION: Slider
+             ═══════════════════════════════════════════════════════ -->
+        <section class="demo-section">
+            <div class="demo-header">
+                <h2>Slider</h2>
+                <span class="badge">.liquid-slider</span>
+            </div>
+            
+            <div class="flex flex-col gap-6" style="max-width: 400px;">
+                <div>
+                    <span class="demo-label mb-2 block">Size 1</span>
+                    <div class="liquid-slider size-1 liquid-cyan">
+                        <div class="track"></div>
+                        <div class="range" style="width: 40%"></div>
+                        <div class="thumb" style="left: 40%"></div>
+                    </div>
+                </div>
+                <div>
+                    <span class="demo-label mb-2 block">Size 2</span>
+                    <div class="liquid-slider size-2 liquid-cyan">
+                        <div class="track"></div>
+                        <div class="range" style="width: 60%"></div>
+                        <div class="thumb" style="left: 60%"></div>
+                    </div>
+                </div>
+                <div>
+                    <span class="demo-label mb-2 block">Size 3</span>
+                    <div class="liquid-slider size-3 liquid-cyan">
+                        <div class="track"></div>
+                        <div class="range" style="width: 75%"></div>
+                        <div class="thumb" style="left: 75%"></div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SECTION: Avatar
+             ═══════════════════════════════════════════════════════ -->
+        <section class="demo-section">
+            <div class="demo-header">
+                <h2>Avatar</h2>
+                <span class="badge">.liquid-avatar</span>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">Sizes:</span>
+                <div class="liquid-avatar size-1 liquid-cyan">A</div>
+                <div class="liquid-avatar size-2 liquid-cyan">AB</div>
+                <div class="liquid-avatar size-3 liquid-cyan">CD</div>
+                <div class="liquid-avatar size-4 liquid-cyan">EF</div>
+                <div class="liquid-avatar size-5 liquid-cyan">GH</div>
+                <div class="liquid-avatar size-6 liquid-cyan">IJ</div>
+            </div>
+            
+            <div class="demo-row">
+                <span class="demo-label">Colors:</span>
+                <div class="liquid-avatar size-4 liquid-cyan">KL</div>
+                <div class="liquid-avatar size-4 liquid-green">MN</div>
+                <div class="liquid-avatar size-4 liquid-purple">OP</div>
+                <div class="liquid-avatar size-4 liquid-pink">QR</div>
+                <div class="liquid-avatar size-4 liquid-yellow">ST</div>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SECTION: Table
+             ═══════════════════════════════════════════════════════ -->
+        <section class="demo-section">
+            <div class="demo-header">
+                <h2>Table</h2>
+                <span class="badge">.liquid-table-wrapper</span>
+            </div>
+            
+            <div class="liquid-table-wrapper liquid-cyan">
+                <table class="liquid-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Status</th>
+                            <th>Role</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>John Doe</td>
+                            <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="89e3e6e1e7c9ecf1e8e4f9e5eca7eae6e4">[email&#160;protected]</a></td>
+                            <td><span class="liquid-badge size-1 liquid-green">Active</span></td>
+                            <td>Admin</td>
+                        </tr>
+                        <tr>
+                            <td>Jane Smith</td>
+                            <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="305a515e55705548515d405c551e535f5d">[email&#160;protected]</a></td>
+                            <td><span class="liquid-badge size-1 liquid-green">Active</span></td>
+                            <td>User</td>
+                        </tr>
+                        <tr>
+                            <td>Bob Wilson</td>
+                            <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="aeccc1cceecbd6cfc3dec2cb80cdc1c3">[email&#160;protected]</a></td>
+                            <td><span class="liquid-badge size-1 liquid-yellow">Pending</span></td>
+                            <td>User</td>
+                        </tr>
+                        <tr>
+                            <td>Alice Brown</td>
+                            <td><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="7514191c161035100d14180519105b161a18">[email&#160;protected]</a></td>
+                            <td><span class="liquid-badge size-1 liquid-red">Inactive</span></td>
+                            <td>Guest</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ═══════════════════════════════════════════════════════
+             SECTION: CSS Reference
+             ═══════════════════════════════════════════════════════ -->
+        <section class="demo-section liquid-purple">
+            <div class="demo-header">
+                <h2>CSS Reference</h2>
+                <span class="badge">Implementation</span>
+            </div>
+            
+            <div class="liquid-card liquid-white p-4">
+                <h4 class="font-semibold mb-2">Core Liquid Shadow Formula</h4>
+                <pre style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 12px; line-height: 1.6;"><code>.liquid-surface {
+  box-shadow:
+    /* Outer shadows for depth */
+    0 0 6px rgba(0, 0, 0, 0.03),
+    0 2px 6px rgba(0, 0, 0, 0.08),
+    /* Inner bevel highlights */
+    inset 3px 3px 0.5px -3.5px rgba(R, G, B, 0.15),
+    inset -3px -3px 0.5px -3.5px rgba(R, G, B, 0.85),
+    /* Fine edge highlights */
+    inset 1px 1px 1px -0.5px rgba(R, G, B, 0.6),
+    inset -1px -1px 1px -0.5px rgba(R, G, B, 0.6),
+    /* Inner color glow */
+    inset 0 0 6px 6px rgba(R, G, B, 0.12),
+    inset 0 0 2px 2px rgba(R, G, B, 0.06),
+    /* Outer ambient shadow */
+    0 0 12px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(R, G, B, 0.4);
+  background-color: rgba(0, 0, 0, 0.2);
+}</code></pre>
+            </div>
+            
+            <div class="mt-4 liquid-card liquid-white p-4">
+                <h4 class="font-semibold mb-2">Apply Colors via CSS Variables</h4>
+                <pre style="background: rgba(0,0,0,0.3); padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 12px; line-height: 1.6;"><code>/* Define color via CSS custom properties */
+.liquid-cyan {
+  --liquid-r: 6;
+  --liquid-g: 182;
+  --liquid-b: 212;
+}
+
+/* Or via data attribute */
+[data-liquid-color="cyan"] {
+  --liquid-r: 6;
+  --liquid-g: 182;
+  --liquid-b: 212;
+}</code></pre>
+            </div>
+            
+            <div class="mt-4 liquid-card liquid-white p-4">
+                <h4 class="font-semibold mb-2">Available Classes</h4>
+                <div class="demo-grid" style="gap: 8px;">
+                    <code class="demo-code">.liquid-surface</code>
+                    <code class="demo-code">.liquid-btn</code>
+                    <code class="demo-code">.liquid-badge</code>
+                    <code class="demo-code">.liquid-card</code>
+                    <code class="demo-code">.liquid-input</code>
+                    <code class="demo-code">.liquid-select</code>
+                    <code class="demo-code">.liquid-checkbox</code>
+                    <code class="demo-code">.liquid-radio</code>
+                    <code class="demo-code">.liquid-switch</code>
+                    <code class="demo-code">.liquid-tabs-list</code>
+                    <code class="demo-code">.liquid-callout</code>
+                    <code class="demo-code">.liquid-progress</code>
+                    <code class="demo-code">.liquid-slider</code>
+                    <code class="demo-code">.liquid-avatar</code>
+                    <code class="demo-code">.liquid-table-wrapper</code>
+                    <code class="demo-code">.liquid-tooltip</code>
+                </div>
+            </div>
+        </section>
+
+        <!-- Footer -->
+        <footer style="text-align: center; padding: 2rem; color: var(--text-secondary); font-size: 14px;">
+            <p>Radix Themes + Liquid Glass Design System</p>
+            <p style="margin-top: 8px; font-size: 12px;">Built for BBB Auto Sales DMS</p>
+        </footer>
+    </div>
+
+    <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+        // Radio group selection
+        function selectRadio(element, groupName) {
+            // Find all radios in this group's parent
+            const parent = element.closest('.demo-row') || element.closest('.flex-col');
+            const radios = parent.querySelectorAll('.liquid-radio');
+            radios.forEach(radio => radio.classList.remove('checked'));
+            element.querySelector('.liquid-radio').classList.add('checked');
+        }
+        
+        // Tab switching
+        function switchTab(tabButton, contentId) {
+            const tabList = tabButton.closest('.liquid-tabs-list');
+            const section = tabButton.closest('.demo-section') || tabButto

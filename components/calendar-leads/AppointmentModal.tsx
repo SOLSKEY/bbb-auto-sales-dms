@@ -11,12 +11,24 @@ const CST_TIMEZONE = 'America/Chicago';
 const formatDateForCSTInput = (dateStr: string): string => {
     if (!dateStr) return '';
     const date = new Date(dateStr);
-    // Get date components in CST
-    const year = date.toLocaleString('en-US', { timeZone: CST_TIMEZONE, year: 'numeric' });
-    const month = date.toLocaleString('en-US', { timeZone: CST_TIMEZONE, month: '2-digit' });
-    const day = date.toLocaleString('en-US', { timeZone: CST_TIMEZONE, day: '2-digit' });
-    const hours = date.toLocaleString('en-US', { timeZone: CST_TIMEZONE, hour: '2-digit', hour12: false });
-    const minutes = date.toLocaleString('en-US', { timeZone: CST_TIMEZONE, minute: '2-digit' });
+    // Get date components in CST using Intl.DateTimeFormat for more reliable formatting
+    const formatter = new Intl.DateTimeFormat('en-US', {
+        timeZone: CST_TIMEZONE,
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false,
+    });
+    
+    const parts = formatter.formatToParts(date);
+    const year = parts.find(p => p.type === 'year')?.value || '';
+    const month = parts.find(p => p.type === 'month')?.value || '';
+    const day = parts.find(p => p.type === 'day')?.value || '';
+    const hours = parts.find(p => p.type === 'hour')?.value || '00';
+    const minutes = parts.find(p => p.type === 'minute')?.value || '00';
+    
     return `${year}-${month}-${day}T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
 };
 
@@ -129,6 +141,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({
     const [showModelDropdown, setShowModelDropdown] = useState(false);
     const [showSourceDropdown, setShowSourceDropdown] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [dateTimeInputValue, setDateTimeInputValue] = useState('');
 
     const isEditing = Boolean(initialData?.id);
 
@@ -147,6 +160,12 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({
                 vehicle_ids: initialData.vehicle_ids || [],
                 model_interests: initialData.model_interests || [],
             });
+            // Set the datetime input value for display
+            if (initialData.appointment_time) {
+                setDateTimeInputValue(formatDateForInput(initialData.appointment_time));
+            } else {
+                setDateTimeInputValue('');
+            }
         } else if (isOpen) {
             // Reset form for new appointment
             setFormData({
@@ -161,6 +180,10 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({
                 vehicle_ids: [],
                 model_interests: [],
             });
+            // Set current date/time as default
+            const now = new Date();
+            const defaultDateTime = formatDateForCSTInput(now.toISOString());
+            setDateTimeInputValue(defaultDateTime);
         }
     }, [isOpen, initialData]);
 
@@ -396,8 +419,24 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({
                         <div className="liquid-input size-2">
                             <input
                                 type="datetime-local"
-                                value={formatDateForInput(formData.appointment_time || '')}
-                                onChange={(e) => handleChange('appointment_time', parseCSTInputToISO(e.target.value))}
+                                value={dateTimeInputValue}
+                                onChange={(e) => {
+                                    const rawValue = e.target.value;
+                                    setDateTimeInputValue(rawValue);
+                                    // Only update formData if the value is valid
+                                    if (rawValue) {
+                                        try {
+                                            const isoValue = parseCSTInputToISO(rawValue);
+                                            handleChange('appointment_time', isoValue);
+                                        } catch (err) {
+                                            // If parsing fails, still update the input value
+                                            // but don't update formData yet
+                                            console.warn('Failed to parse datetime:', err);
+                                        }
+                                    } else {
+                                        handleChange('appointment_time', '');
+                                    }
+                                }}
                                 className="w-full"
                             />
                         </div>
