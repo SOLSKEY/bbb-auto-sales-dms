@@ -1223,6 +1223,79 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
     await new Promise(resolve => setTimeout(resolve, 3000));
     console.log('✅ LabelList rendering wait complete');
 
+    // Wait for line charts to fully render (specifically for Collections Weekly Total Payments chart)
+    console.log('📈 Waiting for line charts to fully render...');
+    try {
+      await page.waitForFunction(() => {
+        const svgs = document.querySelectorAll('svg');
+        let allLineChartsRendered = true;
+
+        for (const svg of svgs) {
+          // Check for line chart paths (Recharts renders lines as path elements)
+          const linePaths = svg.querySelectorAll('path.recharts-line-curve, path.recharts-curve, path[class*="recharts-line"]');
+          
+          // Also check for any path that looks like a line (has a 'd' attribute with curve commands)
+          const allPaths = svg.querySelectorAll('path[d]');
+          const lineLikePaths = Array.from(allPaths).filter(path => {
+            const d = path.getAttribute('d') || '';
+            // Line paths typically have M (move) and L (line) or curve commands (C, S, Q, T)
+            return d.includes('M') && (d.includes('L') || d.includes('C') || d.includes('S') || d.includes('Q') || d.includes('T'));
+          });
+
+          // Combine both sets of paths
+          const allLinePaths = linePaths.length > 0 ? linePaths : lineLikePaths;
+
+          if (allLinePaths.length > 0) {
+            // Check that all line paths have valid, fully-rendered path data
+            const renderedPaths = Array.from(allLinePaths).filter(path => {
+              const d = path.getAttribute('d') || '';
+              // A fully rendered line should have:
+              // 1. A valid 'd' attribute with sufficient length (at least 50 chars for a meaningful line)
+              // 2. The path should be visible (not hidden)
+              const style = window.getComputedStyle(path);
+              const rect = path.getBoundingClientRect();
+              
+              return d.length >= 50 && // Minimum path data length
+                     style.display !== 'none' &&
+                     style.visibility !== 'hidden' &&
+                     style.opacity !== '0' &&
+                     rect.width > 0 &&
+                     rect.height > 0;
+            });
+
+            // If we found line paths but not all are rendered, wait
+            if (renderedPaths.length < allLinePaths.length) {
+              allLineChartsRendered = false;
+              break;
+            }
+
+            // Additional check: ensure paths have actual curve data (not just placeholder)
+            const hasValidCurves = renderedPaths.some(path => {
+              const d = path.getAttribute('d') || '';
+              // Check for actual curve commands or multiple line segments
+              return d.includes('C') || d.includes('S') || d.includes('Q') || 
+                     (d.match(/L/g) && d.match(/L/g).length >= 2) || // Multiple line segments
+                     (d.match(/M/g) && d.match(/M/g).length >= 2); // Multiple move commands
+            });
+
+            if (!hasValidCurves && renderedPaths.length > 0) {
+              allLineChartsRendered = false;
+              break;
+            }
+          }
+        }
+
+        return allLineChartsRendered;
+      }, { timeout: 20000 });
+      console.log('✅ Line charts fully rendered');
+    } catch (error) {
+      console.log('⚠️ Line chart detection timeout, continuing anyway...');
+    }
+
+    // Additional wait for line chart animations and rendering to complete
+    await new Promise(resolve => setTimeout(resolve, 2000));
+    console.log('✅ Line chart rendering stabilization complete');
+
     // Mimic DevTools device toolbar: Set DPR to 2.0 and zoom to 50%
     console.log('⚙️ Setting DPR to 2.0 and zoom to 50%...');
     const client = await page.target().createCDPSession();
@@ -1260,6 +1333,112 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
       targetSelector
     );
     console.log('✅ Layout settled and element verified');
+
+    // Final check: Ensure all charts (especially line charts) are fully rendered after DPR/zoom changes
+    console.log('🔍 Final verification: Checking all charts are fully rendered...');
+    try {
+      await page.waitForFunction(() => {
+        const svgs = document.querySelectorAll('svg');
+        let allChartsReady = true;
+
+        for (const svg of svgs) {
+          // Check for line chart paths
+          const linePaths = svg.querySelectorAll('path.recharts-line-curve, path.recharts-curve, path[class*="recharts-line"]');
+          const allPaths = svg.querySelectorAll('path[d]');
+          const lineLikePaths = Array.from(allPaths).filter(path => {
+            const d = path.getAttribute('d') || '';
+            return d.includes('M') && (d.includes('L') || d.includes('C') || d.includes('S') || d.includes('Q') || d.includes('T'));
+          });
+          const allLinePaths = linePaths.length > 0 ? linePaths : lineLikePaths;
+
+          // Check for bar chart rectangles
+          const barRects = svg.querySelectorAll('rect.recharts-bar-rectangle, rect[class*="recharts-bar"]');
+          
+          // Check for area chart paths
+          const areaPaths = svg.querySelectorAll('path.recharts-area-area, path[class*="recharts-area"]');
+          
+          // Check for pie chart sectors
+          const pieSectors = svg.querySelectorAll('path.recharts-pie-sector, path[class*="recharts-pie"]');
+
+          // Verify line charts
+          if (allLinePaths.length > 0) {
+            const renderedLines = Array.from(allLinePaths).filter(path => {
+              const d = path.getAttribute('d') || '';
+              const style = window.getComputedStyle(path);
+              const rect = path.getBoundingClientRect();
+              return d.length >= 50 &&
+                     style.display !== 'none' &&
+                     style.visibility !== 'hidden' &&
+                     style.opacity !== '0' &&
+                     rect.width > 0 &&
+                     rect.height > 0;
+            });
+            if (renderedLines.length < allLinePaths.length) {
+              allChartsReady = false;
+              break;
+            }
+          }
+
+          // Verify bar charts
+          if (barRects.length > 0) {
+            const renderedBars = Array.from(barRects).filter(rect => {
+              const width = parseFloat(rect.getAttribute('width') || '0');
+              const height = parseFloat(rect.getAttribute('height') || '0');
+              const style = window.getComputedStyle(rect);
+              return width > 0 && height > 0 &&
+                     style.display !== 'none' &&
+                     style.visibility !== 'hidden' &&
+                     style.opacity !== '0';
+            });
+            if (renderedBars.length < barRects.length) {
+              allChartsReady = false;
+              break;
+            }
+          }
+
+          // Verify area charts
+          if (areaPaths.length > 0) {
+            const renderedAreas = Array.from(areaPaths).filter(path => {
+              const d = path.getAttribute('d') || '';
+              const style = window.getComputedStyle(path);
+              return d.length >= 50 &&
+                     style.display !== 'none' &&
+                     style.visibility !== 'hidden' &&
+                     style.opacity !== '0';
+            });
+            if (renderedAreas.length < areaPaths.length) {
+              allChartsReady = false;
+              break;
+            }
+          }
+
+          // Verify pie charts
+          if (pieSectors.length > 0) {
+            const renderedSectors = Array.from(pieSectors).filter(sector => {
+              const d = sector.getAttribute('d') || '';
+              const style = window.getComputedStyle(sector);
+              return d.length >= 20 &&
+                     style.display !== 'none' &&
+                     style.visibility !== 'hidden' &&
+                     style.opacity !== '0';
+            });
+            if (renderedSectors.length < pieSectors.length) {
+              allChartsReady = false;
+              break;
+            }
+          }
+        }
+
+        return allChartsReady;
+      }, { timeout: 15000 });
+      console.log('✅ All charts verified and fully rendered');
+    } catch (error) {
+      console.log('⚠️ Final chart verification timeout, proceeding with screenshot...');
+    }
+
+    // One final wait to ensure everything is painted
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    console.log('✅ Final paint wait complete - ready for screenshot');
 
     const elementHandle = await page.$(targetSelector);
     if (!elementHandle) {
