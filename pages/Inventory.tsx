@@ -472,9 +472,19 @@ const VehicleDetailsModal: React.FC<{ vehicle: Vehicle; onClose: () => void }> =
     );
 };
 
+// Helper function to get current date in CST as YYYY-MM-DD format
+const getCurrentDateCST = (): string => {
+    const now = new Date();
+    // Get date components in CST (America/Chicago timezone)
+    const year = now.toLocaleString('en-US', { timeZone: 'America/Chicago', year: 'numeric' });
+    const month = now.toLocaleString('en-US', { timeZone: 'America/Chicago', month: '2-digit' });
+    const day = now.toLocaleString('en-US', { timeZone: 'America/Chicago', day: '2-digit' });
+    return `${year}-${month}-${day}`;
+};
+
 const blankVehicle: Vehicle = {
   status: 'Available',
-  arrivalDate: new Date().toISOString().split('T')[0],
+  arrivalDate: getCurrentDateCST(),
   vinLast4: '',
   year: new Date().getFullYear(),
   make: '',
