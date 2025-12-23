@@ -4,6 +4,8 @@ import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import { initSMSScheduler, getSchedulerStats, triggerReminderCheck } from "./smsScheduler.js";
+import { sendSMSWithRetry, isTwilioReady } from "./services/twilioService.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -182,33 +184,38 @@ app.get("/admin/users", verifyAdmin, async (req, res) => {
       return res.status(500).json({ error });
     }
 
-    // Fetch all profiles with usernames in one query
+    // Fetch all profiles with usernames and phone numbers in one query
     const userIds = data.users.map(u => u.id);
     const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
-      .select("id, username")
+      .select("id, username, phone_number")
       .in("id", userIds);
 
     if (profilesError) {
       console.error('Error fetching profiles:', profilesError);
     }
 
-    // Create a map of userId -> username for quick lookup
+    // Create maps of userId -> username and phone_number for quick lookup
     const usernameMap = new Map();
+    const phoneNumberMap = new Map();
     if (profiles) {
       profiles.forEach(profile => {
         if (profile.username) {
           usernameMap.set(profile.id, profile.username);
         }
+        if (profile.phone_number) {
+          phoneNumberMap.set(profile.id, profile.phone_number);
+        }
       });
     }
 
-    // Return users without exposing sensitive data, including username
+    // Return users without exposing sensitive data, including username and phone_number
     const sanitizedUsers = data.users.map(user => ({
       id: user.id,
       email: user.email,
       role: user.user_metadata?.role || 'user',
       username: usernameMap.get(user.id) || null,
+      phone_number: phoneNumberMap.get(user.id) || null,
       created_at: user.created_at,
       last_sign_in_at: user.last_sign_in_at,
     }));
@@ -383,10 +390,10 @@ app.get("/admin/users/:userId", verifyAdmin, async (req, res) => {
       return res.status(404).json({ error: { message: 'User not found' } });
     }
 
-    // Fetch username from profiles table
+    // Fetch username and phone_number from profiles table
     const { data: profile } = await supabase
       .from("profiles")
-      .select("username")
+      .select("username, phone_number")
       .eq("id", data.user.id)
       .maybeSingle();
 
@@ -396,6 +403,7 @@ app.get("/admin/users/:userId", verifyAdmin, async (req, res) => {
       email: data.user.email,
       role: data.user.user_metadata?.role || 'user',
       username: profile?.username || null,
+      phone_number: profile?.phone_number || null,
       created_at: data.user.created_at,
       last_sign_in_at: data.user.last_sign_in_at,
     };
@@ -411,7 +419,7 @@ app.get("/admin/users/:userId", verifyAdmin, async (req, res) => {
 app.patch("/admin/users/:userId", verifyAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
-    const { role, username } = req.body;
+    const { role, username, phone_number } = req.body;
 
     // Update role if provided
     if (role) {
@@ -429,6 +437,9 @@ app.patch("/admin/users/:userId", verifyAdmin, async (req, res) => {
         return res.status(500).json({ error: roleError });
       }
     }
+
+    // Prepare profile update object
+    const profileUpdate = { id: userId };
 
     // Update username if provided
     if (username !== undefined) {
@@ -453,19 +464,25 @@ app.patch("/admin/users/:userId", verifyAdmin, async (req, res) => {
         }
       }
 
-      // Update profile with username (can be null to clear it)
+      profileUpdate.username = username || null;
+    }
+
+    // Update phone_number if provided
+    if (phone_number !== undefined) {
+      profileUpdate.phone_number = phone_number || null;
+    }
+
+    // Update profile if there are any changes
+    if (username !== undefined || phone_number !== undefined) {
       const { error: profileError } = await supabase
         .from("profiles")
-        .upsert({
-          id: userId,
-          username: username || null,
-        }, {
+        .upsert(profileUpdate, {
           onConflict: 'id'
         });
 
       if (profileError) {
         console.error('Error updating profile:', profileError);
-        return res.status(500).json({ error: { message: 'Failed to update username' } });
+        return res.status(500).json({ error: { message: 'Failed to update profile' } });
       }
     }
 
@@ -614,12 +631,122 @@ async function handleMessageEvent(event, source) {
   }
 }
 
+// ============================================
+// SMS SCHEDULER ADMIN ENDPOINTS
+// ============================================
+
+// OPTIONS handlers for SMS admin routes
+app.options("/admin/sms-scheduler/health", handleOptions);
+app.options("/admin/sms-scheduler/logs", handleOptions);
+app.options("/admin/sms-scheduler/test", handleOptions);
+app.options("/admin/sms-scheduler/trigger", handleOptions);
+
+// GET: SMS Scheduler health check (Admin only)
+app.get("/admin/sms-scheduler/health", verifyAdmin, (req, res) => {
+  const stats = getSchedulerStats();
+  res.json({
+    status: "ok",
+    scheduler: stats,
+    timestamp: new Date().toISOString()
+  });
+});
+
+// GET: View recent SMS reminder logs (Admin only)
+app.get("/admin/sms-scheduler/logs", verifyAdmin, async (req, res) => {
+  try {
+    const limit = parseInt(req.query.limit) || 50;
+
+    const { data, error } = await supabase
+      .from('sms_reminder_logs')
+      .select(`
+        *,
+        calendar_appointments (
+          customer_name,
+          appointment_time,
+          status
+        )
+      `)
+      .order('sent_at', { ascending: false })
+      .limit(limit);
+
+    if (error) {
+      return res.status(500).json({ error });
+    }
+
+    return res.json({ logs: data });
+  } catch (error) {
+    console.error('Error fetching SMS logs:', error);
+    return res.status(500).json({ error: { message: 'Failed to fetch SMS logs' } });
+  }
+});
+
+// POST: Send a test SMS (Admin only)
+app.post("/admin/sms-scheduler/test", verifyAdmin, async (req, res) => {
+  try {
+    const { phoneNumber, message } = req.body;
+
+    if (!phoneNumber || !message) {
+      return res.status(400).json({
+        error: { message: 'phoneNumber and message are required' }
+      });
+    }
+
+    if (!isTwilioReady()) {
+      return res.status(503).json({
+        error: { message: 'Twilio is not configured. Check server environment variables.' }
+      });
+    }
+
+    const result = await sendSMSWithRetry(phoneNumber, message);
+
+    return res.json({ result });
+  } catch (error) {
+    console.error('Error sending test SMS:', error);
+    return res.status(500).json({ error: { message: 'Failed to send test SMS' } });
+  }
+});
+
+// POST: Manually trigger a reminder check (Admin only)
+app.post("/admin/sms-scheduler/trigger", verifyAdmin, async (req, res) => {
+  try {
+    const { type } = req.body; // 'day_before', 'day_of', or 'one_hour'
+
+    if (!type || !['day_before', 'day_of', 'one_hour'].includes(type)) {
+      return res.status(400).json({
+        error: { message: "type must be 'day_before', 'day_of', or 'one_hour'" }
+      });
+    }
+
+    await triggerReminderCheck(type);
+
+    return res.json({
+      success: true,
+      message: `Triggered ${type} reminder check`,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    console.error('Error triggering reminders:', error);
+    return res.status(500).json({ error: { message: 'Failed to trigger reminders' } });
+  }
+});
+
+// ============================================
 // START SERVER
+// ============================================
 const PORT = process.env.PORT || 4100;
 const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`SERVER RUNNING ON PORT ${PORT}`);
   console.log(`Server listening on 0.0.0.0:${PORT}`);
   console.log(`Facebook webhook endpoint: http://localhost:${PORT}/api/webhooks/facebook`);
+
+  // Initialize SMS Scheduler if enabled
+  if (process.env.ENABLE_SMS_SCHEDULER === 'true') {
+    console.log('');
+    initSMSScheduler();
+  } else {
+    console.log('');
+    console.log('[SMS Scheduler] Disabled (set ENABLE_SMS_SCHEDULER=true to enable)');
+  }
 });
 
 // Handle server errors
