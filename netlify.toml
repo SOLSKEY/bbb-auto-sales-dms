@@ -20,15 +20,23 @@
 # Vite-generated assets with content hashes can be cached aggressively
 # These files have hashes in their names (e.g., index-B6BeRJ9E.js)
 [[headers]]
-  for = "/assets/*"
+  for = "/assets/*.js"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+    Content-Type = "application/javascript; charset=utf-8"
+
+[[headers]]
+  for = "/assets/*.css"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+    Content-Type = "text/css; charset=utf-8"
 
 # JS and CSS files with hashes
 [[headers]]
   for = "/*.js"
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
+    Content-Type = "application/javascript; charset=utf-8"
 
 [[headers]]
   for = "/*.css"
@@ -61,8 +69,12 @@
   [headers.values]
     Cache-Control = "public, max-age=31536000, immutable"
 
+# SPA fallback - redirect non-file requests to index.html
+# Netlify automatically serves existing files before applying redirects
+# force = false ensures files are served if they exist
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false
 

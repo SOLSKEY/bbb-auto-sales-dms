@@ -43,15 +43,26 @@ export function useReportLogs<T>({
         const { data, error: supabaseError } = await supabase
             .from(tableName)
             .select('*')
-            .order('report_date', { ascending: false })
-            .order('logged_at', { ascending: false });
+            .order('report_date', { ascending: false });
 
         if (supabaseError) {
             console.error(`Error loading ${reportType} logs:`, supabaseError);
             setError(supabaseError.message ?? 'Failed to load logs.');
             setLogs([]);
         } else if (data) {
-            setLogs(data.map(mapRow));
+            // Sort by report_date (already sorted) then by logged_at as secondary sort
+            const sortedData = [...data].sort((a, b) => {
+                const dateA = new Date(a.report_date).getTime();
+                const dateB = new Date(b.report_date).getTime();
+                if (dateA !== dateB) {
+                    return dateB - dateA; // Descending order
+                }
+                // If report_date is the same, sort by logged_at descending
+                const loggedA = new Date(a.logged_at).getTime();
+                const loggedB = new Date(b.logged_at).getTime();
+                return loggedB - loggedA; // Descending order
+            });
+            setLogs(sortedData.map(mapRow));
         } else {
             setLogs([]);
         }
