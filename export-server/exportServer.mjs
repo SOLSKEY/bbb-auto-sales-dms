@@ -1136,20 +1136,27 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
     await new Promise(resolve => setTimeout(resolve, 2000));
     console.log('✅ Final stabilization wait complete');
 
+    // CRITICAL: Disable all animations immediately to prevent rendering delays
+    // This must happen before any chart verification to ensure consistent rendering
+    console.log('🚫 Disabling all animations for consistent rendering...');
+    await page.evaluate(() => {
+      const style = document.createElement('style');
+      style.id = 'export-disable-animations';
+      style.textContent = `
+        .recharts-wrapper *,
+        .recharts-responsive-container *,
+        svg * {
+          animation: none !important;
+          transition: none !important;
+        }
+      `;
+      document.head.appendChild(style);
+    });
+    console.log('✅ Animations disabled');
+
     // Wait for Recharts SVG charts to fully render (including LabelList text elements)
     console.log('📊 Waiting for Recharts SVG charts and LabelList to render...');
     try {
-      // Disable Recharts CSS animations
-      await page.evaluate(() => {
-        const style = document.createElement('style');
-        style.textContent = `
-          .recharts-wrapper * {
-            animation: none !important;
-            transition: none !important;
-          }
-        `;
-        document.head.appendChild(style);
-      });
 
       // Wait for LabelList text elements to be rendered
       await page.waitForFunction(() => {
@@ -1223,76 +1230,116 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
     await new Promise(resolve => setTimeout(resolve, 3000));
     console.log('✅ LabelList rendering wait complete');
 
-    // Wait for line charts to fully render (specifically for Collections Weekly Total Payments chart)
-    console.log('📈 Waiting for line charts to fully render...');
-    try {
-      await page.waitForFunction(() => {
-        const svgs = document.querySelectorAll('svg');
-        let allLineChartsRendered = true;
+    // CRITICAL: Wait for line charts to fully render (specifically for Collections Weekly Total Payments chart)
+    // We use multiple verification passes because:
+    // 1. Charts may render in stages (container -> paths -> curves -> labels)
+    // 2. DPR/zoom changes later will cause re-rendering, so we verify both before and after
+    // 3. Multiple passes ensure we catch charts that render slowly or in multiple phases
+    // 4. Strict thresholds (100+ char paths, multiple curve segments) prevent false positives
+    console.log('📈 Waiting for line charts to fully render (multiple verification passes for stability)...');
+    
+    const verifyLineCharts = () => {
+      const svgs = document.querySelectorAll('svg');
+      let allLineChartsRendered = true;
+      let totalLinePaths = 0;
+      let renderedLinePaths = 0;
 
-        for (const svg of svgs) {
-          // Check for line chart paths (Recharts renders lines as path elements)
-          const linePaths = svg.querySelectorAll('path.recharts-line-curve, path.recharts-curve, path[class*="recharts-line"]');
-          
-          // Also check for any path that looks like a line (has a 'd' attribute with curve commands)
-          const allPaths = svg.querySelectorAll('path[d]');
-          const lineLikePaths = Array.from(allPaths).filter(path => {
+      for (const svg of svgs) {
+        // Check for line chart paths (Recharts renders lines as path elements)
+        const linePaths = svg.querySelectorAll('path.recharts-line-curve, path.recharts-curve, path[class*="recharts-line"]');
+        
+        // Also check for any path that looks like a line (has a 'd' attribute with curve commands)
+        const allPaths = svg.querySelectorAll('path[d]');
+        const lineLikePaths = Array.from(allPaths).filter(path => {
+          const d = path.getAttribute('d') || '';
+          // Line paths typically have M (move) and L (line) or curve commands (C, S, Q, T)
+          return d.includes('M') && (d.includes('L') || d.includes('C') || d.includes('S') || d.includes('Q') || d.includes('T'));
+        });
+
+        // Combine both sets of paths
+        const allLinePaths = linePaths.length > 0 ? linePaths : lineLikePaths;
+        totalLinePaths += allLinePaths.length;
+
+        if (allLinePaths.length > 0) {
+          // Check that all line paths have valid, fully-rendered path data
+          const renderedPaths = Array.from(allLinePaths).filter(path => {
             const d = path.getAttribute('d') || '';
-            // Line paths typically have M (move) and L (line) or curve commands (C, S, Q, T)
-            return d.includes('M') && (d.includes('L') || d.includes('C') || d.includes('S') || d.includes('Q') || d.includes('T'));
+            // A fully rendered line should have:
+            // 1. A valid 'd' attribute with sufficient length (at least 100 chars for a meaningful multi-point line)
+            // 2. The path should be visible (not hidden)
+            // 3. The path should have actual curve/line data (not just a single point)
+            const style = window.getComputedStyle(path);
+            const rect = path.getBoundingClientRect();
+            
+            const hasValidLength = d.length >= 100; // Increased threshold for more reliable detection
+            const isVisible = style.display !== 'none' &&
+                             style.visibility !== 'hidden' &&
+                             style.opacity !== '0' &&
+                             rect.width > 0 &&
+                             rect.height > 0;
+            
+            // Check for actual curve data (multiple segments)
+            const hasCurveData = d.includes('C') || d.includes('S') || d.includes('Q') || 
+                                (d.match(/L/g) && d.match(/L/g).length >= 3) || // At least 3 line segments
+                                (d.match(/M/g) && d.match(/M/g).length >= 2); // Multiple move commands
+            
+            return hasValidLength && isVisible && hasCurveData;
           });
+          
+          renderedLinePaths += renderedPaths.length;
 
-          // Combine both sets of paths
-          const allLinePaths = linePaths.length > 0 ? linePaths : lineLikePaths;
+          // If we found line paths but not all are rendered, wait
+          if (renderedPaths.length < allLinePaths.length) {
+            allLineChartsRendered = false;
+            console.log(`⚠️ Found ${allLinePaths.length} line paths, but only ${renderedPaths.length} are fully rendered`);
+          }
 
-          if (allLinePaths.length > 0) {
-            // Check that all line paths have valid, fully-rendered path data
-            const renderedPaths = Array.from(allLinePaths).filter(path => {
+          // Additional check: ensure at least one path has substantial curve data
+          if (renderedPaths.length > 0) {
+            const hasSubstantialCurves = renderedPaths.some(path => {
               const d = path.getAttribute('d') || '';
-              // A fully rendered line should have:
-              // 1. A valid 'd' attribute with sufficient length (at least 50 chars for a meaningful line)
-              // 2. The path should be visible (not hidden)
-              const style = window.getComputedStyle(path);
-              const rect = path.getBoundingClientRect();
-              
-              return d.length >= 50 && // Minimum path data length
-                     style.display !== 'none' &&
-                     style.visibility !== 'hidden' &&
-                     style.opacity !== '0' &&
-                     rect.width > 0 &&
-                     rect.height > 0;
+              // Check for substantial curve data (multiple curve commands or many line segments)
+              const curveCount = (d.match(/C/g) || []).length + (d.match(/S/g) || []).length;
+              const lineCount = (d.match(/L/g) || []).length;
+              return curveCount >= 2 || lineCount >= 5; // More strict requirement
             });
 
-            // If we found line paths but not all are rendered, wait
-            if (renderedPaths.length < allLinePaths.length) {
+            if (!hasSubstantialCurves) {
               allLineChartsRendered = false;
-              break;
-            }
-
-            // Additional check: ensure paths have actual curve data (not just placeholder)
-            const hasValidCurves = renderedPaths.some(path => {
-              const d = path.getAttribute('d') || '';
-              // Check for actual curve commands or multiple line segments
-              return d.includes('C') || d.includes('S') || d.includes('Q') || 
-                     (d.match(/L/g) && d.match(/L/g).length >= 2) || // Multiple line segments
-                     (d.match(/M/g) && d.match(/M/g).length >= 2); // Multiple move commands
-            });
-
-            if (!hasValidCurves && renderedPaths.length > 0) {
-              allLineChartsRendered = false;
-              break;
+              console.log('⚠️ Line paths found but lack substantial curve data');
             }
           }
         }
+      }
 
-        return allLineChartsRendered;
-      }, { timeout: 20000 });
-      console.log('✅ Line charts fully rendered');
+      if (totalLinePaths > 0) {
+        console.log(`📊 Line chart status: ${renderedLinePaths}/${totalLinePaths} paths fully rendered`);
+      }
+
+      return allLineChartsRendered;
+    };
+
+    // First verification pass
+    try {
+      await page.waitForFunction(verifyLineCharts, { timeout: 30000 });
+      console.log('✅ First verification: Line charts detected');
     } catch (error) {
-      console.log('⚠️ Line chart detection timeout, continuing anyway...');
+      console.log('⚠️ First verification timeout, will retry...');
     }
 
-    // Additional wait for line chart animations and rendering to complete
+    // Wait for animations and rendering to stabilize
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    console.log('⏳ Waiting for animations to complete...');
+
+    // Second verification pass (after animation wait)
+    try {
+      await page.waitForFunction(verifyLineCharts, { timeout: 20000 });
+      console.log('✅ Second verification: Line charts stable');
+    } catch (error) {
+      console.log('⚠️ Second verification timeout, will do final check...');
+    }
+
+    // Additional stabilization wait
     await new Promise(resolve => setTimeout(resolve, 2000));
     console.log('✅ Line chart rendering stabilization complete');
 
@@ -1319,7 +1366,7 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
 
     // Wait for layout to settle after zoom/DPR changes
     console.log('⏳ Waiting for layout to settle after DPR/zoom changes...');
-    await new Promise(resolve => setTimeout(resolve, 3000));
+    await new Promise(resolve => setTimeout(resolve, 4000)); // Increased wait time for DPR changes
     
     // Verify element is still visible and has content after DPR changes
     await page.waitForFunction(
@@ -1335,109 +1382,141 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
     console.log('✅ Layout settled and element verified');
 
     // Final check: Ensure all charts (especially line charts) are fully rendered after DPR/zoom changes
-    console.log('🔍 Final verification: Checking all charts are fully rendered...');
-    try {
-      await page.waitForFunction(() => {
-        const svgs = document.querySelectorAll('svg');
-        let allChartsReady = true;
+    // Use multiple verification passes to ensure stability after DPR changes
+    console.log('🔍 Final verification: Checking all charts are fully rendered after DPR changes...');
+    
+    const verifyAllChartsAfterDPR = () => {
+      const svgs = document.querySelectorAll('svg');
+      let allChartsReady = true;
+      let totalLinePaths = 0;
+      let renderedLinePaths = 0;
 
-        for (const svg of svgs) {
-          // Check for line chart paths
-          const linePaths = svg.querySelectorAll('path.recharts-line-curve, path.recharts-curve, path[class*="recharts-line"]');
-          const allPaths = svg.querySelectorAll('path[d]');
-          const lineLikePaths = Array.from(allPaths).filter(path => {
+      for (const svg of svgs) {
+        // Check for line chart paths
+        const linePaths = svg.querySelectorAll('path.recharts-line-curve, path.recharts-curve, path[class*="recharts-line"]');
+        const allPaths = svg.querySelectorAll('path[d]');
+        const lineLikePaths = Array.from(allPaths).filter(path => {
+          const d = path.getAttribute('d') || '';
+          return d.includes('M') && (d.includes('L') || d.includes('C') || d.includes('S') || d.includes('Q') || d.includes('T'));
+        });
+        const allLinePaths = linePaths.length > 0 ? linePaths : lineLikePaths;
+        totalLinePaths += allLinePaths.length;
+
+        // Check for bar chart rectangles
+        const barRects = svg.querySelectorAll('rect.recharts-bar-rectangle, rect[class*="recharts-bar"]');
+        
+        // Check for area chart paths
+        const areaPaths = svg.querySelectorAll('path.recharts-area-area, path[class*="recharts-area"]');
+        
+        // Check for pie chart sectors
+        const pieSectors = svg.querySelectorAll('path.recharts-pie-sector, path[class*="recharts-pie"]');
+
+        // Verify line charts with strict requirements (same as pre-DPR check)
+        if (allLinePaths.length > 0) {
+          const renderedLines = Array.from(allLinePaths).filter(path => {
             const d = path.getAttribute('d') || '';
-            return d.includes('M') && (d.includes('L') || d.includes('C') || d.includes('S') || d.includes('Q') || d.includes('T'));
+            const style = window.getComputedStyle(path);
+            const rect = path.getBoundingClientRect();
+            
+            const hasValidLength = d.length >= 100; // Same strict threshold as pre-DPR
+            const isVisible = style.display !== 'none' &&
+                             style.visibility !== 'hidden' &&
+                             style.opacity !== '0' &&
+                             rect.width > 0 &&
+                             rect.height > 0;
+            
+            // Check for substantial curve data
+            const hasCurveData = d.includes('C') || d.includes('S') || d.includes('Q') || 
+                                (d.match(/L/g) && d.match(/L/g).length >= 3) ||
+                                (d.match(/M/g) && d.match(/M/g).length >= 2);
+            
+            return hasValidLength && isVisible && hasCurveData;
           });
-          const allLinePaths = linePaths.length > 0 ? linePaths : lineLikePaths;
-
-          // Check for bar chart rectangles
-          const barRects = svg.querySelectorAll('rect.recharts-bar-rectangle, rect[class*="recharts-bar"]');
           
-          // Check for area chart paths
-          const areaPaths = svg.querySelectorAll('path.recharts-area-area, path[class*="recharts-area"]');
+          renderedLinePaths += renderedLines.length;
           
-          // Check for pie chart sectors
-          const pieSectors = svg.querySelectorAll('path.recharts-pie-sector, path[class*="recharts-pie"]');
-
-          // Verify line charts
-          if (allLinePaths.length > 0) {
-            const renderedLines = Array.from(allLinePaths).filter(path => {
-              const d = path.getAttribute('d') || '';
-              const style = window.getComputedStyle(path);
-              const rect = path.getBoundingClientRect();
-              return d.length >= 50 &&
-                     style.display !== 'none' &&
-                     style.visibility !== 'hidden' &&
-                     style.opacity !== '0' &&
-                     rect.width > 0 &&
-                     rect.height > 0;
-            });
-            if (renderedLines.length < allLinePaths.length) {
-              allChartsReady = false;
-              break;
-            }
-          }
-
-          // Verify bar charts
-          if (barRects.length > 0) {
-            const renderedBars = Array.from(barRects).filter(rect => {
-              const width = parseFloat(rect.getAttribute('width') || '0');
-              const height = parseFloat(rect.getAttribute('height') || '0');
-              const style = window.getComputedStyle(rect);
-              return width > 0 && height > 0 &&
-                     style.display !== 'none' &&
-                     style.visibility !== 'hidden' &&
-                     style.opacity !== '0';
-            });
-            if (renderedBars.length < barRects.length) {
-              allChartsReady = false;
-              break;
-            }
-          }
-
-          // Verify area charts
-          if (areaPaths.length > 0) {
-            const renderedAreas = Array.from(areaPaths).filter(path => {
-              const d = path.getAttribute('d') || '';
-              const style = window.getComputedStyle(path);
-              return d.length >= 50 &&
-                     style.display !== 'none' &&
-                     style.visibility !== 'hidden' &&
-                     style.opacity !== '0';
-            });
-            if (renderedAreas.length < areaPaths.length) {
-              allChartsReady = false;
-              break;
-            }
-          }
-
-          // Verify pie charts
-          if (pieSectors.length > 0) {
-            const renderedSectors = Array.from(pieSectors).filter(sector => {
-              const d = sector.getAttribute('d') || '';
-              const style = window.getComputedStyle(sector);
-              return d.length >= 20 &&
-                     style.display !== 'none' &&
-                     style.visibility !== 'hidden' &&
-                     style.opacity !== '0';
-            });
-            if (renderedSectors.length < pieSectors.length) {
-              allChartsReady = false;
-              break;
-            }
+          if (renderedLines.length < allLinePaths.length) {
+            allChartsReady = false;
+            console.log(`⚠️ After DPR: Found ${allLinePaths.length} line paths, but only ${renderedLines.length} are fully rendered`);
           }
         }
 
-        return allChartsReady;
-      }, { timeout: 15000 });
-      console.log('✅ All charts verified and fully rendered');
+        // Verify bar charts
+        if (barRects.length > 0) {
+          const renderedBars = Array.from(barRects).filter(rect => {
+            const width = parseFloat(rect.getAttribute('width') || '0');
+            const height = parseFloat(rect.getAttribute('height') || '0');
+            const style = window.getComputedStyle(rect);
+            return width > 0 && height > 0 &&
+                   style.display !== 'none' &&
+                   style.visibility !== 'hidden' &&
+                   style.opacity !== '0';
+          });
+          if (renderedBars.length < barRects.length) {
+            allChartsReady = false;
+          }
+        }
+
+        // Verify area charts
+        if (areaPaths.length > 0) {
+          const renderedAreas = Array.from(areaPaths).filter(path => {
+            const d = path.getAttribute('d') || '';
+            const style = window.getComputedStyle(path);
+            return d.length >= 100 && // Same strict threshold
+                   style.display !== 'none' &&
+                   style.visibility !== 'hidden' &&
+                   style.opacity !== '0';
+          });
+          if (renderedAreas.length < areaPaths.length) {
+            allChartsReady = false;
+          }
+        }
+
+        // Verify pie charts
+        if (pieSectors.length > 0) {
+          const renderedSectors = Array.from(pieSectors).filter(sector => {
+            const d = sector.getAttribute('d') || '';
+            const style = window.getComputedStyle(sector);
+            return d && d.length > 20 &&
+                   style.display !== 'none' &&
+                   style.visibility !== 'hidden' &&
+                   style.opacity !== '0';
+          });
+          if (renderedSectors.length < pieSectors.length) {
+            allChartsReady = false;
+          }
+        }
+      }
+
+      if (totalLinePaths > 0) {
+        console.log(`📊 After DPR: Line chart status: ${renderedLinePaths}/${totalLinePaths} paths fully rendered`);
+      }
+
+      return allChartsReady;
+    };
+
+    // First verification pass after DPR changes
+    try {
+      await page.waitForFunction(verifyAllChartsAfterDPR, { timeout: 30000 });
+      console.log('✅ First post-DPR verification: All charts rendered');
     } catch (error) {
-      console.log('⚠️ Final chart verification timeout, proceeding with screenshot...');
+      console.log('⚠️ First post-DPR verification timeout, will retry...');
     }
 
-    // One final wait to ensure everything is painted
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Wait for any re-rendering after DPR changes
+    await new Promise(resolve => setTimeout(resolve, 3000));
+    console.log('⏳ Waiting for post-DPR re-rendering to complete...');
+
+    // Second verification pass after DPR changes
+    try {
+      await page.waitForFunction(verifyAllChartsAfterDPR, { timeout: 20000 });
+      console.log('✅ Second post-DPR verification: All charts stable');
+    } catch (error) {
+      console.log('⚠️ Second post-DPR verification timeout, will do final check...');
+    }
+
+    // Final stabilization wait before screenshot
+    await new Promise(resolve => setTimeout(resolve, 2000));
     console.log('✅ Final paint wait complete - ready for screenshot');
 
     const elementHandle = await page.$(targetSelector);
