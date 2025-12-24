@@ -2,13 +2,11 @@
 import React, { useMemo } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import {
-    ChartPieIcon,
     BuildingStorefrontIcon,
     CurrencyDollarIcon,
     DocumentChartBarIcon,
     CircleStackIcon,
     TableCellsIcon,
-    CalendarIcon,
     CalendarDaysIcon,
     ChatBubbleLeftRightIcon,
     ChatBubbleBottomCenterTextIcon,
@@ -29,18 +27,16 @@ type NavItem = {
 };
 
 const BASE_NAV_ITEMS: NavItem[] = [
-    { name: 'Dashboard', icon: ChartPieIcon, path: '/', permissionKey: 'Dashboard' },
     { name: 'Inventory', icon: BuildingStorefrontIcon, path: '/inventory', permissionKey: 'Inventory' },
     { name: 'Sale Prep', icon: ClipboardDocumentIcon, path: '/sale-prep', permissionKey: 'Sale Prep' },
     { name: 'Sales', icon: CurrencyDollarIcon, path: '/sales', permissionKey: 'Sales' },
     { name: 'Collections', icon: DocumentChartBarIcon, path: '/collections', permissionKey: 'Collections' },
     { name: 'Reports', icon: CircleStackIcon, path: '/reports', permissionKey: 'Reports' },
     { name: 'Data', icon: TableCellsIcon, path: '/data', permissionKey: 'Data' },
-    { name: 'Calendar', icon: CalendarIcon, path: '/calendar', permissionKey: 'Calendar' },
     { name: 'Appointments & Leads', icon: CalendarDaysIcon, path: '/appointments-leads', permissionKey: 'Appointments & Leads' },
     { name: 'Team Chat', icon: ChatBubbleLeftRightIcon, path: '/team-chat', permissionKey: 'Team Chat', disabled: true, comingSoon: true },
     { name: 'Chat', icon: ChatBubbleBottomCenterTextIcon, path: '/messaging', permissionKey: 'Team Chat', disabled: true, comingSoon: true },
-    { name: 'CRM', icon: UsersIcon, path: '/dashboard/crm', permissionKey: 'CRM', disabled: true, comingSoon: true },
+    { name: 'CRM', icon: UsersIcon, path: '/crm', permissionKey: 'CRM', disabled: true, comingSoon: true },
 ];
 
 const BbbLogo = () => (

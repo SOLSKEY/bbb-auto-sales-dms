@@ -174,6 +174,7 @@ const SalePrep: React.FC = () => {
     const [addressPredictions, setAddressPredictions] = useState<any[]>([]);
     const [showAddressDropdown, setShowAddressDropdown] = useState(false);
     const [highlightedAddressIndex, setHighlightedAddressIndex] = useState<number>(-1);
+    const [apartmentNumber, setApartmentNumber] = useState<string>('');
     const [highlightedVehicleIndex, setHighlightedVehicleIndex] = useState<number>(-1);
     const [isGeneratingWarranty, setIsGeneratingWarranty] = useState(false);
     const [isGeneratingContractPacket, setIsGeneratingContractPacket] = useState(false);
@@ -245,15 +246,88 @@ const SalePrep: React.FC = () => {
         document.head.appendChild(script);
     }, []);
 
+    // Detect and extract apartment/unit number from address input
+    const detectApartmentNumber = (fullInput: string): { baseAddress: string; apartmentNumber: string } => {
+        if (!fullInput || !fullInput.trim()) {
+            return { baseAddress: fullInput, apartmentNumber: '' };
+        }
+
+        const trimmed = fullInput.trim();
+        
+        // Comprehensive regex patterns for apartment/unit numbers (ordered by specificity)
+        // Patterns match common formats like: D14, D-14, D 14, #14, Apt 14, Suite D14, Unit 14, etc.
+        const apartmentPatterns = [
+            // Full words with separators: Apt, Apartment, Suite, Unit, #, etc. (highest priority)
+            /\s+(?:Apt|Apartment|Suite|Unit|Ste|Apt\.)\s*\.?\s*([A-Za-z0-9]+(?:\s*[-]?\s*[A-Za-z0-9]+)*)/i,
+            // Hash prefix: #14, #101, # D14
+            /\s+#\s*([A-Za-z0-9]+(?:\s*[-]?\s*[A-Za-z0-9]+)*)$/i,
+            // No/Number prefix: No 14, Number D14
+            /\s+(?:No|Number)\s+([A-Za-z0-9]+(?:\s*[-]?\s*[A-Za-z0-9]+)*)$/i,
+            // Letter + letter + number: AA1, AB2, AA-1 (must be at end)
+            /\s+([A-Za-z]{2}[-]?\s*\d+)$/,
+            // Single or double letter + number variants: D14, D-14, D 14, A5, B21 (must be at end)
+            /\s+([A-Za-z]{1,2}[-]?\s*\d+)$/,
+            // Standalone number at end (last resort - might be false positive, so lowest priority)
+            // Only match if it's a reasonable apartment number (not a large number that might be part of address)
+            /\s+(\d{1,4})$/,
+        ];
+
+        let detectedApartment = '';
+        let baseAddress = trimmed;
+
+        // Try each pattern to find apartment number (stop at first match)
+        for (const pattern of apartmentPatterns) {
+            const match = trimmed.match(pattern);
+            if (match) {
+                // Extract the apartment number (group 1 or full match)
+                detectedApartment = (match[1] || match[0]).trim();
+                
+                // Remove the apartment part from base address
+                baseAddress = trimmed.substring(0, match.index).trim();
+                
+                // Clean up apartment number: normalize spaces, dashes, and remove hash
+                detectedApartment = detectedApartment
+                    .replace(/^#\s*/i, '') // Remove leading hash
+                    .replace(/\s+/g, '') // Remove all spaces
+                    .replace(/-/g, ''); // Remove dashes for consistency
+                
+                // Only accept if we have a valid apartment number
+                if (detectedApartment.length > 0 && detectedApartment.length <= 10) {
+                    break;
+                } else {
+                    // Reset if apartment number seems invalid
+                    detectedApartment = '';
+                    baseAddress = trimmed;
+                }
+            }
+        }
+
+        return {
+            baseAddress: baseAddress || trimmed,
+            apartmentNumber: detectedApartment,
+        };
+    };
+
     // Handle address input changes for predictions
     const handleAddressInputChange = (value: string) => {
+        // Update form data with the full value (user sees full input including apartment)
         setFormData(prev => ({ ...prev, address: value }));
         setHighlightedAddressIndex(-1);
-        if (value.length > 2 && window.google && window.google.maps && window.google.maps.places) {
+        
+        // Extract apartment number and base address
+        const { baseAddress, apartmentNumber: detectedApartment } = detectApartmentNumber(value);
+        
+        // Store the detected apartment number
+        setApartmentNumber(detectedApartment);
+        
+        // Only send base address (without apartment) to Google Maps Autocomplete
+        const queryForAutocomplete = baseAddress || value;
+        
+        if (queryForAutocomplete.length > 2 && window.google && window.google.maps && window.google.maps.places) {
             const service = new window.google.maps.places.AutocompleteService();
             service.getPlacePredictions(
                 {
-                    input: value,
+                    input: queryForAutocomplete,
                     componentRestrictions: { country: 'us' },
                     types: ['address'],
                 },
@@ -331,9 +405,19 @@ const SalePrep: React.FC = () => {
                         cleanedCounty = cleanedCounty.replace(/\s+County\s*$/i, '').trim();
                     }
 
+                    // Build the base address
+                    const baseAddress = `${streetNumber} ${route}`.trim() || place.formatted_address || '';
+                    
+                    // Append apartment number if one was detected/stored
+                    let finalAddress = baseAddress;
+                    if (apartmentNumber && apartmentNumber.trim()) {
+                        // Add apartment number with space before it
+                        finalAddress = `${baseAddress} ${apartmentNumber.trim()}`.trim();
+                    }
+
                     setFormData(prev => ({
                         ...prev,
-                        address: `${streetNumber} ${route}`.trim() || place.formatted_address || '',
+                        address: finalAddress,
                         city: city || prev.city,
                         state: state || prev.state,
                         zip: zip || prev.zip,
@@ -1200,6 +1284,11 @@ const SalePrep: React.FC = () => {
                                             onBlur={() => {
                                                 // Only capitalize if dropdown is not showing
                                                 if (!showAddressDropdown) {
+                                                    // When blurring, ensure apartment number is preserved if user manually typed it
+                                                    const { baseAddress, apartmentNumber: detectedApartment } = detectApartmentNumber(formData.address);
+                                                    if (detectedApartment) {
+                                                        setApartmentNumber(detectedApartment);
+                                                    }
                                                     handleCapitalizeBlur('address', formData.address);
                                                 }
                                             }}

@@ -467,7 +467,7 @@ const AppointmentsAndLeads: React.FC = () => {
                 {/* Add Button */}
                 <button
                     onClick={activeTab === 'calendar' ? handleNewAppointment : handleNewLead}
-                    className="liquid-btn size-3 liquid-amber"
+                    className="liquid-btn size-3 liquid-cyan"
                 >
                     <PlusIcon className="h-5 w-5" />
                     {activeTab === 'calendar' ? 'New Appointment' : 'New Lead'}
@@ -514,15 +514,15 @@ const AppointmentsAndLeads: React.FC = () => {
                                         key={day.toISOString()}
                                         onClick={() => setSelectedMobileDate(day)}
                                         className={`flex-shrink-0 w-14 py-3 rounded-xl text-center transition ${
-                                            isSelected
+                                            today
+                                                ? 'liquid-surface liquid-cyan'
+                                                : isSelected
                                                 ? 'liquid-surface liquid-amber'
-                                                : today
-                                                ? 'bg-amber-500/10 border border-amber-500/30'
                                                 : 'bg-white/5 border border-white/10 hover:bg-white/10'
                                         }`}
                                     >
                                         <div className="text-xs text-slate-400">{format(day, 'EEE')}</div>
-                                        <div className={`text-lg font-bold ${isSelected ? 'text-amber-400' : 'text-white'}`}>
+                                        <div className={`text-lg font-bold ${today ? 'text-cyan-400' : isSelected ? 'text-amber-400' : 'text-white'}`}>
                                             {format(day, 'd')}
                                         </div>
                                         {hasAppointments && (
@@ -566,8 +566,11 @@ const AppointmentsAndLeads: React.FC = () => {
                                                 setSelectedAppointment(apt);
                                                 setAppointmentModalOpen(true);
                                             }}
-                                            className="appointment-event p-4"
-                                            style={{ '--event-color': userColor } as React.CSSProperties}
+                                            className="liquid-card liquid-cyan p-4 cursor-pointer"
+                                            style={{ 
+                                                '--event-color': userColor,
+                                                borderLeft: `4px solid ${userColor}`
+                                            } as React.CSSProperties}
                                         >
                                             <div className="flex items-center justify-between mb-2">
                                                 <span className="time-display text-lg font-bold text-white">

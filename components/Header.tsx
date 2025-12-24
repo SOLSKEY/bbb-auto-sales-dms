@@ -82,13 +82,23 @@ const Header: React.FC<{ title: string; onLogout?: () => void }> = ({ title, onL
                     </button>
 
                     {isNotificationsOpen && (
-                        <div className="notification-dropdown absolute right-0 mt-2 w-80 glass-card shadow-2xl z-[9999] max-h-96 overflow-hidden flex flex-col">
-                            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700/50">
-                                <h3 className="font-semibold text-primary-contrast">Notifications</h3>
+                        <div 
+                            className="notification-dropdown absolute right-0 mt-2 w-80 z-[9999] max-h-96 overflow-hidden flex flex-col animate-fade-in"
+                            style={{
+                                borderRadius: '16px',
+                                background: 'linear-gradient(180deg, rgba(15, 23, 42, 1) 0%, rgba(10, 15, 25, 1) 100%)',
+                                backdropFilter: 'blur(20px)',
+                                WebkitBackdropFilter: 'blur(20px)',
+                                border: '1px solid rgba(6, 182, 212, 0.3)',
+                                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.2)',
+                            }}
+                        >
+                            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-700">
+                                <h3 className="font-semibold text-white">Notifications</h3>
                                 {unreadCount > 0 && (
                                     <button
                                         onClick={() => markAllAsRead()}
-                                        className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1"
+                                        className="text-xs text-cyan-400 hover:text-cyan-300 flex items-center gap-1 transition-colors duration-200"
                                     >
                                         <CheckIcon className="h-3 w-3" />
                                         Mark all read
@@ -97,31 +107,31 @@ const Header: React.FC<{ title: string; onLogout?: () => void }> = ({ title, onL
                             </div>
                             <div className="overflow-y-auto flex-1">
                                 {notifications.length === 0 ? (
-                                    <div className="px-4 py-8 text-center text-slate-500">
-                                        <BellIcon className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                                        <p className="text-sm">No notifications yet</p>
+                                    <div className="px-4 py-8 text-center text-slate-400">
+                                        <BellIcon className="h-8 w-8 mx-auto mb-2 opacity-50 text-cyan-400" />
+                                        <p className="text-sm text-white">No notifications yet</p>
                                     </div>
                                 ) : (
                                     notifications.slice(0, 10).map((notification) => (
                                         <button
                                             key={notification.id}
                                             onClick={() => handleNotificationClick(notification.id)}
-                                            className={`w-full px-4 py-3 text-left hover:bg-white/5 transition border-b border-slate-700/30 last:border-b-0 ${
-                                                !notification.read ? 'bg-cyan-500/5' : ''
+                                            className={`w-full px-4 py-3 text-left text-white transition-all duration-200 border-b border-slate-700 last:border-b-0 hover:bg-cyan-500/15 hover:text-cyan-400 group ${
+                                                !notification.read ? 'bg-cyan-500/10' : ''
                                             }`}
                                         >
                                             <div className="flex items-start gap-3">
                                                 {!notification.read && (
                                                     <span className="mt-1.5 h-2 w-2 rounded-full bg-cyan-400 flex-shrink-0" />
                                                 )}
-                                                <div className={!notification.read ? '' : 'ml-5'}>
-                                                    <p className="text-sm font-medium text-primary-contrast">
+                                                <div className={!notification.read ? '' : 'ml-5 flex-1'}>
+                                                    <p className="text-sm font-medium text-white group-hover:text-cyan-400 transition-colors">
                                                         {notification.appointmentTitle}
                                                     </p>
-                                                    <p className="text-xs text-slate-400 mt-0.5">
+                                                    <p className="text-xs text-slate-400 mt-0.5 group-hover:text-slate-300 transition-colors">
                                                         {notification.customer} • {format(parseISO(notification.appointmentTime), 'MMM d, h:mm a')}
                                                     </p>
-                                                    <p className="text-xs text-cyan-400 mt-1">
+                                                    <p className="text-xs text-cyan-400 mt-1 font-medium">
                                                         {notification.reminderType === 'day_of' && 'Appointment today'}
                                                         {notification.reminderType === 'two_hours_before' && 'In 2 hours'}
                                                         {notification.reminderType === 'one_hour_before' && 'In 1 hour'}
@@ -138,7 +148,7 @@ const Header: React.FC<{ title: string; onLogout?: () => void }> = ({ title, onL
                                         navigate('/appointments');
                                         setIsNotificationsOpen(false);
                                     }}
-                                    className="px-4 py-2 text-center text-sm text-cyan-400 hover:text-cyan-300 border-t border-slate-700/50"
+                                    className="px-4 py-3 text-center text-sm text-white hover:bg-cyan-500/15 hover:text-cyan-400 border-t border-slate-700 transition-all duration-200 font-medium"
                                 >
                                     View all appointments
                                 </button>
@@ -162,20 +172,30 @@ const Header: React.FC<{ title: string; onLogout?: () => void }> = ({ title, onL
                         </div>
                     </button>
                     {isMenuOpen && onLogout && (
-                        <div className="absolute right-0 mt-2 w-52 glass-card shadow-2xl z-[9999]">
+                        <div 
+                            className="absolute right-0 mt-2 w-52 z-[9999] animate-fade-in"
+                            style={{
+                                borderRadius: '16px',
+                                background: 'linear-gradient(180deg, rgba(15, 23, 42, 1) 0%, rgba(10, 15, 25, 1) 100%)',
+                                backdropFilter: 'blur(20px)',
+                                WebkitBackdropFilter: 'blur(20px)',
+                                border: '1px solid rgba(6, 182, 212, 0.3)',
+                                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.2)',
+                            }}
+                        >
                             <button
                                 onClick={handleAccountSettings}
-                                className="w-full px-4 py-2 text-left text-sm font-semibold text-primary-contrast hover:bg-white/10 transition rounded-t-xl flex items-center gap-2"
+                                className="w-full px-4 py-3 text-left text-sm font-semibold text-white hover:bg-cyan-500/15 hover:text-cyan-400 transition-all duration-200 rounded-t-[16px] flex items-center gap-2"
                             >
-                                <Cog6ToothIcon className="h-4 w-4" />
+                                <Cog6ToothIcon className="h-5 w-5 text-cyan-400" />
                                 Account Settings
                             </button>
-                            <div className="border-t border-slate-700/50"></div>
+                            <div className="border-t border-slate-700"></div>
                             <button
                                 onClick={handleSignOut}
-                                className="w-full px-4 py-2 text-left text-sm font-semibold text-primary-contrast hover:bg-white/10 transition rounded-b-lg flex items-center gap-2"
+                                className="w-full px-4 py-3 text-left text-sm font-semibold text-white hover:bg-cyan-500/15 hover:text-cyan-400 transition-all duration-200 rounded-b-[16px] flex items-center gap-2"
                             >
-                                <ArrowRightOnRectangleIcon className="h-4 w-4" />
+                                <ArrowRightOnRectangleIcon className="h-5 w-5 text-cyan-400" />
                                 Sign Out
                             </button>
                         </div>

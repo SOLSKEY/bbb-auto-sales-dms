@@ -21,7 +21,7 @@ const Login: React.FC<LoginProps> = ({ onSuccess, isLoadingSession = false }) =>
         const checkSession = async () => {
             const { data: { session } } = await supabase.auth.getSession();
             if (session) {
-                navigate('/dashboard', { replace: true });
+                navigate('/sales', { replace: true });
             }
         };
         checkSession();
@@ -55,8 +55,8 @@ const Login: React.FC<LoginProps> = ({ onSuccess, isLoadingSession = false }) =>
             }
 
             if (data.session) {
-                // Redirect to dashboard after successful login
-                navigate('/dashboard', { replace: true });
+                // Redirect to sales after successful login
+                navigate('/sales', { replace: true });
                 onSuccess?.();
             }
         } catch (err: any) {
@@ -138,7 +138,7 @@ const Login: React.FC<LoginProps> = ({ onSuccess, isLoadingSession = false }) =>
                         disabled={isSubmitting}
                         className="w-full rounded-2xl border border-cyan-500/50 bg-[#151515]/80 px-6 py-3 text-base font-semibold text-white transition hover:border-cyan-400 hover:bg-cyan-500/20 focus:outline-none focus:ring-2 focus:ring-cyan-500/40 disabled:opacity-60"
                     >
-                        {isSubmitting ? 'Signing in…' : 'Access Dashboard'}
+                        {isSubmitting ? 'Signing in…' : 'Sign In'}
                     </button>
                 </form>
 

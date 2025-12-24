@@ -3,7 +3,7 @@ import {
   TruckIcon,
   CurrencyDollarIcon,
   CreditCardIcon,
-  CalendarIcon,
+  CalendarDaysIcon,
   Bars3Icon,
 } from '@heroicons/react/24/outline';
 
@@ -22,7 +22,7 @@ const tabs: TabItem[] = [
   { id: 'inventory', label: 'Inventory', icon: TruckIcon, path: '/inventory' },
   { id: 'sales', label: 'Sales', icon: CurrencyDollarIcon, path: '/sales' },
   { id: 'collections', label: 'Collections', icon: CreditCardIcon, path: '/collections' },
-  { id: 'calendar', label: 'Calendar', icon: CalendarIcon, path: '/calendar' },
+  { id: 'appointments', label: 'Appointments', icon: CalendarDaysIcon, path: '/appointments-leads' },
 ];
 
 export function MobileTabBar({ onMoreClick }: MobileTabBarProps) {
@@ -30,6 +30,9 @@ export function MobileTabBar({ onMoreClick }: MobileTabBarProps) {
   const location = useLocation();
 
   const isActive = (path: string) => {
+    if (path === '/appointments-leads') {
+      return location.pathname === '/appointments-leads' || location.pathname === '/appointments';
+    }
     return location.pathname === path;
   };
 

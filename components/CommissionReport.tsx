@@ -348,9 +348,10 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
                 ? collectionsBonus
                 : 0;
     const collectionSelectionIsNumber = typeof collectionsSelection === 'number';
+    // Use collectionsSelection if it's a number, otherwise fall back to snapshot's collectionsBonus for display
     const selectionValue = collectionSelectionIsNumber
         ? String(collectionsSelection)
-        : '';
+        : (typeof collectionsBonus === 'number' ? String(collectionsBonus) : '');
     const effectiveCollectionsBonus = isKey ? selectionNumber : 0;
     const effectiveWeeklyBonus = isKey ? weeklySalesBonus ?? 0 : 0;
     const baseCommissionValue = totalAdjustedCommission;
@@ -1248,7 +1249,10 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                     snapshot.salespeople.map(block => {
                         const normalized = normalizeName(block.salesperson);
                         const isKey = normalized.toLowerCase() === 'key';
-                        const selection = isKey ? collectionsSelections[normalized] ?? '' : '';
+                        // Use state value if available, otherwise fall back to snapshot value (for export consistency)
+                        const stateSelection = isKey ? collectionsSelections[normalized] : undefined;
+                        const snapshotSelection = isKey && typeof block.collectionsBonus === 'number' ? block.collectionsBonus : undefined;
+                        const selection = isKey ? (stateSelection ?? snapshotSelection ?? '') : '';
                         const locked = isKey ? collectionsLocks[normalized] ?? false : false;
                         return (
                             <CommissionSalespersonBlock

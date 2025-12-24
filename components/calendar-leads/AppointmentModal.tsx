@@ -32,33 +32,34 @@ const formatDateForCSTInput = (dateStr: string): string => {
     return `${year}-${month}-${day}T${hours.padStart(2, '0')}:${minutes.padStart(2, '0')}`;
 };
 
-// Convert datetime-local input value to CST ISO string
+// Convert datetime-local input value to ISO string
+// The datetime-local input value is in the user's local timezone
+// We need to convert it to UTC ISO string
 const parseCSTInputToISO = (inputValue: string): string => {
     if (!inputValue) return '';
-    // Parse the datetime-local value as if it's in CST
+    // Parse the datetime-local value
     const [datePart, timePart] = inputValue.split('T');
     if (!datePart || !timePart) return '';
     
     const [year, month, day] = datePart.split('-').map(Number);
     const [hours, minutes] = timePart.split(':').map(Number);
     
-    // Create a date string that we'll interpret as CST
-    // Use Intl.DateTimeFormat to properly handle timezone conversion
-    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:00`;
+    // Validate the values
+    if (isNaN(year) || isNaN(month) || isNaN(day) || isNaN(hours) || isNaN(minutes)) {
+        return '';
+    }
     
-    // Create date assuming it's in CST, then convert to UTC
-    // We'll create a date object and use toLocaleString to convert
-    const tempDate = new Date(dateStr);
-    // Get the UTC equivalent of this CST time
-    // Calculate offset: CST is UTC-6, CDT is UTC-5
-    const jan = new Date(tempDate.getFullYear(), 0, 1);
-    const jul = new Date(tempDate.getFullYear(), 6, 1);
-    const isDST = tempDate.getTimezoneOffset() < Math.max(jan.getTimezoneOffset(), jul.getTimezoneOffset());
-    const cstOffsetHours = isDST ? 5 : 6; // CDT is UTC-5, CST is UTC-6
+    // Create a date object from the local date/time values
+    // The Date constructor interprets these as local time
+    const localDate = new Date(year, month - 1, day, hours, minutes, 0);
     
-    // Adjust the date by adding the offset
-    const utcDate = new Date(tempDate.getTime() + (cstOffsetHours * 60 * 60 * 1000));
-    return utcDate.toISOString();
+    // Check if the date is valid
+    if (isNaN(localDate.getTime())) {
+        return '';
+    }
+    
+    // Convert to ISO string (which is in UTC)
+    return localDate.toISOString();
 };
 
 interface AppointmentModalProps {
@@ -280,14 +281,27 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({
             alert('Customer name is required');
             return;
         }
-        if (!formData.appointment_time) {
+        
+        // Ensure we use the current datetime input value if it exists
+        let appointmentTime = formData.appointment_time;
+        if (dateTimeInputValue) {
+            const parsedTime = parseCSTInputToISO(dateTimeInputValue);
+            if (parsedTime) {
+                appointmentTime = parsedTime;
+            }
+        }
+        
+        if (!appointmentTime) {
             alert('Appointment date/time is required');
             return;
         }
 
         setSaving(true);
         try {
-            await onSave(formData);
+            await onSave({
+                ...formData,
+                appointment_time: appointmentTime,
+            });
             onClose();
         } catch (err) {
             console.error('Error saving appointment:', err);
@@ -423,15 +437,11 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({
                                 onChange={(e) => {
                                     const rawValue = e.target.value;
                                     setDateTimeInputValue(rawValue);
-                                    // Only update formData if the value is valid
+                                    // Always try to update formData when the value changes
                                     if (rawValue) {
-                                        try {
-                                            const isoValue = parseCSTInputToISO(rawValue);
+                                        const isoValue = parseCSTInputToISO(rawValue);
+                                        if (isoValue) {
                                             handleChange('appointment_time', isoValue);
-                                        } catch (err) {
-                                            // If parsing fails, still update the input value
-                                            // but don't update formData yet
-                                            console.warn('Failed to parse datetime:', err);
                                         }
                                     } else {
                                         handleChange('appointment_time', '');
@@ -617,7 +627,7 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({
                         </div>
                     </div>
 
-                    {/* Status (only show when editing) */}
+                    {/* Status (always show for existing appointments, can also be set for new ones) */}
                     {isEditing && (
                         <div>
                             <label className="block text-sm font-medium text-slate-300 mb-2">
@@ -640,6 +650,9 @@ const AppointmentModal: React.FC<AppointmentModalProps> = ({
                                     </button>
                                 ))}
                             </div>
+                            <p className="text-xs text-slate-400 mt-2">
+                                You can update the status of appointments at any time, including after they have passed.
+                            </p>
                         </div>
                     )}
                 </div>

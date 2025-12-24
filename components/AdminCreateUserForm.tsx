@@ -6,7 +6,7 @@ interface AdminCreateUserFormProps {
     onUserCreated?: () => void;
 }
 
-const pagePermissions = ['Dashboard', 'Inventory', 'Sales', 'Collections', 'Reports', 'Data', 'Calendar', 'Team Chat', 'Settings'];
+const pagePermissions = ['Inventory', 'Sales', 'Collections', 'Reports', 'Data', 'Calendar', 'Team Chat', 'Settings'];
 
 type AccessRecord = Record<string, { canView: boolean; canEdit: boolean }>;
 

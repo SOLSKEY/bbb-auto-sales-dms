@@ -8,14 +8,12 @@ export interface User {
 }
 
 export type AppSectionKey =
-  | 'Dashboard'
   | 'Inventory'
   | 'Sales'
   | 'Sale Prep'
   | 'Collections'
   | 'Reports'
   | 'Data'
-  | 'Calendar'
   | 'Appointments & Leads'
   | 'Team Chat'
   | 'CRM'

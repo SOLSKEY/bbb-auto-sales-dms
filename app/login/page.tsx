@@ -19,7 +19,7 @@ const LoginPage = () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (session) router.replace('/dashboard');
+      if (session) router.replace('/sales');
     };
     checkSession();
   }, [router]);
@@ -45,7 +45,7 @@ const LoginPage = () => {
       });
 
       if (signInError) throw signInError;
-      router.replace('/dashboard');
+      router.replace('/sales');
     } catch (err: any) {
       setError(err.message ?? 'Unable to sign in.');
     } finally {

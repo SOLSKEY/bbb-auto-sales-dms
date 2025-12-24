@@ -5,14 +5,12 @@ import type { Session } from '@supabase/supabase-js';
 import { Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from './components/Sidebar';
 // Lazy load pages for better performance
-const Dashboard = lazy(() => import('./pages/Dashboard'));
 const Inventory = lazy(() => import('./pages/Inventory'));
 const Sales = lazy(() => import('./pages/Sales'));
 const SalePrep = lazy(() => import('./pages/SalePrep'));
 const Collections = lazy(() => import('./pages/Collections'));
 const Reports = lazy(() => import('./pages/Reports'));
 const Data = lazy(() => import('./pages/Data'));
-const Calendar = lazy(() => import('./pages/Calendar'));
 const AppointmentsAndLeads = lazy(() => import('./pages/AppointmentsAndLeads'));
 const TeamChat = lazy(() => import('./pages/TeamChat'));
 const Messaging = lazy(() => import('./pages/Messaging'));
@@ -34,16 +32,17 @@ import { usePrintView } from './hooks/usePrintView';
 import { useDeviceType } from './hooks/useDeviceType';
 import { MobileLayout } from './components/layout/MobileLayout';
 import { useAppointmentReminders } from './hooks/useAppointmentNotifications';
+import { useMidnightRefresh } from './hooks/useMidnightRefresh';
+import { useServiceWorker } from './hooks/useServiceWorker';
+import { UpdateNotification } from './components/UpdateNotification';
 
 const APP_PAGES: AppSectionKey[] = [
-    'Dashboard',
     'Inventory',
     'Sales',
     'Sale Prep',
     'Collections',
     'Reports',
     'Data',
-    'Calendar',
     'Appointments & Leads',
     'Team Chat',
     'CRM',
@@ -85,20 +84,17 @@ interface DataContextType {
 export const DataContext = createContext<DataContextType | null>(null);
 
 const PATH_TITLE_MAP: Record<string, string> = {
-    '/': 'Dashboard',
-    '/dashboard': 'Dashboard',
-    '/inventory': 'Inventory',
+    '/': 'Sales',
     '/sales': 'Sales',
+    '/inventory': 'Inventory',
     '/sale-prep': 'Sale Prep',
     '/collections': 'Collections',
     '/reports': 'Reports',
     '/data': 'Data',
-    '/calendar': 'Calendar',
     '/appointments': 'Appointments & Leads',
     '/appointments-leads': 'Appointments & Leads',
     '/team-chat': 'Team Chat',
     '/messaging': 'Messaging',
-    '/dashboard/crm': 'CRM',
     '/crm': 'CRM',
     '/settings': 'Settings',
     '/account-settings': 'Account Settings',
@@ -125,6 +121,12 @@ const App: React.FC = () => {
     
     // Initialize appointment reminders system
     useAppointmentReminders();
+
+    // Initialize midnight CST auto-refresh (with idle protection)
+    useMidnightRefresh();
+
+    // Initialize service worker for update notifications
+    const { isUpdateAvailable, applyUpdate, dismissUpdate } = useServiceWorker();
 
     // Bypass auth and layout for public routes
     const publicRoutes = ['/print/daily-closing', '/privacy-policy', '/terms-of-service'];
@@ -379,12 +381,24 @@ const App: React.FC = () => {
         }
     }, [session]);
 
-    // Load initial data from Supabase
+    // Load initial data from Supabase (only when session becomes available)
+    const hasLoadedInitialData = React.useRef(false);
     useEffect(() => {
-        loadData();
-    }, [loadData]);
+        if (session && !hasLoadedInitialData.current) {
+            hasLoadedInitialData.current = true;
+            loadData();
+        }
+        // Reset when session is lost (logout)
+        if (!session) {
+            hasLoadedInitialData.current = false;
+        }
+    }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Day-change detection - refresh data when a new day starts
+    // Using refs to avoid effect re-running on every render
+    const loadDataRef = React.useRef(loadData);
+    loadDataRef.current = loadData;
+
     useEffect(() => {
         if ((window as any).IS_EXPORT_MODE || !session) return;
 
@@ -394,46 +408,24 @@ const App: React.FC = () => {
             if (currentDateString !== lastDateString) {
                 console.log('Day changed detected, refreshing data...');
                 lastDateString = currentDateString;
-                loadData(false); // Don't show loading spinner for background refresh
+                loadDataRef.current(false); // Don't show loading spinner for background refresh
             }
         };
 
         // Check every minute for day change
         const interval = setInterval(checkDayChange, 60000);
         return () => clearInterval(interval);
-    }, [session, getCurrentDateString, loadData]);
+    }, [session, getCurrentDateString]); // Removed loadData from deps
 
-    // Refresh data when navigating between pages
-    useEffect(() => {
-        if ((window as any).IS_EXPORT_MODE || !session) return;
-        
-        // Skip refresh on initial mount (handled by initial load)
-        const normalizedPath = location.pathname.replace(/\/+$/, '') || '/dashboard';
-        if (normalizedPath === '/login' || normalizedPath.startsWith('/print')) return;
+    // NOTE: Route navigation refresh REMOVED to prevent unwanted data reloads
+    // The useEffect was firing on dependency changes (loadData, session),
+    // not just actual route changes, causing data loss in forms.
 
-        // Refresh data when route changes (but not on initial mount)
-        const timeoutId = setTimeout(() => {
-            console.log('Route changed, refreshing data...');
-            loadData(false); // Don't show loading spinner for navigation refresh
-        }, 100);
-
-        return () => clearTimeout(timeoutId);
-    }, [location.pathname, session, loadData]);
-
-    // Refresh data when tab becomes visible (user switches back to the tab)
-    useEffect(() => {
-        if ((window as any).IS_EXPORT_MODE || !session) return;
-
-        const handleVisibilityChange = () => {
-            if (document.visibilityState === 'visible') {
-                console.log('Tab became visible, refreshing data...');
-                loadData(false); // Don't show loading spinner for visibility refresh
-            }
-        };
-
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-        return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-    }, [session, loadData]);
+    // NOTE: Visibility change refresh REMOVED to prevent form data loss
+    // Data stays fresh via:
+    // 1. Midnight CST auto-refresh (useMidnightRefresh hook)
+    // 2. Day change detection (above)
+    // 3. Manual page refresh by user when needed
 
     const revertSale = useCallback(async (saleToRevert: Sale) => {
         const applyIdentifier = (query: any, useQuoted: boolean) => {
@@ -528,11 +520,11 @@ const App: React.FC = () => {
         }),
         [inventory, sales, revertSale, users, loadData]
     );
-    const normalizedPath = location.pathname.replace(/\/+$/, '') || '/dashboard';
+    const normalizedPath = location.pathname.replace(/\/+$/, '') || '/sales';
     const currentTitle = useMemo(() => {
         if (normalizedPath.startsWith('/admin/user/') && normalizedPath.includes('/edit')) return 'Edit User';
         if (normalizedPath.startsWith('/admin/users/')) return 'Edit User';
-        return PATH_TITLE_MAP[normalizedPath] ?? 'Dashboard';
+        return PATH_TITLE_MAP[normalizedPath] ?? 'Sales';
     }, [normalizedPath]);
     const isAdmin = user.role === 'admin';
     const canViewPage = useCallback(
@@ -553,14 +545,12 @@ const App: React.FC = () => {
 
     // Map routes to permission keys
     const routeToPermissionKey: Record<string, AppSectionKey> = {
-        '/dashboard': 'Dashboard',
-        '/': 'Dashboard',
-        '/inventory': 'Inventory',
+        '/': 'Sales',
         '/sales': 'Sales',
+        '/inventory': 'Inventory',
         '/collections': 'Collections',
         '/reports': 'Reports',
         '/data': 'Data',
-        '/calendar': 'Calendar',
         '/appointments': 'Appointments & Leads',
         '/appointments-leads': 'Appointments & Leads',
         '/team-chat': 'Team Chat',
@@ -590,7 +580,7 @@ const App: React.FC = () => {
             const hasAccess = canViewPage(permissionKey);
 
             if (!hasAccess) {
-                console.log(`Access denied for ${permissionKey} at ${normalizedPath} - redirecting to dashboard`);
+                console.log(`Access denied for ${permissionKey} at ${normalizedPath} - redirecting to sales`);
                 console.log('Current permissions state:', {
                     permissions,
                     permissionKey,
@@ -598,9 +588,9 @@ const App: React.FC = () => {
                     isAdmin
                 });
                 // Only redirect if trying to access a restricted page
-                // Don't redirect if already on dashboard (to avoid loops)
-                if (normalizedPath !== '/dashboard' && normalizedPath !== '/') {
-                    navigate('/dashboard', { replace: true });
+                // Don't redirect if already on sales (to avoid loops)
+                if (normalizedPath !== '/sales' && normalizedPath !== '/') {
+                    navigate('/sales', { replace: true });
                 }
             }
         }
@@ -611,10 +601,10 @@ const App: React.FC = () => {
             <h2 className="text-xl font-bold text-slate-100 mb-2">Access Denied</h2>
             <p>You do not have permission to view this page.</p>
             <button
-                onClick={() => navigate('/dashboard')}
+                onClick={() => navigate('/sales')}
                 className="mt-4 rounded-lg bg-cyan-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-cyan-500"
             >
-                Go to Dashboard
+                Go to Sales
             </button>
         </div>
     );
@@ -680,12 +670,10 @@ const App: React.FC = () => {
             {/* Public routes - no authentication required */}
             <Route path="/privacy-policy" element={<PrivacyPolicy />} />
             <Route path="/terms-of-service" element={<TermsOfService />} />
-            {/* Redirect /login to /dashboard if already authenticated (handled by session check above) */}
-            <Route path="/login" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={
-                !permissionsLoading && !canViewPage('Dashboard') ? NotAuthorized : <Dashboard />
-            } />
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            {/* Redirect /login to /sales if already authenticated (handled by session check above) */}
+            <Route path="/login" element={<Navigate to="/sales" replace />} />
+            <Route path="/dashboard" element={<Navigate to="/sales" replace />} />
+            <Route path="/" element={<Navigate to="/sales" replace />} />
             <Route path="/inventory" element={
                 !permissionsLoading && !canViewPage('Inventory') ? NotAuthorized : <Inventory />
             } />
@@ -704,20 +692,17 @@ const App: React.FC = () => {
             <Route path="/data" element={
                 !permissionsLoading && !canViewPage('Data') ? NotAuthorized : <Data />
             } />
-            <Route path="/calendar" element={
-                !permissionsLoading && !canViewPage('Calendar') ? NotAuthorized : <Calendar />
-            } />
             <Route path="/appointments" element={
                 !permissionsLoading && !canViewPage('Appointments & Leads') ? NotAuthorized : <AppointmentsAndLeads />
             } />
             <Route path="/appointments-leads" element={
                 !permissionsLoading && !canViewPage('Appointments & Leads') ? NotAuthorized : <AppointmentsAndLeads />
             } />
-            {/* Disabled pages - redirect to dashboard */}
-            <Route path="/team-chat" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/messaging" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard/crm" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/crm" element={<Navigate to="/dashboard" replace />} />
+            {/* Disabled pages - redirect to sales */}
+            <Route path="/team-chat" element={<Navigate to="/sales" replace />} />
+            <Route path="/messaging" element={<Navigate to="/sales" replace />} />
+            <Route path="/dashboard/crm" element={<Navigate to="/sales" replace />} />
+            <Route path="/crm" element={<Navigate to="/sales" replace />} />
             <Route path="/settings" element={
                 !permissionsLoading && !canViewPage('Settings') ? NotAuthorized : <Settings />
             } />
@@ -726,26 +711,26 @@ const App: React.FC = () => {
             {/* Admin routes - only accessible by admins */}
             <Route
                 path="/admin"
-                element={isAdmin ? <AdminUsers /> : <Navigate to="/dashboard" replace />}
+                element={isAdmin ? <AdminUsers /> : <Navigate to="/sales" replace />}
             />
             <Route
                 path="/admin/create-user"
-                element={isAdmin ? <AdminCreateUserForm /> : <Navigate to="/dashboard" replace />}
+                element={isAdmin ? <AdminCreateUserForm /> : <Navigate to="/sales" replace />}
             />
             <Route
                 path="/admin/users"
-                element={isAdmin ? <AdminUsers /> : <Navigate to="/dashboard" replace />}
+                element={isAdmin ? <AdminUsers /> : <Navigate to="/sales" replace />}
             />
             <Route
                 path="/admin/user/:id/edit"
-                element={isAdmin ? <AdminUserPermissions /> : <Navigate to="/dashboard" replace />}
+                element={isAdmin ? <AdminUserPermissions /> : <Navigate to="/sales" replace />}
             />
             {/* Legacy route for backwards compatibility */}
             <Route
                 path="/admin/users/:id"
-                element={isAdmin ? <AdminUserPermissions /> : <Navigate to="/dashboard" replace />}
+                element={isAdmin ? <AdminUserPermissions /> : <Navigate to="/sales" replace />}
             />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/sales" replace />} />
             </Routes>
         </Suspense>
     );
@@ -775,6 +760,10 @@ const App: React.FC = () => {
                     </div>
                 )}
             </DataContext.Provider>
+            {/* Update notification toast */}
+            {isUpdateAvailable && (
+                <UpdateNotification onRefresh={applyUpdate} onDismiss={dismissUpdate} />
+            )}
         </UserContext.Provider>
     );
 };

@@ -75,7 +75,7 @@ const liquidbuttonVariants = cva(
       },
       size: {
         default: "h-9 px-4 py-2 has-[>svg]:px-3",
-        sm: "h-8 text-xs gap-1.5 px-4 has-[>svg]:px-4",
+        sm: "h-8 text-xs gap-1.5 px-2.5 has-[>svg]:px-2.5",
         lg: "h-10 px-6 has-[>svg]:px-4",
         xl: "h-12 px-8 has-[>svg]:px-6",
         xxl: "h-14 px-10 has-[>svg]:px-8",
@@ -153,7 +153,7 @@ function LiquidButton({
             WebkitBackdropFilter: 'blur(10px) url("#container-glass")'
           }}
         />
-        <div className="pointer-events-none z-10 flex items-center justify-center gap-2 relative">
+        <div className="pointer-events-none z-10 flex items-center justify-center gap-2 relative pl-2.5 pr-2.5">
           {children}
         </div>
         <GlassFilter />

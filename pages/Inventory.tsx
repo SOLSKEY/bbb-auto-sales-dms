@@ -309,39 +309,41 @@ https://www.bbbofsmyrna.com/
                         <p className="text-2xl font-orbitron text-lava-core font-bold tracking-tight-lg">${formatNumberDisplay(vehicle.price)}</p>
                         <p className="text-xs text-muted">Down: ${formatNumberDisplay(vehicle.downPayment)}</p>
                     </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <LiquidButton
+                            onClick={handleCopyCaption}
+                            size="icon"
+                            color="blue"
+                            className="flex-shrink-0"
+                            title={captionCopied ? "Copied!" : "Copy Social Caption"}
+                        >
+                            {captionCopied ? (
+                                <CheckIcon className="h-5 w-5" />
+                            ) : (
+                                <ArrowUpTrayIcon className="h-5 w-5" />
+                            )}
+                        </LiquidButton>
+                        <LiquidButton
+                            onClick={handleCopyFolderName}
+                            size="icon"
+                            color="blue"
+                            className="flex-shrink-0"
+                            title={folderCopied ? "Copied!" : "Copy Folder Name"}
+                        >
+                            {folderCopied ? (
+                                <CheckIcon className="h-5 w-5" />
+                            ) : (
+                                <FolderIcon className="h-5 w-5" />
+                            )}
+                        </LiquidButton>
+                    </div>
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                    <LiquidButton
-                        onClick={handleCopyCaption}
-                        size="icon"
-                        color="blue"
-                        className="flex-shrink-0"
-                        title={captionCopied ? "Copied!" : "Copy Social Caption"}
-                    >
-                        {captionCopied ? (
-                            <CheckIcon className="h-5 w-5" />
-                        ) : (
-                            <ArrowUpTrayIcon className="h-5 w-5" />
-                        )}
-                    </LiquidButton>
-                    <LiquidButton
-                        onClick={handleCopyFolderName}
-                        size="icon"
-                        color="blue"
-                        className="flex-shrink-0"
-                        title={folderCopied ? "Copied!" : "Copy Folder Name"}
-                    >
-                        {folderCopied ? (
-                            <CheckIcon className="h-5 w-5" />
-                        ) : (
-                            <FolderIcon className="h-5 w-5" />
-                        )}
-                    </LiquidButton>
+                <div className="flex flex-wrap items-center justify-end gap-2">
                     {canEdit && (
                         <LiquidButton
                             size="sm"
                             onClick={onEdit}
-                            className="flex-1 min-w-[110px]"
+                            className="flex-shrink-0"
                         >
                             <PencilSquareIcon className="h-4 w-4" /> Edit
                         </LiquidButton>
@@ -351,7 +353,7 @@ https://www.bbbofsmyrna.com/
                             size="sm"
                             onClick={onSold}
                             disabled={isSold}
-                            className="flex-1 min-w-[110px]"
+                            className="flex-shrink-0"
                         >
                             <CheckCircleIcon className="h-4 w-4" /> Sold
                         </LiquidButton>

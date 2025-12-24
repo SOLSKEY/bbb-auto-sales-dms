@@ -10,18 +10,17 @@ interface MobileLayoutProps {
 }
 
 const PATH_TITLE_MAP: Record<string, string> = {
-  '/': 'Dashboard',
-  '/dashboard': 'Dashboard',
-  '/inventory': 'Inventory',
+  '/': 'Sales',
   '/sales': 'Sales',
+  '/inventory': 'Inventory',
   '/sale-prep': 'Sale Prep',
   '/collections': 'Collections',
   '/reports': 'Reports',
   '/data': 'Data',
-  '/calendar': 'Calendar',
+  '/appointments': 'Appointments & Leads',
+  '/appointments-leads': 'Appointments & Leads',
   '/team-chat': 'Team Chat',
   '/messaging': 'Messaging',
-  '/dashboard/crm': 'CRM',
   '/crm': 'CRM',
   '/settings': 'Settings',
   '/account-settings': 'Account Settings',
@@ -53,7 +52,7 @@ export function MobileLayout({ children, onSignOut }: MobileLayoutProps) {
 
   // Get page title from pathname
   const normalizedPath = location.pathname.replace(/\/+$/, '') || '/';
-  const pageTitle = PATH_TITLE_MAP[normalizedPath] || 'Dashboard';
+  const pageTitle = PATH_TITLE_MAP[normalizedPath] || 'Sales';
 
   // Pull to refresh handlers
   useEffect(() => {

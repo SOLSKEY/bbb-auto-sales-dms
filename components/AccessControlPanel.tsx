@@ -3,7 +3,6 @@ import { adminApi } from '../lib/adminApi';
 import type { UserAccessPolicy, AppSectionKey } from '../types';
 
 const APP_PAGES: AppSectionKey[] = [
-    'Dashboard',
     'Inventory',
     'Sales',
     'Collections',

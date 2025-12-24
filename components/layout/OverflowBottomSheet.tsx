@@ -1,7 +1,6 @@
 import { useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  HomeIcon,
   WrenchScrewdriverIcon,
   ChartBarIcon,
   TableCellsIcon,
@@ -22,13 +21,12 @@ interface OverflowBottomSheetProps {
 interface MenuItem {
   id: string;
   label: string;
-  icon: typeof HomeIcon;
+  icon: typeof WrenchScrewdriverIcon;
   path: string;
   adminOnly?: boolean;
 }
 
 const menuItems: MenuItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: HomeIcon, path: '/dashboard' },
   { id: 'sale-prep', label: 'Sale Prep', icon: WrenchScrewdriverIcon, path: '/sale-prep' },
   { id: 'reports', label: 'Reports', icon: ChartBarIcon, path: '/reports', adminOnly: true },
   { id: 'data', label: 'Data', icon: TableCellsIcon, path: '/data', adminOnly: true },
