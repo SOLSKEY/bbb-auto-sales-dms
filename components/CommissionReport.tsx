@@ -341,23 +341,26 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
     }, [rows]);
 
     const normalizedName = normalizeName(salesperson);
-    // When locked, prioritize snapshot value to ensure export shows correct value
-    // Otherwise, use collectionsSelection prop, then fall back to snapshot's collectionsBonus
-    const selectionNumber = isKey && collectionsLocked && typeof collectionsBonus === 'number'
-        ? collectionsBonus
+    // When locked, prioritize collectionsSelection prop (which loads from storage if needed),
+    // then fall back to snapshot's collectionsBonus. This ensures export shows correct locked value.
+    // When not locked, use collectionsSelection prop, then snapshot's collectionsBonus
+    const selectionNumber = isKey && collectionsLocked
+        ? (typeof collectionsSelection === 'number'
+            ? collectionsSelection
+            : (typeof collectionsBonus === 'number'
+                ? collectionsBonus
+                : 0))
         : (typeof collectionsSelection === 'number'
             ? collectionsSelection
-            : typeof collectionsBonus === 'number'
+            : (typeof collectionsBonus === 'number'
                 ? collectionsBonus
-                : 0);
+                : 0));
     const collectionSelectionIsNumber = typeof collectionsSelection === 'number';
     // Use collectionsSelection if it's a number, otherwise fall back to snapshot's collectionsBonus for display
-    // When locked, always show snapshot value in dropdown too
-    const selectionValue = (isKey && collectionsLocked && typeof collectionsBonus === 'number')
-        ? String(collectionsBonus)
-        : (collectionSelectionIsNumber
-            ? String(collectionsSelection)
-            : (typeof collectionsBonus === 'number' ? String(collectionsBonus) : ''));
+    // When locked, collectionsSelection prop should have the value (loaded from storage if needed)
+    const selectionValue = typeof collectionsSelection === 'number'
+        ? String(collectionsSelection)
+        : (typeof collectionsBonus === 'number' ? String(collectionsBonus) : '');
     const effectiveCollectionsBonus = isKey ? selectionNumber : 0;
     const effectiveWeeklyBonus = isKey ? weeklySalesBonus ?? 0 : 0;
     const baseCommissionValue = totalAdjustedCommission;
@@ -747,25 +750,49 @@ const buildSnapshot = (
     });
 
     const collectionsLocks = options.collectionsLocks ?? {};
-    
-    // If locked but state doesn't have value, load from persisted storage
-    if (options.weekKey) {
-        const normalizedKey = normalizeName('Key');
-        const isLocked = collectionsLocks[normalizedKey] ?? false;
-        const hasStateValue = typeof normalizedCollections.get(normalizedKey) === 'number';
-        
-        if (isLocked && !hasStateValue) {
-            const storage = loadCollectionsState(options.weekKey);
-            if (typeof storage.value === 'number') {
-                normalizedCollections.set(normalizedKey, storage.value);
-            }
-        }
-    }
     const manualOverrideValues = options.manualCommissionOverrides ?? {};
     const normalizedCollectionsLocks = new Map<string, boolean>();
     Object.entries(collectionsLocks).forEach(([name, value]) => {
         normalizedCollectionsLocks.set(normalizeName(name), Boolean(value));
     });
+    
+    // If locked but state doesn't have value, load from persisted storage
+    // Check multiple possible key variations for "Key" salesperson
+    if (options.weekKey) {
+        const possibleKeys = ['Key', 'key', 'KEY'];
+        let foundLocked = false;
+        let foundKey = '';
+        let foundValue: number | '' = '';
+        
+        // Check if any variation is locked (check both raw locks and normalized locks)
+        for (const key of possibleKeys) {
+            const normalizedKey = normalizeName(key);
+            const isLocked = normalizedCollectionsLocks.get(normalizedKey) ?? 
+                            normalizedCollectionsLocks.get(key) ??
+                            collectionsLocks[normalizedKey] ?? 
+                            collectionsLocks[key] ?? 
+                            false;
+            const stateValue = normalizedCollections.get(normalizedKey) ?? normalizedCollections.get(key);
+            
+            if (isLocked) {
+                foundLocked = true;
+                foundKey = normalizedKey;
+                foundValue = stateValue;
+                break;
+            }
+        }
+        
+        // If locked but state doesn't have value, load from storage
+        if (foundLocked && typeof foundValue !== 'number') {
+            const storage = loadCollectionsState(options.weekKey);
+            if (typeof storage.value === 'number') {
+                // Set for all possible key variations to ensure lookup works
+                for (const key of possibleKeys) {
+                    normalizedCollections.set(normalizeName(key), storage.value);
+                }
+            }
+        }
+    }
 
     const bonusRange = getBonusRangeForCommission(start);
     const bonusSource = options.allSales ?? sales;
@@ -923,7 +950,35 @@ const buildSnapshot = (
             );
             const normalizedName = salesperson;
             const isKey = normalizedName.toLowerCase() === 'key';
-            const collectionsSelection = normalizedCollections.get(normalizedName);
+            // Check multiple possible keys to find collections bonus value
+            let collectionsSelection: number | '' | undefined = normalizedCollections.get(normalizedName);
+            if (isKey && typeof collectionsSelection !== 'number') {
+                // Try alternative key variations
+                collectionsSelection = normalizedCollections.get('Key') ?? 
+                                      normalizedCollections.get('key') ?? 
+                                      normalizedCollections.get('KEY') ??
+                                      collectionsSelection;
+            }
+            
+            // If still no value but locked, load from storage
+            if (isKey && typeof collectionsSelection !== 'number' && options.weekKey) {
+                const normalizedKey = normalizeName(normalizedName);
+                const isLocked = normalizedCollectionsLocks.get(normalizedKey) ?? 
+                                normalizedCollectionsLocks.get('Key') ?? 
+                                normalizedCollectionsLocks.get('key') ?? 
+                                false;
+                if (isLocked) {
+                    const storage = loadCollectionsState(options.weekKey);
+                    if (typeof storage.value === 'number') {
+                        collectionsSelection = storage.value;
+                        // Store it in the map for future lookups
+                        normalizedCollections.set(normalizedName, storage.value);
+                        normalizedCollections.set('Key', storage.value);
+                        normalizedCollections.set('key', storage.value);
+                    }
+                }
+            }
+            
             const weeklyStats = isKey
                 ? weeklyBonusData.global
                 : weeklyBonusData.perSalesperson.get(normalizedName) ?? {
@@ -1276,13 +1331,28 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                         // Otherwise, use state if it's a valid number, then fall back to snapshot
                         const stateSelection = isKey ? collectionsSelections[normalized] : undefined;
                         const snapshotSelection = isKey && typeof block.collectionsBonus === 'number' ? block.collectionsBonus : undefined;
-                        const selection = isKey 
-                            ? (locked && snapshotSelection !== undefined 
-                                ? snapshotSelection 
-                                : (typeof stateSelection === 'number' 
-                                    ? stateSelection 
-                                    : (snapshotSelection ?? '')))
-                            : '';
+                        
+                        // When locked, prioritize snapshot value, but if snapshot doesn't have it, load from storage
+                        let finalSelection: number | '' = '';
+                        if (isKey && locked) {
+                            if (typeof snapshotSelection === 'number') {
+                                finalSelection = snapshotSelection;
+                            } else if (typeof stateSelection === 'number') {
+                                finalSelection = stateSelection;
+                            } else if (currentWeek) {
+                                // Last resort: load from storage if snapshot and state both don't have it
+                                const storage = loadCollectionsState(currentWeek.key);
+                                if (typeof storage.value === 'number') {
+                                    finalSelection = storage.value;
+                                }
+                            }
+                        } else if (isKey) {
+                            // Not locked: use state if available, otherwise snapshot
+                            finalSelection = typeof stateSelection === 'number' 
+                                ? stateSelection 
+                                : (snapshotSelection ?? '');
+                        }
+                        
                         return (
                             <CommissionSalespersonBlock
                                 key={block.salesperson}
@@ -1290,7 +1360,7 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                                 editable={true}
                                 notesMap={notesMap}
                                 onNotesChange={handleNotesChange}
-                                collectionsSelection={selection}
+                                collectionsSelection={finalSelection}
                                 onCollectionsBonusChange={isKey ? handleCollectionsBonusChange : undefined}
                                 onCollectionsBonusLockToggle={isKey ? handleCollectionsBonusLockToggle : undefined}
                                 collectionsOptions={[0, 50, 100]}
