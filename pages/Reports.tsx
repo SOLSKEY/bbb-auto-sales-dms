@@ -228,6 +228,10 @@ const Reports: React.FC = () => {
                 return;
             }
 
+            // Force a re-render to ensure the DOM reflects the snapshot values before export
+            // This ensures the locked collections bonus is displayed correctly in the PDF
+            await new Promise(resolve => setTimeout(resolve, 100));
+
             const reportContainer = commissionRef.current?.getReportContainer();
             if (!reportContainer) {
                 alert('Unable to find the report to export.');

@@ -341,17 +341,23 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
     }, [rows]);
 
     const normalizedName = normalizeName(salesperson);
-    const selectionNumber =
-        typeof collectionsSelection === 'number'
+    // When locked, prioritize snapshot value to ensure export shows correct value
+    // Otherwise, use collectionsSelection prop, then fall back to snapshot's collectionsBonus
+    const selectionNumber = isKey && collectionsLocked && typeof collectionsBonus === 'number'
+        ? collectionsBonus
+        : (typeof collectionsSelection === 'number'
             ? collectionsSelection
             : typeof collectionsBonus === 'number'
                 ? collectionsBonus
-                : 0;
+                : 0);
     const collectionSelectionIsNumber = typeof collectionsSelection === 'number';
     // Use collectionsSelection if it's a number, otherwise fall back to snapshot's collectionsBonus for display
-    const selectionValue = collectionSelectionIsNumber
-        ? String(collectionsSelection)
-        : (typeof collectionsBonus === 'number' ? String(collectionsBonus) : '');
+    // When locked, always show snapshot value in dropdown too
+    const selectionValue = (isKey && collectionsLocked && typeof collectionsBonus === 'number')
+        ? String(collectionsBonus)
+        : (collectionSelectionIsNumber
+            ? String(collectionsSelection)
+            : (typeof collectionsBonus === 'number' ? String(collectionsBonus) : ''));
     const effectiveCollectionsBonus = isKey ? selectionNumber : 0;
     const effectiveWeeklyBonus = isKey ? weeklySalesBonus ?? 0 : 0;
     const baseCommissionValue = totalAdjustedCommission;
@@ -730,6 +736,7 @@ const buildSnapshot = (
         collectionsLocks?: Record<string, boolean>;
         allSales?: Sale[];
         manualCommissionOverrides?: Record<string, number>;
+        weekKey?: string; // Add weekKey to load persisted state if needed
     } = {},
 ): CommissionReportSnapshot => {
     const rowsBySalesperson = new Map<string, CommissionReportRowSnapshot[]>();
@@ -740,6 +747,20 @@ const buildSnapshot = (
     });
 
     const collectionsLocks = options.collectionsLocks ?? {};
+    
+    // If locked but state doesn't have value, load from persisted storage
+    if (options.weekKey) {
+        const normalizedKey = normalizeName('Key');
+        const isLocked = collectionsLocks[normalizedKey] ?? false;
+        const hasStateValue = typeof normalizedCollections.get(normalizedKey) === 'number';
+        
+        if (isLocked && !hasStateValue) {
+            const storage = loadCollectionsState(options.weekKey);
+            if (typeof storage.value === 'number') {
+                normalizedCollections.set(normalizedKey, storage.value);
+            }
+        }
+    }
     const manualOverrideValues = options.manualCommissionOverrides ?? {};
     const normalizedCollectionsLocks = new Map<string, boolean>();
     Object.entries(collectionsLocks).forEach(([name, value]) => {
@@ -1128,6 +1149,7 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                 collectionsLocks,
                 allSales: sales,
                 manualCommissionOverrides: numericManualOverrides,
+                weekKey: currentWeek.key, // Pass weekKey to allow loading persisted state
             });
         }, [currentWeek, notesMap, collectionsSelections, collectionsLocks, sales, numericManualOverrides]);
 
@@ -1249,11 +1271,18 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                     snapshot.salespeople.map(block => {
                         const normalized = normalizeName(block.salesperson);
                         const isKey = normalized.toLowerCase() === 'key';
-                        // Use state value if available, otherwise fall back to snapshot value (for export consistency)
+                        const locked = isKey ? collectionsLocks[normalized] ?? false : false;
+                        // If locked, ALWAYS use snapshot value to ensure export shows correct value
+                        // Otherwise, use state if it's a valid number, then fall back to snapshot
                         const stateSelection = isKey ? collectionsSelections[normalized] : undefined;
                         const snapshotSelection = isKey && typeof block.collectionsBonus === 'number' ? block.collectionsBonus : undefined;
-                        const selection = isKey ? (stateSelection ?? snapshotSelection ?? '') : '';
-                        const locked = isKey ? collectionsLocks[normalized] ?? false : false;
+                        const selection = isKey 
+                            ? (locked && snapshotSelection !== undefined 
+                                ? snapshotSelection 
+                                : (typeof stateSelection === 'number' 
+                                    ? stateSelection 
+                                    : (snapshotSelection ?? '')))
+                            : '';
                         return (
                             <CommissionSalespersonBlock
                                 key={block.salesperson}
