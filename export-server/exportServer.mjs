@@ -428,7 +428,7 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
       filename: 'Sales_Report.pdf'
     },
     collections: {
-      targetUrl: `${APP_URL}/collections`,
+      targetUrl: `${APP_URL}/collections?export=true`,
       selector: '#collections-analytics-export',
       filename: 'Collections_Report.pdf'
     },
@@ -655,6 +655,28 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
       { timeout: 60000 }
     );
     console.log('✅ React root initialized');
+
+    // For collections report, wait for animation to complete if in export mode
+    if (reportType === 'collections') {
+      console.log('⏳ Checking for export mode and waiting for animations to complete...');
+      try {
+        // Check if we're in export mode and wait for animationComplete flag
+        await page.waitForFunction(() => {
+          const urlParams = new URLSearchParams(window.location.search);
+          const isExportMode = urlParams.get('export') === 'true';
+          
+          if (isExportMode) {
+            // In export mode, check if animationComplete flag is set
+            return window.animationComplete === true;
+          }
+          // Not in export mode, proceed
+          return true;
+        }, { timeout: 5000 });
+        console.log('✅ Export mode animation complete flag detected');
+      } catch (error) {
+        console.log('⚠️ Animation complete flag not detected, continuing anyway...');
+      }
+    }
 
     // Wait for all images to load
     console.log('⏳ Waiting for all images to load...');

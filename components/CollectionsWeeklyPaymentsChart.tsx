@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { usePrintView } from '../hooks/usePrintView';
 import type { DailyCollectionSummary } from '../types';
 import {
@@ -56,6 +56,46 @@ interface CollectionsWeeklyPaymentsChartProps {
 
 const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartProps> = ({ payments }) => {
     const { isPrintView } = usePrintView();
+    
+    // Detect export mode from URL parameter
+    const isExporting = useMemo(() => {
+        if (typeof window === 'undefined') return false;
+        return new URLSearchParams(window.location.search).get('export') === 'true';
+    }, []);
+    
+    // Track if animation has completed (only animate once)
+    const [hasAnimated, setHasAnimated] = useState(false);
+    const animationCompleteRef = useRef(false);
+    
+    // Set hasAnimated to true only once on mount
+    useEffect(() => {
+        // In export mode, disable animation immediately and mark as complete
+        if (isExporting) {
+            // Set flag immediately for Puppeteer
+            if (typeof window !== 'undefined') {
+                (window as any).animationComplete = true;
+            }
+            // hasAnimated stays false so isAnimationActive will be false (no animation)
+        } else {
+            // In normal mode, animation will run once on mount
+            // hasAnimated starts as false, allowing animation to run
+            // After animation completes, hasAnimated will be set to true via handleAnimationEnd
+        }
+    }, [isExporting]);
+    
+    // Handle animation end callback
+    const handleAnimationEnd = () => {
+        if (!animationCompleteRef.current) {
+            animationCompleteRef.current = true;
+            setHasAnimated(true);
+            
+            // In export mode, set window flag for Puppeteer
+            if (isExporting && typeof window !== 'undefined') {
+                (window as any).animationComplete = true;
+            }
+        }
+    };
+    
     const { chartData, years, lineKeys, defaultVisibleYears, xTicks } = useMemo(() => {
         if (!payments || payments.length === 0) {
             return {
@@ -363,7 +403,16 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
             </div>
 
             <ResponsiveContainer width="100%" height={360}>
-                <LineChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+                <LineChart 
+                    data={chartData} 
+                    margin={{ top: 20, right: 30, left: 10, bottom: 20 }}
+                    // Control animation: only animate once on mount, never in export mode
+                    isAnimationActive={!hasAnimated && !isExporting}
+                    // Animation duration: 1-1.5 seconds
+                    animationDuration={isExporting ? 0 : 1200}
+                    // Callback when animation completes
+                    onAnimationEnd={handleAnimationEnd}
+                >
                     <defs>
                         {gradientDefs.map(gradient => (
                             <linearGradient
@@ -407,6 +456,9 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
                         labelStyle={{ color: '#fff', fontWeight: 'bold' }}
                         cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
                         formatter={(value, name) => [formatCurrency(Number(value)), name]}
+                        // Prevent tooltip from causing re-renders that trigger animation
+                        animationDuration={0}
+                        isAnimationActive={false}
                     />
                     <Legend
                         verticalAlign="bottom"
@@ -435,6 +487,9 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
                                     strokeWidth: 2,
                                 }}
                                 connectNulls
+                                // Control animation per line: only animate once
+                                isAnimationActive={!hasAnimated && !isExporting}
+                                animationDuration={isExporting ? 0 : 1200}
                             />
                         );
                     })}
@@ -444,4 +499,24 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
     );
 };
 
-export default CollectionsWeeklyPaymentsChart;
+// Wrap component in React.memo to prevent unnecessary re-renders
+// This prevents the chart from re-rendering on mouse movement
+export default React.memo(CollectionsWeeklyPaymentsChart, (prevProps, nextProps) => {
+    // Only re-render if payments data actually changes
+    // This prevents re-renders from parent component state changes
+    if (prevProps.payments.length !== nextProps.payments.length) {
+        return false; // Re-render if length changes
+    }
+    
+    // Deep comparison of payments data
+    const paymentsChanged = prevProps.payments.some((prev, index) => {
+        const next = nextProps.payments[index];
+        return !next || 
+               prev.date !== next.date || 
+               prev.payments !== next.payments || 
+               prev.lateFees !== next.lateFees;
+    });
+    
+    // Only re-render if payments data actually changed
+    return !paymentsChanged;
+});
