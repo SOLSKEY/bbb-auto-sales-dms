@@ -4,6 +4,8 @@ import DataGrid from '../components/DataGrid';
 import { UserContext, DataContext } from '../App';
 import type { Vehicle, Sale, DailyCollectionSummary, DailyDelinquencySummary } from '../types';
 import { VEHICLE_FIELD_MAP, SALE_FIELD_MAP, PAYMENTS_FIELD_MAP, DELINQUENCY_FIELD_MAP } from '../supabaseMapping';
+import { buildWeekKey, getCommissionWeekRange, formatCommissionWeekLabel } from '../utils/commission';
+import { parseDateStringToUtc } from '../utils/date';
 import ConfirmationModal from '../components/ConfirmationModal';
 import AlertModal from '../components/AlertModal';
 import { supabase } from '../supabaseClient';
@@ -19,6 +21,8 @@ const Data: React.FC = () => {
     const [collectionsData, setCollectionsData] = useState<DailyCollectionSummary[]>([]);
     const [delinquencyData, setDelinquencyData] = useState<DailyDelinquencySummary[]>([]);
     const [auctionData, setAuctionData] = useState<any[]>([]);
+    const [collectionsBonusData, setCollectionsBonusData] = useState<Array<{ weekKey: string; weekRange: string; collectionsBonus: number | null }>>([]);
+
 
     // Load data from Supabase when tab changes
     useEffect(() => {
@@ -55,6 +59,51 @@ const Data: React.FC = () => {
                 } else {
                     console.log('No delinquency data returned from Supabase');
                 }
+            } else if (activeTab === 'Collections Bonus') {
+                console.log('Loading collections bonus data from Supabase...');
+                
+                // Generate all commission week ranges from sales data
+                const weekBucketsMap = new Map<string, { start: Date; end: Date }>();
+                sales.forEach(sale => {
+                    const parsedDate = parseDateStringToUtc(sale.saleDate);
+                    if (!parsedDate) return;
+                    const { start, end } = getCommissionWeekRange(parsedDate);
+                    const weekKey = buildWeekKey(parsedDate);
+                    if (!weekBucketsMap.has(weekKey)) {
+                        weekBucketsMap.set(weekKey, { start, end });
+                    }
+                });
+                
+                // Load collections bonus data from Supabase
+                const { data: bonusData, error: bonusError } = await supabase
+                    .from('commission_report_collections_bonus')
+                    .select('week_key, collections_bonus')
+                    .order('week_key', { ascending: false });
+
+                if (bonusError) {
+                    console.error('Error loading collections bonus:', bonusError);
+                }
+
+                // Create a map of week_key to collections_bonus
+                const bonusMap = new Map<string, number>();
+                if (bonusData) {
+                    bonusData.forEach(record => {
+                        if (typeof record.collections_bonus === 'number') {
+                            bonusMap.set(record.week_key, record.collections_bonus);
+                        }
+                    });
+                }
+
+                // Combine week ranges with bonus data
+                const allWeeks = Array.from(weekBucketsMap.entries())
+                    .map(([weekKey, { start, end }]) => ({
+                        weekKey,
+                        weekRange: formatCommissionWeekLabel(start, end),
+                        collectionsBonus: bonusMap.get(weekKey) ?? null,
+                    }))
+                    .sort((a, b) => b.weekKey.localeCompare(a.weekKey)); // Sort descending by week key
+
+                setCollectionsBonusData(allWeeks);
             } else if (activeTab === 'Auction') {
                 // Note: Auction table does not exist in Supabase yet
                 console.log('Auction table not implemented in Supabase');
@@ -216,6 +265,22 @@ const Data: React.FC = () => {
                     fieldMap: DELINQUENCY_FIELD_MAP,
                 };
                 break;
+            case 'Collections Bonus':
+                config = {
+                    columns: [
+                        { key: 'weekRange', name: 'Week Range' },
+                        { key: 'collectionsBonus', name: 'Collections Bonus Amount' }
+                    ],
+                    data: collectionsBonusData,
+                    setData: setCollectionsBonusData,
+                    tableName: 'commission_report_collections_bonus',
+                    primaryKey: 'weekKey',
+                    fieldMap: {
+                        weekKey: 'week_key',
+                        collectionsBonus: 'collections_bonus',
+                    },
+                };
+                break;
             case 'Auction':
                 config = {
                     columns: [
@@ -231,7 +296,7 @@ const Data: React.FC = () => {
                 config = { columns: [], data: [], setData: () => {} };
         }
         return config;
-    }, [activeTab, inventory, sortedSalesDesc, collectionsData, auctionData, delinquencyData, setInventory, setSales, revertSale]);
+    }, [activeTab, inventory, sortedSalesDesc, collectionsData, auctionData, delinquencyData, collectionsBonusData, sales, setInventory, setSales, revertSale]);
 
     return (
         <div className="h-full flex flex-col">

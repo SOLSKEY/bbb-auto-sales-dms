@@ -30,10 +30,15 @@ const prepareValueForDb = (value: any, columnKey: string) => {
     // List of numeric columns that should be NULL if empty
     const numericColumns = ['year', 'mileage', 'price', 'downPayment', 'salePrice', 'saleDownPayment',
         'payments', 'lateFees', 'total', 'boaZelle', 'totalAmount', 'amountPaid',
-        'overdueAccounts', 'openAccounts', 'overdueRate'];
+        'overdueAccounts', 'openAccounts', 'overdueRate', 'collectionsBonus'];
 
     if (numericColumns.includes(columnKey) && (value === '' || value === null || value === undefined)) {
         return null;
+    }
+    // Convert to number for numeric columns
+    if (numericColumns.includes(columnKey) && value !== null && value !== undefined && value !== '') {
+        const numValue = Number(value);
+        return Number.isFinite(numValue) ? numValue : null;
     }
     return value;
 };
@@ -149,19 +154,62 @@ const DataGrid: React.FC<DataGridProps> = ({
                 : supabasePrimaryKey;
             const primaryKeyValue = updatedRow[primaryKey];
 
-            const { error } = await supabase
-                .from(tableName)
-                .update(updatePayload)
-                .eq(unquotedPrimaryKey, primaryKeyValue);
+            // Special handling for commission_report_collections_bonus (needs upsert)
+            if (tableName === 'commission_report_collections_bonus') {
+                // For collections bonus, we need to upsert and set locked=true
+                const upsertPayload: Record<string, any> = {
+                    ...updatePayload,
+                    locked: true,
+                    updated_at: new Date().toISOString(),
+                };
+                upsertPayload[unquotedPrimaryKey] = primaryKeyValue;
+                
+                // If collections_bonus is null/empty, delete instead
+                if (updatePayload.collections_bonus === null || updatePayload.collections_bonus === undefined || updatePayload.collections_bonus < 0) {
+                    const { error } = await supabase
+                        .from(tableName)
+                        .delete()
+                        .eq(unquotedPrimaryKey, primaryKeyValue);
+                    
+                    if (error) {
+                        console.error('Error deleting collections bonus:', error);
+                        setSaveStatus('error');
+                        setData(data); // Revert on error
+                    } else {
+                        setSaveStatus('success');
+                        setEditingCell(null);
+                    }
+                } else {
+                    const { error } = await supabase
+                        .from(tableName)
+                        .upsert(upsertPayload, {
+                            onConflict: unquotedPrimaryKey,
+                        });
 
-            if (error) {
-                console.error('Error updating cell:', error);
-                setSaveStatus('error');
-                // Revert local state on error
-                setData(data);
+                    if (error) {
+                        console.error('Error upserting collections bonus:', error);
+                        setSaveStatus('error');
+                        setData(data); // Revert on error
+                    } else {
+                        setSaveStatus('success');
+                        setEditingCell(null);
+                    }
+                }
             } else {
-                setSaveStatus('success');
-                setEditingCell(null);
+                const { error } = await supabase
+                    .from(tableName)
+                    .update(updatePayload)
+                    .eq(unquotedPrimaryKey, primaryKeyValue);
+
+                if (error) {
+                    console.error('Error updating cell:', error);
+                    setSaveStatus('error');
+                    // Revert local state on error
+                    setData(data);
+                } else {
+                    setSaveStatus('success');
+                    setEditingCell(null);
+                }
             }
         } catch (error) {
             console.error('Error syncing cell change:', error);

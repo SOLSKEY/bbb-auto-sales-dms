@@ -20,6 +20,7 @@ import { GlassButton } from '@/components/ui/glass-button';
 import { usePrintView } from '../hooks/usePrintView';
 import AppSelect from '../components/AppSelect';
 import CommissionShortcutButton from '../components/CommissionShortcutButton';
+import { supabase } from '../supabaseClient';
 
 const DAILY_CLOSING_TABLE = 'DailyClosingReportsLog';
 const COMMISSION_TABLE = 'CommissionReportsLog';
@@ -38,6 +39,9 @@ const Reports: React.FC = () => {
     const [isLogging, setIsLogging] = useState(false);
     const [selectedWeekKey, setSelectedWeekKey] = useState<string | null>(null);
     const [weekBuckets, setWeekBuckets] = useState<Array<{ key: string; label: string }>>([]);
+    const [isCollectionsBonusModalOpen, setIsCollectionsBonusModalOpen] = useState(false);
+    const [isLoggingCollectionsBonus, setIsLoggingCollectionsBonus] = useState(false);
+    const [collectionsBonusForm, setCollectionsBonusForm] = useState({ weekKey: '', amount: '' });
 
     const dailyClosingRef = useRef<DailyClosingReportHandle | null>(null);
     const commissionRef = useRef<CommissionReportHandle | null>(null);
@@ -223,10 +227,7 @@ const Reports: React.FC = () => {
                 alert('No commission data available to export.');
                 return;
             }
-            if (!snapshot.totals.collectionsComplete) {
-                alert('Please select and lock a collections bonus for Key before exporting the commission report.');
-                return;
-            }
+            // Collections bonus can now be logged separately, so we don't require collectionsComplete for export
 
             // Force a re-render to ensure the DOM reflects the snapshot values before export
             // This ensures the locked collections bonus is displayed correctly in the PDF
@@ -390,7 +391,22 @@ const Reports: React.FC = () => {
                                 onWeekChange={setSelectedWeekKey}
                             />
                         )}
-                        {reportView === 'live' && canLogReport && (
+                        {activeReport === 'Commission' && reportView === 'live' && (
+                            <GlassButton
+                                onClick={() => {
+                                    if (weekBuckets.length > 0 && !collectionsBonusForm.weekKey) {
+                                        setCollectionsBonusForm(prev => ({ ...prev, weekKey: selectedWeekKey || weekBuckets[0].key }));
+                                    }
+                                    setIsCollectionsBonusModalOpen(true);
+                                }}
+                                disabled={isLoggingCollectionsBonus}
+                                contentClassName="flex items-center"
+                            >
+                                <BookmarkIcon className="h-5 w-5 mr-2" />
+                                {isLoggingCollectionsBonus ? 'Logging…' : 'Log Collections Bonus'}
+                            </GlassButton>
+                        )}
+                        {activeReport !== 'Commission' && reportView === 'live' && canLogReport && (
                             <GlassButton
                                 onClick={handleLogReport}
                                 disabled={isLogging}
@@ -413,6 +429,130 @@ const Reports: React.FC = () => {
                     {reportView === 'live' ? renderLiveReport() : renderLoggedReport()}
                 </div>
             </main>
+
+            {/* Log Collections Bonus Modal */}
+            {isCollectionsBonusModalOpen && activeReport === 'Commission' && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8">
+                    <div className="w-full max-w-xl p-6 relative bg-[#1b1f26] border border-border-high rounded-2xl shadow-2xl">
+                        <GlassButton
+                            type="button"
+                            size="icon"
+                            className="absolute top-3 right-3 text-secondary hover:text-primary transition-colors"
+                            onClick={() => {
+                                setIsCollectionsBonusModalOpen(false);
+                                setCollectionsBonusForm({ weekKey: '', amount: '' });
+                            }}
+                            disabled={isLoggingCollectionsBonus}
+                        >
+                            ✕
+                        </GlassButton>
+                        <h3 className="text-2xl font-semibold text-primary mb-1 tracking-tight-md">Log Collections Bonus</h3>
+                        <p className="text-sm text-muted mb-6">
+                            Select a week and collections bonus amount to log.
+                        </p>
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            if (!collectionsBonusForm.weekKey || !collectionsBonusForm.amount) {
+                                alert('Please select both week and collections bonus amount.');
+                                return;
+                            }
+                            setIsLoggingCollectionsBonus(true);
+                            try {
+                                const amount = Number(collectionsBonusForm.amount);
+                                if (!Number.isFinite(amount) || amount < 0) {
+                                    alert('Invalid collections bonus amount.');
+                                    return;
+                                }
+                                
+                                const { error } = await supabase
+                                    .from('commission_report_collections_bonus')
+                                    .upsert(
+                                        {
+                                            week_key: collectionsBonusForm.weekKey,
+                                            collections_bonus: amount,
+                                            locked: true,
+                                            updated_at: new Date().toISOString(),
+                                        },
+                                        {
+                                            onConflict: 'week_key',
+                                        }
+                                    );
+
+                                if (error) {
+                                    console.error('Error logging collections bonus:', error);
+                                    alert('Failed to log collections bonus. Please try again.');
+                                    return;
+                                }
+
+                                alert('Collections bonus logged successfully.');
+                                setIsCollectionsBonusModalOpen(false);
+                                
+                                // Refresh the commission report to show the logged value
+                                if (commissionRef.current && collectionsBonusForm.weekKey === selectedWeekKey) {
+                                    // Trigger a refresh by temporarily changing and restoring the week key
+                                    const currentKey = selectedWeekKey;
+                                    setSelectedWeekKey(null);
+                                    setTimeout(() => setSelectedWeekKey(currentKey), 50);
+                                }
+                                
+                                setCollectionsBonusForm({ weekKey: '', amount: '' });
+                            } catch (error) {
+                                console.error('Error logging collections bonus:', error);
+                                alert('An error occurred while logging collections bonus.');
+                            } finally {
+                                setIsLoggingCollectionsBonus(false);
+                            }
+                        }} className="space-y-5">
+                            <div>
+                                <label className="text-xs uppercase tracking-wide text-muted mb-2 block">Select Week</label>
+                                <AppSelect
+                                    value={collectionsBonusForm.weekKey}
+                                    onChange={value => setCollectionsBonusForm(prev => ({ ...prev, weekKey: value || '' }))}
+                                    options={weekBuckets.map(bucket => ({
+                                        value: bucket.key,
+                                        label: bucket.label,
+                                    }))}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs uppercase tracking-wide text-muted mb-2 block">Collections Bonus Amount</label>
+                                <AppSelect
+                                    value={collectionsBonusForm.amount}
+                                    onChange={value => setCollectionsBonusForm(prev => ({ ...prev, amount: value || '' }))}
+                                    options={[
+                                        { value: '', label: 'Select bonus' },
+                                        { value: '0', label: '$0.00' },
+                                        { value: '50', label: '$50.00' },
+                                        { value: '100', label: '$100.00' },
+                                    ]}
+                                    required
+                                />
+                            </div>
+                            <div className="flex items-center gap-3 pt-2">
+                                <GlassButton
+                                    type="submit"
+                                    disabled={isLoggingCollectionsBonus || !collectionsBonusForm.weekKey || !collectionsBonusForm.amount}
+                                    className="flex-1"
+                                >
+                                    {isLoggingCollectionsBonus ? 'Logging…' : 'Log Collections Bonus'}
+                                </GlassButton>
+                                <GlassButton
+                                    type="button"
+                                    onClick={() => {
+                                        setIsCollectionsBonusModalOpen(false);
+                                        setCollectionsBonusForm({ weekKey: '', amount: '' });
+                                    }}
+                                    disabled={isLoggingCollectionsBonus}
+                                    className="opacity-70 hover:opacity-100"
+                                >
+                                    Cancel
+                                </GlassButton>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

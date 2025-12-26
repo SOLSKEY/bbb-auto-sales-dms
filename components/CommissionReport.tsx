@@ -392,6 +392,7 @@ interface CommissionSalespersonBlockProps {
     collectionsOptions?: number[];
     isKey: boolean;
     collectionsLocked?: boolean;
+    isCollectionsBonusLogged?: boolean;
     manualOverrides?: Record<string, string>;
     onManualOverrideChange?: (rowKey: string, value: string) => void;
     bonusRange?: { start: Date; end: Date } | null;
@@ -408,6 +409,7 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
     collectionsOptions = [0, 50, 100],
     isKey,
     collectionsLocked = false,
+    isCollectionsBonusLogged = false,
     manualOverrides = {},
     onManualOverrideChange,
     bonusRange = null,
@@ -521,7 +523,7 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
                                         <p className="text-xs uppercase tracking-wide text-muted">Collections Bonus</p>
                                         <p className="text-base font-semibold text-primary">{formatCurrency(effectiveCollectionsBonus)}</p>
                                     </div>
-                                    {editable && (
+                                    {editable && !isCollectionsBonusLogged && (
                                         <div className="pdf-hide space-y-1.5">
                                             <div className="flex items-center gap-2">
                                                 <AppSelect
@@ -1290,10 +1292,15 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
             latestWeekKeyRef.current = latest.key;
         }, [weekBuckets, selectedWeekKey, currentWeek]);
 
+        const [isCollectionsBonusLogged, setIsCollectionsBonusLogged] = useState(false);
+        const isCollectionsBonusLoggedRef = React.useRef(false);
+
         useEffect(() => {
             if (!currentWeek) {
                 setCollectionsSelections({});
                 setCollectionsLocks({});
+                setIsCollectionsBonusLogged(false);
+                isCollectionsBonusLoggedRef.current = false;
                 return;
             }
 
@@ -1309,6 +1316,11 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                 setCollectionsLocks(() =>
                     storage.locked ? { [normalizedKey]: true } : {}
                 );
+                
+                // Check if collections bonus is logged (locked in database)
+                const isLogged = storage.locked && hasValue;
+                setIsCollectionsBonusLogged(isLogged);
+                isCollectionsBonusLoggedRef.current = isLogged;
 
                 // Migrate from localStorage to Supabase if found in localStorage but not in Supabase
                 if (!hasValue && !storage.locked) {
@@ -1323,6 +1335,8 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                         // Update state with migrated value
                         setCollectionsSelections({ [normalizedKey]: localStorage.value as number });
                         setCollectionsLocks({ [normalizedKey]: true });
+                        setIsCollectionsBonusLogged(true);
+                        isCollectionsBonusLoggedRef.current = true;
                     }
                 }
             };
@@ -1468,7 +1482,7 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                     </div>
                 </div>
 
-                {snapshot && !snapshot.totals.collectionsComplete && (
+                {snapshot && !snapshot.totals.collectionsComplete && !isCollectionsBonusLogged && (
                     <p className="text-xs text-lava-warm font-semibold">
                         Select and lock a collections bonus for Key before logging or exporting the commission report.
                     </p>
@@ -1518,6 +1532,7 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                                 collectionsOptions={[0, 50, 100]}
                                 isKey={isKey}
                                 collectionsLocked={locked}
+                                isCollectionsBonusLogged={isKey ? isCollectionsBonusLogged : false}
                                 manualOverrides={manualCommissionOverrides}
                                 onManualOverrideChange={handleManualCommissionChange}
                                 bonusRange={bonusRange}
