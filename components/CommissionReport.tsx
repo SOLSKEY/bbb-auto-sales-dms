@@ -23,14 +23,122 @@ import {
 import AppSelect from './AppSelect';
 import { GlassButton } from '@/components/ui/glass-button';
 import { PencilSquareIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
+import { supabase } from '../supabaseClient';
 
 const BONUS_THRESHOLD = 5;
 const BONUS_PER_SALE = 50;
-const COLLECTIONS_STORAGE_PREFIX = 'commission-collections-bonus';
 const MANUAL_OVERRIDE_STORAGE_PREFIX = 'commission-manual-overrides';
 
+/**
+ * Load collections bonus state from Supabase database
+ * Follows CST timezone handling like the rest of the application
+ */
+const loadCollectionsStateFromSupabase = async (weekKey: string): Promise<{ value: number | undefined; locked: boolean }> => {
+    try {
+        const { data, error } = await supabase
+            .from('commission_report_collections_bonus')
+            .select('collections_bonus, locked')
+            .eq('week_key', weekKey)
+            .single();
+
+        if (error) {
+            // Not found is expected for new weeks, log other errors
+            if (error.code !== 'PGRST116') {
+                console.warn('[CommissionReport] Failed to load collections bonus from Supabase:', error);
+            }
+            return { value: undefined, locked: false };
+        }
+
+        if (data) {
+            return {
+                value: typeof data.collections_bonus === 'number' ? data.collections_bonus : undefined,
+                locked: Boolean(data.locked),
+            };
+        }
+
+        return { value: undefined, locked: false };
+    } catch (error) {
+        console.warn('[CommissionReport] Error loading collections bonus from Supabase:', error);
+        return { value: undefined, locked: false };
+    }
+};
+
+/**
+ * Save collections bonus state to Supabase database
+ * Uses upsert to handle both insert and update operations
+ * Follows CST timezone handling - timestamps are stored in UTC but represent CST
+ */
+const persistCollectionsStateToSupabase = async (weekKey: string, value: number, locked: boolean): Promise<boolean> => {
+    try {
+        // Get current time in CST (America/Chicago timezone)
+        const now = new Date();
+        const cstTimeString = now.toLocaleString('en-US', {
+            timeZone: 'America/Chicago',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            hour12: false,
+        });
+        
+        // Convert CST time to UTC for database storage
+        // The database will store as timestamptz but we're ensuring the value represents CST
+        const cstDate = new Date(cstTimeString);
+        const nowISO = new Date().toISOString();
+
+        const { error } = await supabase
+            .from('commission_report_collections_bonus')
+            .upsert(
+                {
+                    week_key: weekKey,
+                    collections_bonus: value,
+                    locked: locked,
+                    updated_at: nowISO, // Database will handle timezone conversion
+                },
+                {
+                    onConflict: 'week_key',
+                }
+            );
+
+        if (error) {
+            console.error('[CommissionReport] Failed to save collections bonus to Supabase:', error);
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        console.error('[CommissionReport] Error saving collections bonus to Supabase:', error);
+        return false;
+    }
+};
+
+/**
+ * Delete collections bonus state from Supabase database
+ */
+const clearCollectionsStateFromSupabase = async (weekKey: string): Promise<boolean> => {
+    try {
+        const { error } = await supabase
+            .from('commission_report_collections_bonus')
+            .delete()
+            .eq('week_key', weekKey);
+
+        if (error) {
+            console.warn('[CommissionReport] Failed to delete collections bonus from Supabase:', error);
+            return false;
+        }
+
+        return true;
+    } catch (error) {
+        console.warn('[CommissionReport] Error deleting collections bonus from Supabase:', error);
+        return false;
+    }
+};
+
+// Legacy localStorage functions for backward compatibility (deprecated)
 const buildCollectionsStorageKey = (weekKey: string) =>
-    `${COLLECTIONS_STORAGE_PREFIX}:${weekKey}`;
+    `commission-collections-bonus:${weekKey}`;
 
 const loadCollectionsState = (weekKey: string) => {
     if (typeof window === 'undefined') {
@@ -756,43 +864,45 @@ const buildSnapshot = (
         normalizedCollectionsLocks.set(normalizeName(name), Boolean(value));
     });
     
-    // If locked but state doesn't have value, load from persisted storage
-    // Check multiple possible key variations for "Key" salesperson
-    if (options.weekKey) {
-        const possibleKeys = ['Key', 'key', 'KEY'];
-        let foundLocked = false;
-        let foundKey = '';
-        let foundValue: number | '' = '';
-        
-        // Check if any variation is locked (check both raw locks and normalized locks)
-        for (const key of possibleKeys) {
-            const normalizedKey = normalizeName(key);
-            const isLocked = normalizedCollectionsLocks.get(normalizedKey) ?? 
-                            normalizedCollectionsLocks.get(key) ??
-                            collectionsLocks[normalizedKey] ?? 
-                            collectionsLocks[key] ?? 
-                            false;
-            const stateValue = normalizedCollections.get(normalizedKey) ?? normalizedCollections.get(key);
+        // Note: Supabase loading is handled asynchronously in component useEffect
+        // This localStorage fallback is for backward compatibility during transition
+        // The component state should have the Supabase value loaded before snapshot is built
+        if (options.weekKey) {
+            const possibleKeys = ['Key', 'key', 'KEY'];
+            let foundLocked = false;
+            let foundKey = '';
+            let foundValue: number | '' = '';
             
-            if (isLocked) {
-                foundLocked = true;
-                foundKey = normalizedKey;
-                foundValue = stateValue;
-                break;
+            // Check if any variation is locked (check both raw locks and normalized locks)
+            for (const key of possibleKeys) {
+                const normalizedKey = normalizeName(key);
+                const isLocked = normalizedCollectionsLocks.get(normalizedKey) ?? 
+                                normalizedCollectionsLocks.get(key) ??
+                                collectionsLocks[normalizedKey] ?? 
+                                collectionsLocks[key] ?? 
+                                false;
+                const stateValue = normalizedCollections.get(normalizedKey) ?? normalizedCollections.get(key);
+                
+                if (isLocked) {
+                    foundLocked = true;
+                    foundKey = normalizedKey;
+                    foundValue = stateValue;
+                    break;
+                }
             }
-        }
-        
-        // If locked but state doesn't have value, load from storage
-        if (foundLocked && typeof foundValue !== 'number') {
-            const storage = loadCollectionsState(options.weekKey);
-            if (typeof storage.value === 'number') {
-                // Set for all possible key variations to ensure lookup works
-                for (const key of possibleKeys) {
-                    normalizedCollections.set(normalizeName(key), storage.value);
+            
+            // If locked but state doesn't have value, try localStorage as fallback
+            // (Supabase should already be loaded in component state)
+            if (foundLocked && typeof foundValue !== 'number') {
+                const storage = loadCollectionsState(options.weekKey);
+                if (typeof storage.value === 'number') {
+                    // Set for all possible key variations to ensure lookup works
+                    for (const key of possibleKeys) {
+                        normalizedCollections.set(normalizeName(key), storage.value);
+                    }
                 }
             }
         }
-    }
 
     const bonusRange = getBonusRangeForCommission(start);
     const bonusSource = options.allSales ?? sales;
@@ -960,7 +1070,8 @@ const buildSnapshot = (
                                       collectionsSelection;
             }
             
-            // If still no value but locked, load from storage
+            // Note: Supabase loading is handled asynchronously in useEffect
+            // This fallback to localStorage is for backward compatibility during transition
             if (isKey && typeof collectionsSelection !== 'number' && options.weekKey) {
                 const normalizedKey = normalizeName(normalizedName);
                 const isLocked = normalizedCollectionsLocks.get(normalizedKey) ?? 
@@ -968,6 +1079,7 @@ const buildSnapshot = (
                                 normalizedCollectionsLocks.get('key') ?? 
                                 false;
                 if (isLocked) {
+                    // Try localStorage as fallback (will be replaced by Supabase in useEffect)
                     const storage = loadCollectionsState(options.weekKey);
                     if (typeof storage.value === 'number') {
                         collectionsSelection = storage.value;
@@ -1185,16 +1297,37 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                 return;
             }
 
-            const storage = loadCollectionsState(currentWeek.key);
-            const normalizedKey = normalizeName('Key');
-            const hasValue = typeof storage.value === 'number';
+            // Load collections bonus from Supabase database
+            const loadFromSupabase = async () => {
+                const storage = await loadCollectionsStateFromSupabase(currentWeek.key);
+                const normalizedKey = normalizeName('Key');
+                const hasValue = typeof storage.value === 'number';
 
-            setCollectionsSelections(() =>
-                hasValue ? { [normalizedKey]: storage.value as number } : {}
-            );
-            setCollectionsLocks(() =>
-                storage.locked ? { [normalizedKey]: true } : {}
-            );
+                setCollectionsSelections(() =>
+                    hasValue ? { [normalizedKey]: storage.value as number } : {}
+                );
+                setCollectionsLocks(() =>
+                    storage.locked ? { [normalizedKey]: true } : {}
+                );
+
+                // Migrate from localStorage to Supabase if found in localStorage but not in Supabase
+                if (!hasValue && !storage.locked) {
+                    const localStorage = loadCollectionsState(currentWeek.key);
+                    if (typeof localStorage.value === 'number' && localStorage.locked) {
+                        // Migrate to Supabase
+                        await persistCollectionsStateToSupabase(
+                            currentWeek.key,
+                            localStorage.value,
+                            localStorage.locked
+                        );
+                        // Update state with migrated value
+                        setCollectionsSelections({ [normalizedKey]: localStorage.value as number });
+                        setCollectionsLocks({ [normalizedKey]: true });
+                    }
+                }
+            };
+
+            loadFromSupabase();
         }, [currentWeek]);
 
         const snapshot: CommissionReportSnapshot | null = useMemo(() => {
@@ -1236,10 +1369,21 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                 }
                 return next;
             });
+            // Save to Supabase when selection changes (if locked, also update lock status)
             if (normalized.toLowerCase() === 'key' && currentWeek) {
                 if (typeof value === 'number') {
-                    persistCollectionsState(currentWeek.key, value, Boolean(collectionsLocks[normalized]));
+                    const isLocked = Boolean(collectionsLocks[normalized]);
+                    // Save to Supabase
+                    persistCollectionsStateToSupabase(currentWeek.key, value, isLocked).catch(error => {
+                        console.error('[CommissionReport] Failed to save collections bonus change to Supabase:', error);
+                    });
+                    // Also save to localStorage for backward compatibility
+                    persistCollectionsState(currentWeek.key, value, isLocked);
                 } else {
+                    // Clear from Supabase and localStorage
+                    clearCollectionsStateFromSupabase(currentWeek.key).catch(error => {
+                        console.error('[CommissionReport] Failed to clear collections bonus from Supabase:', error);
+                    });
                     clearCollectionsState(currentWeek.key);
                     setCollectionsLocks(prev => {
                         const next = { ...prev };
@@ -1263,7 +1407,7 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
             });
         };
 
-        const handleCollectionsBonusLockToggle = (salesperson: string, locked: boolean) => {
+        const handleCollectionsBonusLockToggle = async (salesperson: string, locked: boolean) => {
             if (!currentWeek) return;
             const normalized = normalizeName(salesperson);
             const selection = collectionsSelections[normalized];
@@ -1277,10 +1421,18 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
 
             setCollectionsLocks(prev => ({ ...prev, [normalized]: locked }));
 
+            // Save to Supabase database
             if (typeof selection === 'number') {
+                const success = await persistCollectionsStateToSupabase(currentWeek.key, selection, locked);
+                if (!success) {
+                    console.error('[CommissionReport] Failed to save collections bonus to Supabase');
+                    // Still update UI state even if Supabase save fails
+                }
+                // Also save to localStorage for backward compatibility during transition
                 persistCollectionsState(currentWeek.key, selection, locked);
             } else if (!locked) {
-                clearCollectionsState(currentWeek.key);
+                await clearCollectionsStateFromSupabase(currentWeek.key);
+                clearCollectionsState(currentWeek.key); // Clear localStorage too
             }
         };
 
