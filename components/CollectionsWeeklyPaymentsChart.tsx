@@ -462,6 +462,7 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
                                     strokeWidth: 2,
                                 }}
                                 connectNulls
+                                isAnimationActive={false}
                             />
                         );
                     })}
