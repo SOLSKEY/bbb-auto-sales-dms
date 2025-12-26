@@ -1,7 +1,5 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { flushSync } from 'react-dom';
+import React, { useMemo, useState, useEffect } from 'react';
 import { usePrintView } from '../hooks/usePrintView';
-import { useChartAnimation } from '../hooks/useChartAnimation';
 import {
     ResponsiveContainer,
     BarChart,
@@ -53,29 +51,6 @@ const formatPercent = (value: number) =>
 
 const CollectionsWeeklyDelinquencyChart: React.FC<CollectionsWeeklyDelinquencyChartProps> = ({ delinquency }) => {
     const { isPrintView } = usePrintView();
-    const isInitializing = useChartAnimation(1500); // Bar chart animation duration
-    
-    // Handle animation start - optimize rendering with willChange
-    const handleAnimationStart = useCallback(() => {
-        flushSync(() => {
-            if (typeof document !== 'undefined') {
-                document.querySelectorAll('.recharts-surface').forEach((el: Element) => {
-                    (el as HTMLElement).style.willChange = 'transform';
-                });
-            }
-        });
-    }, []);
-    
-    // Handle animation end - reset willChange
-    const handleAnimationEnd = useCallback(() => {
-        flushSync(() => {
-            if (typeof document !== 'undefined') {
-                document.querySelectorAll('.recharts-surface').forEach((el: Element) => {
-                    (el as HTMLElement).style.willChange = 'auto';
-                });
-            }
-        });
-    }, []);
     const { chartData, years, barKeys, defaultVisibleYears, xTicks, yDomainMax, yTicks } = useMemo(() => {
         if (!delinquency || delinquency.length === 0) {
             return {
@@ -354,14 +329,12 @@ const CollectionsWeeklyDelinquencyChart: React.FC<CollectionsWeeklyDelinquencyCh
                 </div>
             </div>
 
-            <div style={{ pointerEvents: isInitializing ? 'none' : 'auto' }}>
-                <ResponsiveContainer width="100%" height={360}>
-                    <BarChart 
-                        data={chartData} 
-                        margin={{ top: 20, right: 30, left: 10, bottom: 20 }}
-                        onAnimationStart={handleAnimationStart}
-                        onAnimationEnd={handleAnimationEnd}
-                    >
+            <ResponsiveContainer width="100%" height={360}>
+                <BarChart 
+                    data={chartData} 
+                    margin={{ top: 20, right: 30, left: 10, bottom: 20 }}
+                    isAnimationActive={false}
+                >
                     <defs>
                         {gradientDefs.map(gradient => (
                             <linearGradient
@@ -423,14 +396,12 @@ const CollectionsWeeklyDelinquencyChart: React.FC<CollectionsWeeklyDelinquencyCh
                                 radius={[4, 4, 0, 0]}
                                 stroke={gradient.from}
                                 strokeWidth={1}
-                                animationDuration={1500}
-                                animationEasing="ease-in-out"
+                                isAnimationActive={false}
                             />
                         );
                     })}
-                    </BarChart>
-                </ResponsiveContainer>
-            </div>
+                </BarChart>
+            </ResponsiveContainer>
         </LiquidContainer>
     );
 };

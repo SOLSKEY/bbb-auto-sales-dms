@@ -1,5 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
-import { flushSync } from 'react-dom';
+import React, { useMemo, useState, useEffect } from 'react';
 import { usePrintView } from '../hooks/usePrintView';
 import { useChartAnimation } from '../hooks/useChartAnimation';
 import type { DailyCollectionSummary } from '../types';
@@ -58,7 +57,6 @@ interface CollectionsWeeklyPaymentsChartProps {
 
 const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartProps> = ({ payments }) => {
     const { isPrintView } = usePrintView();
-    const isInitializing = useChartAnimation(1200); // Match animation duration
     
     // Detect export mode from URL parameter (memoized to prevent re-computation)
     const isExporting = useMemo(() => {
@@ -73,35 +71,11 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
         }
     }, [isExporting]);
     
-    // Handle animation start - optimize rendering with willChange
-    const handleAnimationStart = useCallback(() => {
-        // Force synchronous update and optimize for animation
-        flushSync(() => {
-            // Set willChange on all chart surfaces to optimize animation performance
-            if (typeof document !== 'undefined') {
-                document.querySelectorAll('.recharts-surface').forEach((el: Element) => {
-                    (el as HTMLElement).style.willChange = 'transform';
-                });
-            }
-        });
-    }, []);
-    
-    // Handle animation end callback - set flag for Puppeteer in export mode (if animation runs)
-    const handleAnimationEnd = useCallback(() => {
-        // Force synchronous update
-        flushSync(() => {
-            // Reset willChange after animation completes
-            if (typeof document !== 'undefined') {
-                document.querySelectorAll('.recharts-surface').forEach((el: Element) => {
-                    (el as HTMLElement).style.willChange = 'auto';
-                });
-            }
-            
-            // In export mode, set window flag for Puppeteer
-            if (isExporting && typeof window !== 'undefined') {
-                (window as any).animationComplete = true;
-            }
-        });
+    // In export mode, set animationComplete flag immediately since animations are disabled
+    useEffect(() => {
+        if (isExporting && typeof window !== 'undefined') {
+            (window as any).animationComplete = true;
+        }
     }, [isExporting]);
     
     const { chartData, years, lineKeys, defaultVisibleYears, xTicks } = useMemo(() => {
@@ -410,19 +384,12 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
                 </div>
             </div>
 
-            <div style={{ pointerEvents: isInitializing ? 'none' : 'auto' }}>
-                <ResponsiveContainer width="100%" height={360}>
+            <ResponsiveContainer width="100%" height={360}>
                     <LineChart 
                     data={chartData} 
                     margin={{ top: 20, right: 30, left: 10, bottom: 20 }}
-                    // Animation should play on initial load, but NOT in export mode
-                    // React.memo prevents re-renders, so animation only plays once on mount
-                    isAnimationActive={!isExporting}
-                    // Animation duration: 1.2 seconds
-                    animationDuration={isExporting ? 0 : 1200}
-                    // Animation callbacks to optimize rendering and prevent batching
-                    onAnimationStart={handleAnimationStart}
-                    onAnimationEnd={handleAnimationEnd}
+                    // Disable animations - render charts immediately
+                    isAnimationActive={false}
                 >
                     <defs>
                         {gradientDefs.map(gradient => (
@@ -495,15 +462,11 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
                                     strokeWidth: 2,
                                 }}
                                 connectNulls
-                                // Animation controlled by parent LineChart component
-                                // Set animation easing for smooth animation
-                                animationEasing="ease-in-out"
                             />
                         );
                     })}
-                    </LineChart>
-                </ResponsiveContainer>
-            </div>
+                </LineChart>
+            </ResponsiveContainer>
         </LiquidContainer>
     );
 };

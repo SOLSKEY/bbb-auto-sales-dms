@@ -1,7 +1,5 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
-import { flushSync } from 'react-dom';
+import React, { useMemo, useState, useEffect } from 'react';
 import { usePrintView } from '../hooks/usePrintView';
-import { useChartAnimation } from '../hooks/useChartAnimation';
 import type { DailyCollectionSummary } from '../types';
 import {
     ResponsiveContainer,
@@ -133,29 +131,6 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
     compact = false,
 }) => {
     const { isPrintView } = usePrintView();
-    const isInitializing = useChartAnimation(1500); // Bar chart animation duration
-    
-    // Handle animation start - optimize rendering with willChange
-    const handleAnimationStart = useCallback(() => {
-        flushSync(() => {
-            if (typeof document !== 'undefined') {
-                document.querySelectorAll('.recharts-surface').forEach((el: Element) => {
-                    (el as HTMLElement).style.willChange = 'transform';
-                });
-            }
-        });
-    }, []);
-    
-    // Handle animation end - reset willChange
-    const handleAnimationEnd = useCallback(() => {
-        flushSync(() => {
-            if (typeof document !== 'undefined') {
-                document.querySelectorAll('.recharts-surface').forEach((el: Element) => {
-                    (el as HTMLElement).style.willChange = 'auto';
-                });
-            }
-        });
-    }, []);
     const [selectedWeekKey, setSelectedWeekKey] = useState<string | null>(null);
 
     useEffect(() => {
@@ -609,13 +584,9 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
                 </div>
             </div>
 
-            <div className={compact ? 'h-56' : 'h-64'} style={{ pointerEvents: isInitializing ? 'none' : 'auto' }}>
+            <div className={compact ? 'h-56' : 'h-64'}>
                 <ResponsiveContainer width="100%" height="100%">
-                    <ComposedChart 
-                        data={chartData}
-                        onAnimationStart={handleAnimationStart}
-                        onAnimationEnd={handleAnimationEnd}
-                    >
+                    <ComposedChart data={chartData}>
                         <defs>
                             <linearGradient
                                 id={actualBarGradient.id}
@@ -675,8 +646,7 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
                             strokeWidth={2}
                             fill="rgba(209, 213, 219, 0.35)"
                             activeDot={{ r: 5 }}
-                            animationDuration={1500}
-                            animationEasing="ease-in-out"
+                            isAnimationActive={false}
                         />
                         <Bar
                             dataKey="actual"
@@ -686,8 +656,7 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
                             radius={[4, 4, 0, 0]}
                             stroke={actualBarGradient.from}
                             strokeWidth={1}
-                            animationDuration={1500}
-                            animationEasing="ease-in-out"
+                            isAnimationActive={false}
                         />
                     </ComposedChart>
                 </ResponsiveContainer>
