@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { usePrintView } from '../hooks/usePrintView';
 import type { DailyCollectionSummary } from '../types';
 import {
@@ -57,44 +57,26 @@ interface CollectionsWeeklyPaymentsChartProps {
 const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartProps> = ({ payments }) => {
     const { isPrintView } = usePrintView();
     
-    // Detect export mode from URL parameter
+    // Detect export mode from URL parameter (memoized to prevent re-computation)
     const isExporting = useMemo(() => {
         if (typeof window === 'undefined') return false;
         return new URLSearchParams(window.location.search).get('export') === 'true';
     }, []);
     
-    // Track if animation has completed (only animate once)
-    const [hasAnimated, setHasAnimated] = useState(false);
-    const animationCompleteRef = useRef(false);
-    
-    // Set hasAnimated to true only once on mount
+    // In export mode, set animationComplete flag immediately since animation is disabled
     useEffect(() => {
-        // In export mode, disable animation immediately and mark as complete
-        if (isExporting) {
-            // Set flag immediately for Puppeteer
-            if (typeof window !== 'undefined') {
-                (window as any).animationComplete = true;
-            }
-            // hasAnimated stays false so isAnimationActive will be false (no animation)
-        } else {
-            // In normal mode, animation will run once on mount
-            // hasAnimated starts as false, allowing animation to run
-            // After animation completes, hasAnimated will be set to true via handleAnimationEnd
+        if (isExporting && typeof window !== 'undefined') {
+            (window as any).animationComplete = true;
         }
     }, [isExporting]);
     
-    // Handle animation end callback
-    const handleAnimationEnd = () => {
-        if (!animationCompleteRef.current) {
-            animationCompleteRef.current = true;
-            setHasAnimated(true);
-            
-            // In export mode, set window flag for Puppeteer
-            if (isExporting && typeof window !== 'undefined') {
-                (window as any).animationComplete = true;
-            }
+    // Handle animation end callback - set flag for Puppeteer in export mode (if animation runs)
+    const handleAnimationEnd = useCallback(() => {
+        // In export mode, set window flag for Puppeteer
+        if (isExporting && typeof window !== 'undefined') {
+            (window as any).animationComplete = true;
         }
-    };
+    }, [isExporting]);
     
     const { chartData, years, lineKeys, defaultVisibleYears, xTicks } = useMemo(() => {
         if (!payments || payments.length === 0) {
@@ -406,11 +388,12 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
                 <LineChart 
                     data={chartData} 
                     margin={{ top: 20, right: 30, left: 10, bottom: 20 }}
-                    // Control animation: only animate once on mount, never in export mode
-                    isAnimationActive={!hasAnimated && !isExporting}
-                    // Animation duration: 1-1.5 seconds
+                    // Animation should play on initial load, but NOT in export mode
+                    // React.memo prevents re-renders, so animation only plays once on mount
+                    isAnimationActive={!isExporting}
+                    // Animation duration: 1.2 seconds
                     animationDuration={isExporting ? 0 : 1200}
-                    // Callback when animation completes
+                    // Callback when animation completes (for export mode detection)
                     onAnimationEnd={handleAnimationEnd}
                 >
                     <defs>
@@ -456,9 +439,6 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
                         labelStyle={{ color: '#fff', fontWeight: 'bold' }}
                         cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
                         formatter={(value, name) => [formatCurrency(Number(value)), name]}
-                        // Prevent tooltip from causing re-renders that trigger animation
-                        animationDuration={0}
-                        isAnimationActive={false}
                     />
                     <Legend
                         verticalAlign="bottom"
@@ -487,9 +467,8 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
                                     strokeWidth: 2,
                                 }}
                                 connectNulls
-                                // Control animation per line: only animate once
-                                isAnimationActive={!hasAnimated && !isExporting}
-                                animationDuration={isExporting ? 0 : 1200}
+                                // Animation controlled by parent LineChart component
+                                // No need to set here as it inherits from LineChart
                             />
                         );
                     })}
