@@ -6,6 +6,7 @@ import { ClipboardDocumentIcon as ClipboardDocumentIconSolid } from '@heroicons/
 import { GlassButton } from '@/components/ui/glass-button';
 import { LiquidContainer } from '@/components/ui/liquid-container';
 import { LiquidButton } from '@/components/ui/liquid-glass-button';
+import AppSelect from '@/components/AppSelect';
 import { getNextStockNumberForMake } from '../utils/stockNumbers';
 import type { WarrantyData } from '../utils/warrantyGenerator';
 import type { ContractPacketData } from '../utils/contractPacketGenerator';
@@ -1508,19 +1509,20 @@ const SalePrep: React.FC = () => {
                                             Body Style
                                             <span className="text-red-500 ml-1">*</span>
                                         </label>
-                                        <select
+                                        <AppSelect
                                             value={formData.bodyStyle}
-                                            onChange={(e) => setFormData(prev => ({ ...prev, bodyStyle: e.target.value }))}
-                                            className={`w-full bg-glass-panel border ${shouldShowFieldError('bodyStyle') ? 'border-red-500 text-red-400' : 'border-border-low'} focus:border-lava-core text-primary rounded-md p-2 focus:outline-none transition-colors`}
-                                        >
-                                            <option value="">Select Body Style</option>
-                                            <option value="Convertible">Convertible</option>
-                                            <option value="Coupe">Coupe</option>
-                                            <option value="Hatchback">Hatchback</option>
-                                            <option value="4 Dr Sedan">4 Dr Sedan</option>
-                                            <option value="SUV">SUV</option>
-                                            <option value="Pickup">Pickup</option>
-                                        </select>
+                                            onChange={(value) => setFormData(prev => ({ ...prev, bodyStyle: value }))}
+                                            placeholder="Select Body Style"
+                                            options={[
+                                                { value: 'Convertible', label: 'Convertible' },
+                                                { value: 'Coupe', label: 'Coupe' },
+                                                { value: 'Hatchback', label: 'Hatchback' },
+                                                { value: '4 Dr Sedan', label: '4 Dr Sedan' },
+                                                { value: 'SUV', label: 'SUV' },
+                                                { value: 'Pickup', label: 'Pickup' },
+                                            ]}
+                                            className={shouldShowFieldError('bodyStyle') ? 'border-red-500' : ''}
+                                        />
                                         {shouldShowFieldError('bodyStyle') && (
                                             <p className="text-red-500 text-xs mt-1">Please fill out this field</p>
                                         )}
