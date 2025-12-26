@@ -1,5 +1,6 @@
 import React from 'react';
 import { usePrintView } from '../hooks/usePrintView';
+import { useChartAnimation } from '../hooks/useChartAnimation';
 import { LiquidContainer } from '@/components/ui/liquid-container';
 import {
     ResponsiveContainer,
@@ -26,6 +27,7 @@ const formatPercent = (value: number) =>
 
 const CollectionsWeeklyPaymentMix: React.FC<CollectionsWeeklyPaymentMixProps> = ({ data, total, compact = false }) => {
     const { isPrintView } = usePrintView();
+    const isInitializing = useChartAnimation(1500); // Pie chart animation duration
     // Cyan blue gradient for Cash, Hot pink gradient for BOA
     const gradients = data.map((entry, index) => {
         const isCash = entry.label.toLowerCase() === 'cash';
@@ -58,7 +60,7 @@ const CollectionsWeeklyPaymentMix: React.FC<CollectionsWeeklyPaymentMixProps> = 
                     Cash vs BOA (virtual transfers)
                 </p>
                 {/* Pie Chart Container - Centered */}
-                <div className="w-full flex items-center justify-center mb-6" style={{ height: compact ? '200px' : '240px' }}>
+                <div className="w-full flex items-center justify-center mb-6" style={{ height: compact ? '200px' : '240px', pointerEvents: isInitializing ? 'none' : 'auto' }}>
                     <ResponsiveContainer width="100%" height="100%">
                         <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
                             <defs>

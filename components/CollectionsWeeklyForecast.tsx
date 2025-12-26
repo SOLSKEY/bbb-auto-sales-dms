@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { usePrintView } from '../hooks/usePrintView';
+import { useChartAnimation } from '../hooks/useChartAnimation';
 import type { DailyCollectionSummary } from '../types';
 import {
     ResponsiveContainer,
@@ -131,6 +132,7 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
     compact = false,
 }) => {
     const { isPrintView } = usePrintView();
+    const isInitializing = useChartAnimation(1500); // Bar chart animation duration
     const [selectedWeekKey, setSelectedWeekKey] = useState<string | null>(null);
 
     useEffect(() => {
@@ -584,7 +586,7 @@ const CollectionsWeeklyForecast: React.FC<CollectionsWeeklyForecastProps> = ({
                 </div>
             </div>
 
-            <div className={compact ? 'h-56' : 'h-64'}>
+            <div className={compact ? 'h-56' : 'h-64'} style={{ pointerEvents: isInitializing ? 'none' : 'auto' }}>
                 <ResponsiveContainer width="100%" height="100%">
                     <ComposedChart data={chartData}>
                         <defs>

@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect, useCallback } from 'react';
 import { usePrintView } from '../hooks/usePrintView';
+import { useChartAnimation } from '../hooks/useChartAnimation';
 import type { DailyCollectionSummary } from '../types';
 import {
     ResponsiveContainer,
@@ -56,6 +57,7 @@ interface CollectionsWeeklyPaymentsChartProps {
 
 const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartProps> = ({ payments }) => {
     const { isPrintView } = usePrintView();
+    const isInitializing = useChartAnimation(1200); // Match animation duration
     
     // Detect export mode from URL parameter (memoized to prevent re-computation)
     const isExporting = useMemo(() => {
@@ -384,8 +386,9 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
                 </div>
             </div>
 
-            <ResponsiveContainer width="100%" height={360}>
-                <LineChart 
+            <div style={{ pointerEvents: isInitializing ? 'none' : 'auto' }}>
+                <ResponsiveContainer width="100%" height={360}>
+                    <LineChart 
                     data={chartData} 
                     margin={{ top: 20, right: 30, left: 10, bottom: 20 }}
                     // Animation should play on initial load, but NOT in export mode
@@ -472,8 +475,9 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
                             />
                         );
                     })}
-                </LineChart>
-            </ResponsiveContainer>
+                    </LineChart>
+                </ResponsiveContainer>
+            </div>
         </LiquidContainer>
     );
 };

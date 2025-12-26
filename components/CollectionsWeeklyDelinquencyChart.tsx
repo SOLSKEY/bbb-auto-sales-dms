@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { usePrintView } from '../hooks/usePrintView';
+import { useChartAnimation } from '../hooks/useChartAnimation';
 import {
     ResponsiveContainer,
     BarChart,
@@ -51,6 +52,7 @@ const formatPercent = (value: number) =>
 
 const CollectionsWeeklyDelinquencyChart: React.FC<CollectionsWeeklyDelinquencyChartProps> = ({ delinquency }) => {
     const { isPrintView } = usePrintView();
+    const isInitializing = useChartAnimation(1500); // Bar chart animation duration
     const { chartData, years, barKeys, defaultVisibleYears, xTicks, yDomainMax, yTicks } = useMemo(() => {
         if (!delinquency || delinquency.length === 0) {
             return {
@@ -329,8 +331,9 @@ const CollectionsWeeklyDelinquencyChart: React.FC<CollectionsWeeklyDelinquencyCh
                 </div>
             </div>
 
-            <ResponsiveContainer width="100%" height={360}>
-                <BarChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
+            <div style={{ pointerEvents: isInitializing ? 'none' : 'auto' }}>
+                <ResponsiveContainer width="100%" height={360}>
+                    <BarChart data={chartData} margin={{ top: 20, right: 30, left: 10, bottom: 20 }}>
                     <defs>
                         {gradientDefs.map(gradient => (
                             <linearGradient
@@ -395,8 +398,9 @@ const CollectionsWeeklyDelinquencyChart: React.FC<CollectionsWeeklyDelinquencyCh
                             />
                         );
                     })}
-                </BarChart>
-            </ResponsiveContainer>
+                    </BarChart>
+                </ResponsiveContainer>
+            </div>
         </LiquidContainer>
     );
 };
