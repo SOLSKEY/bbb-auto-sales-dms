@@ -1,4 +1,5 @@
-import React, { useMemo, useState, useEffect, useCallback } from 'react';
+import React, { useMemo, useState, useEffect, useCallback, useRef } from 'react';
+import { flushSync } from 'react-dom';
 import { usePrintView } from '../hooks/usePrintView';
 import { useChartAnimation } from '../hooks/useChartAnimation';
 import type { DailyCollectionSummary } from '../types';
@@ -72,12 +73,35 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
         }
     }, [isExporting]);
     
+    // Handle animation start - optimize rendering with willChange
+    const handleAnimationStart = useCallback(() => {
+        // Force synchronous update and optimize for animation
+        flushSync(() => {
+            // Set willChange on all chart surfaces to optimize animation performance
+            if (typeof document !== 'undefined') {
+                document.querySelectorAll('.recharts-surface').forEach((el: Element) => {
+                    (el as HTMLElement).style.willChange = 'transform';
+                });
+            }
+        });
+    }, []);
+    
     // Handle animation end callback - set flag for Puppeteer in export mode (if animation runs)
     const handleAnimationEnd = useCallback(() => {
-        // In export mode, set window flag for Puppeteer
-        if (isExporting && typeof window !== 'undefined') {
-            (window as any).animationComplete = true;
-        }
+        // Force synchronous update
+        flushSync(() => {
+            // Reset willChange after animation completes
+            if (typeof document !== 'undefined') {
+                document.querySelectorAll('.recharts-surface').forEach((el: Element) => {
+                    (el as HTMLElement).style.willChange = 'auto';
+                });
+            }
+            
+            // In export mode, set window flag for Puppeteer
+            if (isExporting && typeof window !== 'undefined') {
+                (window as any).animationComplete = true;
+            }
+        });
     }, [isExporting]);
     
     const { chartData, years, lineKeys, defaultVisibleYears, xTicks } = useMemo(() => {
@@ -396,7 +420,8 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
                     isAnimationActive={!isExporting}
                     // Animation duration: 1.2 seconds
                     animationDuration={isExporting ? 0 : 1200}
-                    // Callback when animation completes (for export mode detection)
+                    // Animation callbacks to optimize rendering and prevent batching
+                    onAnimationStart={handleAnimationStart}
                     onAnimationEnd={handleAnimationEnd}
                 >
                     <defs>
@@ -471,7 +496,8 @@ const CollectionsWeeklyPaymentsChart: React.FC<CollectionsWeeklyPaymentsChartPro
                                 }}
                                 connectNulls
                                 // Animation controlled by parent LineChart component
-                                // No need to set here as it inherits from LineChart
+                                // Set animation easing for smooth animation
+                                animationEasing="ease-in-out"
                             />
                         );
                     })}

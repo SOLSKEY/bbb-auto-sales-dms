@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
+import { flushSync } from 'react-dom';
 
 /**
  * Custom hook to track chart animation phase during initial page load
  * Prevents mouse events from interfering with chart animations by disabling
  * pointer events during the animation period.
+ * Uses flushSync to force synchronous updates and prevent React batching
+ * from interfering with animation frame updates.
  * 
  * @param animationDuration - Duration of chart animations in milliseconds (default: 2500ms)
  * @returns boolean indicating if charts are still in initial animation phase
@@ -18,11 +21,21 @@ export const useChartAnimation = (animationDuration: number = 2500): boolean => 
         
         if (isExporting) {
             // In export mode, keep pointer events disabled longer to ensure Puppeteer captures correctly
-            const timer = setTimeout(() => setIsInitializing(false), 3000);
+            const timer = setTimeout(() => {
+                // Force synchronous update to prevent batching
+                flushSync(() => {
+                    setIsInitializing(false);
+                });
+            }, 3000);
             return () => clearTimeout(timer);
         } else {
             // In normal mode, disable pointer events during animation period
-            const timer = setTimeout(() => setIsInitializing(false), animationDuration);
+            const timer = setTimeout(() => {
+                // Force synchronous update to prevent batching during mousemove events
+                flushSync(() => {
+                    setIsInitializing(false);
+                });
+            }, animationDuration);
             return () => clearTimeout(timer);
         }
     }, [animationDuration]);
