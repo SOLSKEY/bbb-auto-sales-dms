@@ -71,6 +71,7 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
         normalizeVehicleDisplayFields({ ...vehicle }, normalizeStatus),
     );
     const [imagePreviews, setImagePreviews] = useState<string[]>(vehicle.images || []);
+    const [isNameChange, setIsNameChange] = useState<boolean>(vehicle.isNameChange ?? false);
     const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
     const [isDecoding, setIsDecoding] = useState(false);
     const [vinError, setVinError] = useState<string | null>(null);
@@ -308,32 +309,69 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
             const updatedImages = [...(editedVehicle.images ?? [])];
             let hasNewImages = false;
 
+            // Import compression utility dynamically to avoid loading it if not needed
+            const { compressForDetail } = await import('../utils/imageCompression');
+
             for (const file of files) {
-                const timestamp = Date.now();
-                const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-                const storagePath = `inventory-images/${identifier}/${timestamp}-${sanitized}`;
+                try {
+                    // Compress image before upload to reduce file size
+                    const compressedFile = await compressForDetail(file);
+                    
+                    const timestamp = Date.now();
+                    const sanitized = compressedFile.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+                    const storagePath = `inventory-images/${identifier}/${timestamp}-${sanitized}`;
 
-                const { error: uploadError } = await supabase.storage
-                    .from('inventory-images')
-                    .upload(storagePath, file, {
-                        cacheControl: '3600',
-                        upsert: false,
-                    });
+                    const { error: uploadError } = await supabase.storage
+                        .from('inventory-images')
+                        .upload(storagePath, compressedFile, {
+                            cacheControl: '3600',
+                            upsert: false,
+                        });
 
-                if (uploadError) {
-                    console.error('Error uploading image:', uploadError);
-                    alert(`Failed to upload ${file.name}. Please try again.`);
-                    continue;
-                }
+                    if (uploadError) {
+                        console.error('Error uploading image:', uploadError);
+                        alert(`Failed to upload ${file.name}. Please try again.`);
+                        continue;
+                    }
 
-                const { data: publicData } = supabase.storage
-                    .from('inventory-images')
-                    .getPublicUrl(storagePath);
+                    const { data: publicData } = supabase.storage
+                        .from('inventory-images')
+                        .getPublicUrl(storagePath);
 
-                const publicUrl = publicData?.publicUrl;
-                if (publicUrl) {
-                    updatedImages.push(publicUrl);
-                    hasNewImages = true;
+                    const publicUrl = publicData?.publicUrl;
+                    if (publicUrl) {
+                        updatedImages.push(publicUrl);
+                        hasNewImages = true;
+                    }
+                } catch (compressionError) {
+                    console.error('Error compressing image, uploading original:', compressionError);
+                    // Fallback to original file if compression fails
+                    const timestamp = Date.now();
+                    const sanitized = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+                    const storagePath = `inventory-images/${identifier}/${timestamp}-${sanitized}`;
+
+                    const { error: uploadError } = await supabase.storage
+                        .from('inventory-images')
+                        .upload(storagePath, file, {
+                            cacheControl: '3600',
+                            upsert: false,
+                        });
+
+                    if (uploadError) {
+                        console.error('Error uploading image:', uploadError);
+                        alert(`Failed to upload ${file.name}. Please try again.`);
+                        continue;
+                    }
+
+                    const { data: publicData } = supabase.storage
+                        .from('inventory-images')
+                        .getPublicUrl(storagePath);
+
+                    const publicUrl = publicData?.publicUrl;
+                    if (publicUrl) {
+                        updatedImages.push(publicUrl);
+                        hasNewImages = true;
+                    }
                 }
             }
 
@@ -403,6 +441,7 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
             vehicleId: trimmedVehicleId,
             vinLast4: trimmedVinLast4,
             images: imagePreviews,
+            isNameChange,
         }, isOfficialStatusChange, pendingStatusChange?.previousStatus);
         
         // Clear pending status change after save
@@ -613,6 +652,26 @@ const EditVehicleModal: React.FC<EditVehicleModalProps> = ({ vehicle, onClose, o
                                 disabled={uploadDisabled}
                             />
                         </div>
+                    </div>
+
+                    {/* Name Change Checkbox */}
+                    <div className="p-4 bg-glass-panel rounded-lg border border-border-low">
+                        <label className="flex items-center gap-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                checked={isNameChange}
+                                onChange={(e) => setIsNameChange(e.target.checked)}
+                                className="form-checkbox h-5 w-5 text-lava-core rounded border-border-low focus:ring-lava-core focus:ring-2"
+                            />
+                            <div>
+                                <span className="text-sm font-medium text-primary">
+                                    This vehicle is for a name change
+                                </span>
+                                <p className="text-xs text-secondary mt-1">
+                                    Name change vehicles are excluded from inventory counts and inventory text out reports, but will still receive account numbers and appear in sales data.
+                                </p>
+                            </div>
+                        </label>
                     </div>
                 </div>
 

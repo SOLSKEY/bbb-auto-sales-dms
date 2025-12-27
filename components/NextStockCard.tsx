@@ -22,7 +22,7 @@ interface NextStockCardProps {
 
 const NextStockCard: React.FC<NextStockCardProps> = ({ stockNumbers, year, className }) => (
     <LiquidContainer variant="cyan-blue" className={`p-4 h-full flex flex-col gap-4 ${className ?? ''}`}>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 py-2">
             <div className="p-2 rounded-lg">
                 <TagIcon className="h-6 w-6 icon-neon" />
             </div>

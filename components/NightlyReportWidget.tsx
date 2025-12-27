@@ -94,6 +94,7 @@ const NightlyReportWidget: React.FC = () => {
                 .gte(quoteSupabaseColumn('Sale Date'), mondayStr);
 
             // Fetch RECEIVED - NEW vehicles (from Inventory where Arrival Date is today)
+            // We'll filter out name changes in JavaScript after fetching
             const { data: receivedData, error: receivedError } = await supabase
                 .from('Inventory')
                 .select('*')
@@ -104,6 +105,7 @@ const NightlyReportWidget: React.FC = () => {
             }
 
             // Fetch all arrivals since last Monday for weekly counter
+            // We'll filter out name changes in JavaScript after fetching
             const { data: weeklyArrivalsData } = await supabase
                 .from('Inventory')
                 .select('*')
@@ -126,6 +128,7 @@ const NightlyReportWidget: React.FC = () => {
             }
 
             // Fetch current inventory for footer count
+            // We'll filter out name changes in JavaScript after fetching
             const { data: inventoryData } = await supabase
                 .from('Inventory')
                 .select('*')
@@ -173,29 +176,45 @@ const NightlyReportWidget: React.FC = () => {
                 };
             });
 
-            // Process RECEIVED - NEW vehicles
-            const receivedVehicles = (receivedData || []).map(vehicle => {
-                const mapped = fromSupabaseArray([vehicle], VEHICLE_FIELD_MAP)[0] as Vehicle;
-                return {
-                    vehicle: formatVehicle(mapped),
-                    arrivalDate: mapped.arrivalDate,
-                };
-            });
+            // Process RECEIVED - NEW vehicles (exclude name changes)
+            const receivedVehicles = (receivedData || [])
+                .map(vehicle => {
+                    const mapped = fromSupabaseArray([vehicle], VEHICLE_FIELD_MAP)[0] as Vehicle;
+                    return {
+                        vehicle: formatVehicle(mapped),
+                        arrivalDate: mapped.arrivalDate,
+                        isNameChange: mapped.isNameChange,
+                    };
+                })
+                .filter(rec => !rec.isNameChange)
+                .map(rec => ({
+                    vehicle: rec.vehicle,
+                    arrivalDate: rec.arrivalDate,
+                }));
 
-            // Calculate weekly index for each received vehicle
+            // Calculate weekly index for each received vehicle (exclude name changes)
             // Sort all weekly arrivals by date, then assign index based on position
-            const weeklyArrivals = (weeklyArrivalsData || []).map((v, idx) => {
-                const mapped = fromSupabaseArray([v], VEHICLE_FIELD_MAP)[0] as Vehicle;
-                return {
-                    vehicle: formatVehicle(mapped),
-                    arrivalDate: mapped.arrivalDate,
-                    originalIndex: idx,
-                };
-            }).sort((a, b) => {
-                const dateA = a.arrivalDate ? (parseDateStringToUtc(a.arrivalDate)?.getTime() || 0) : 0;
-                const dateB = b.arrivalDate ? (parseDateStringToUtc(b.arrivalDate)?.getTime() || 0) : 0;
-                return dateA - dateB;
-            });
+            const weeklyArrivals = (weeklyArrivalsData || [])
+                .map((v, idx) => {
+                    const mapped = fromSupabaseArray([v], VEHICLE_FIELD_MAP)[0] as Vehicle;
+                    return {
+                        vehicle: formatVehicle(mapped),
+                        arrivalDate: mapped.arrivalDate,
+                        isNameChange: mapped.isNameChange,
+                        originalIndex: idx,
+                    };
+                })
+                .filter(arrival => !arrival.isNameChange)
+                .sort((a, b) => {
+                    const dateA = a.arrivalDate ? (parseDateStringToUtc(a.arrivalDate)?.getTime() || 0) : 0;
+                    const dateB = b.arrivalDate ? (parseDateStringToUtc(b.arrivalDate)?.getTime() || 0) : 0;
+                    return dateA - dateB;
+                })
+                .map(arrival => ({
+                    vehicle: arrival.vehicle,
+                    arrivalDate: arrival.arrivalDate,
+                    originalIndex: arrival.originalIndex,
+                }));
 
             // Create a map of vehicle+date to weekly index
             const weeklyArrivalIndexMap = new Map<string, number>();
@@ -244,6 +263,7 @@ const NightlyReportWidget: React.FC = () => {
             statusLogs.forEach(log => {
                 const vehicle = vehicleDetailsMap.get(log.vehicle_id);
                 if (!vehicle) return;
+                if (vehicle.isNameChange) return; // Skip name change vehicles entirely from status logs
 
                 const vehicleStr = formatVehicle(vehicle);
 
@@ -266,6 +286,7 @@ const NightlyReportWidget: React.FC = () => {
 
             inventory.forEach(vehicle => {
                 if (vehicle.status === 'Sold') return;
+                if (vehicle.isNameChange) return; // Exclude name change vehicles from inventory counts
                 if (ACTIVE_RETAIL_STATUSES.has(vehicle.status || '')) {
                     totalInventory++;
                     if (BHPH_STATUSES.has(vehicle.status || '')) {

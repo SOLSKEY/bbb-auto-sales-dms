@@ -230,6 +230,7 @@ const Dashboard: React.FC = () => {
         let cash = 0;
         inventory.forEach(vehicle => {
             if (vehicle.status === 'Sold') return;
+            if (vehicle.isNameChange) return; // Exclude name change vehicles from inventory counts
             if (ACTIVE_RETAIL_STATUSES.has(vehicle.status)) {
                 total += 1;
                 if (BHPH_STATUSES.has(vehicle.status)) bhph += 1;

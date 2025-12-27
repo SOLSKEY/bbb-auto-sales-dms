@@ -16,6 +16,7 @@ import { LiquidContainer } from '@/components/ui/liquid-container';
 import { useDeviceType } from '../hooks/useDeviceType';
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll';
 import { InventoryFilterSheet } from '../components/InventoryFilterSheet';
+import { OptimizedImage } from '../components/OptimizedImage';
 
 const INVENTORY_STATUS_OPTIONS = INVENTORY_STATUS_VALUES.map(status => ({
     value: status,
@@ -194,11 +195,12 @@ https://www.bbbofsmyrna.com/
         >
             <div className="relative h-48 bg-glass-panel flex items-center justify-center">
                  {images.length > 0 ? (
-                    <img
+                    <OptimizedImage
                         src={images[activeImageIndex]}
                         alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
+                        context="thumbnail"
+                        className="w-full h-full"
+                        objectFit="cover"
                     />
                 ) : (
                     <PhotoIcon className="h-16 w-16 text-muted" />
@@ -402,11 +404,12 @@ const VehicleDetailsModal: React.FC<{ vehicle: Vehicle; onClose: () => void }> =
                 <div className="flex-1 overflow-y-auto">
                     <div className="relative h-96 bg-glass-panel flex items-center justify-center">
                         {images.length > 0 ? (
-                            <img
+                            <OptimizedImage
                                 src={images[activeImageIndex]}
                                 alt={`${vehicle.year} ${vehicle.make} ${vehicle.model}`}
-                                className="w-full h-full object-contain"
-                                loading="lazy"
+                                context="detail"
+                                className="w-full h-full"
+                                objectFit="contain"
                             />
                         ) : (
                             <PhotoIcon className="h-20 w-20 text-muted" />
@@ -507,6 +510,7 @@ const blankVehicle: Vehicle = {
   vin: '',
   vehicleId: '',
   images: [],
+  isNameChange: false,
 };
 
 const downPaymentRanges: Record<string, string> = {
@@ -688,6 +692,7 @@ const Inventory: React.FC = () => {
 
         inventory.forEach(vehicle => {
             if (vehicle.status === 'Sold') return;
+            if (vehicle.isNameChange) return; // Exclude name change vehicles from inventory counts
             if (ACTIVE_RETAIL_STATUSES.has(vehicle.status)) {
                 total += 1;
                 if (BHPH_STATUSES.has(vehicle.status)) {

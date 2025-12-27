@@ -28,6 +28,8 @@ interface StatusLog {
 
 interface NightlyReportData {
     sold: Array<{ vehicle: string; weeklyIndex: number }>;
+    nameChanges: string[];
+    trades: string[];
     receivedNew: Array<{ vehicle: string; weeklyIndex: number }>;
     repairs: string[];
     trash: string[];
@@ -81,6 +83,23 @@ const InventoryTextOutWidget: React.FC = () => {
         return `${year} ${model} ${vinLast4}`.trim();
     };
 
+    // Normalize sale type to check if it's a name change or trade
+    const normalizeSaleType = (value: string | undefined | null): string => {
+        return value?.toLowerCase().replace(/\s+/g, '') ?? '';
+    };
+
+    // Check if sale is a name change
+    const isNameChange = (saleType: string | undefined | null): boolean => {
+        const normalized = normalizeSaleType(saleType);
+        return normalized === 'namechange' || normalized === 'name-change';
+    };
+
+    // Check if sale is a trade
+    const isTrade = (saleType: string | undefined | null): boolean => {
+        const normalized = normalizeSaleType(saleType);
+        return normalized === 'trade' || normalized === 'tradein' || normalized === 'trade-in';
+    };
+
     const fetchReportData = useCallback(async () => {
         setIsLoading(true);
         try {
@@ -105,6 +124,7 @@ const InventoryTextOutWidget: React.FC = () => {
                 .gte(quoteSupabaseColumn('Sale Date'), mondayStr);
 
             // Fetch RECEIVED - NEW vehicles (from Inventory where Arrival Date is today)
+            // We'll filter out name changes in JavaScript after fetching
             const { data: receivedData, error: receivedError } = await supabase
                 .from('Inventory')
                 .select('*')
@@ -115,6 +135,7 @@ const InventoryTextOutWidget: React.FC = () => {
             }
 
             // Fetch all arrivals since last Monday for weekly counter
+            // We'll filter out name changes in JavaScript after fetching
             const { data: weeklyArrivalsData } = await supabase
                 .from('Inventory')
                 .select('*')
@@ -148,45 +169,66 @@ const InventoryTextOutWidget: React.FC = () => {
             }
 
             // Fetch current inventory for footer count
+            // We'll filter out name changes in JavaScript after fetching
             const { data: inventoryData } = await supabase
                 .from('Inventory')
                 .select('*')
                 .neq('Status', 'Sold');
 
-            // Process SOLD vehicles
+            // Process SOLD vehicles - separate regular sales, name changes, and trades
             const soldVehicles = (soldData || []).map(sale => {
                 const mappedSale = fromSupabaseArray([sale], SALE_FIELD_MAP)[0] as Sale;
                 return {
                     vehicle: formatVehicle(mappedSale),
                     saleDate: mappedSale.saleDate,
+                    saleType: mappedSale.saleType,
                 };
             });
 
-            // Calculate weekly index for each sold vehicle
-            // Sort all weekly sales by date, then assign index based on position
-            const weeklySales = (weeklySalesData || []).map((s, idx) => {
-                const mapped = fromSupabaseArray([s], SALE_FIELD_MAP)[0] as Sale;
-                return {
-                    vehicle: formatVehicle(mapped),
-                    saleDate: mapped.saleDate,
-                    originalIndex: idx,
-                };
-            }).sort((a, b) => {
-                const dateA = a.saleDate ? (parseDateStringToUtc(a.saleDate)?.getTime() || 0) : 0;
-                const dateB = b.saleDate ? (parseDateStringToUtc(b.saleDate)?.getTime() || 0) : 0;
-                return dateA - dateB;
+            // Separate name changes and trades from regular sales
+            const nameChangeVehicles: string[] = [];
+            const tradeVehicles: string[] = [];
+            const regularSoldVehicles = soldVehicles.filter(sold => {
+                if (isNameChange(sold.saleType)) {
+                    nameChangeVehicles.push(sold.vehicle);
+                    return false;
+                }
+                if (isTrade(sold.saleType)) {
+                    tradeVehicles.push(sold.vehicle);
+                    return false;
+                }
+                return true;
             });
 
-            // Create a map of vehicle+date to weekly index
+            // Calculate weekly index for regular sales only (excluding name changes and trades)
+            // Filter out name changes and trades from weekly sales data
+            const regularWeeklySales = (weeklySalesData || [])
+                .map((s, idx) => {
+                    const mapped = fromSupabaseArray([s], SALE_FIELD_MAP)[0] as Sale;
+                    return {
+                        vehicle: formatVehicle(mapped),
+                        saleDate: mapped.saleDate,
+                        saleType: mapped.saleType,
+                        originalIndex: idx,
+                    };
+                })
+                .filter(sale => !isNameChange(sale.saleType) && !isTrade(sale.saleType))
+                .sort((a, b) => {
+                    const dateA = a.saleDate ? (parseDateStringToUtc(a.saleDate)?.getTime() || 0) : 0;
+                    const dateB = b.saleDate ? (parseDateStringToUtc(b.saleDate)?.getTime() || 0) : 0;
+                    return dateA - dateB;
+                });
+
+            // Create a map of vehicle+date to weekly index (only for regular sales)
             const weeklyIndexMap = new Map<string, number>();
-            weeklySales.forEach((sale, idx) => {
+            regularWeeklySales.forEach((sale, idx) => {
                 const key = `${sale.vehicle}|${sale.saleDate}`;
                 if (!weeklyIndexMap.has(key)) {
                     weeklyIndexMap.set(key, idx + 1);
                 }
             });
 
-            const soldWithIndex = soldVehicles.map(sold => {
+            const soldWithIndex = regularSoldVehicles.map(sold => {
                 const key = `${sold.vehicle}|${sold.saleDate}`;
                 const index = weeklyIndexMap.get(key) || 1;
                 return {
@@ -195,29 +237,45 @@ const InventoryTextOutWidget: React.FC = () => {
                 };
             });
 
-            // Process RECEIVED - NEW vehicles
-            const receivedVehicles = (receivedData || []).map(vehicle => {
-                const mapped = fromSupabaseArray([vehicle], VEHICLE_FIELD_MAP)[0] as Vehicle;
-                return {
-                    vehicle: formatVehicle(mapped),
-                    arrivalDate: mapped.arrivalDate,
-                };
-            });
+            // Process RECEIVED - NEW vehicles (exclude name changes)
+            const receivedVehicles = (receivedData || [])
+                .map(vehicle => {
+                    const mapped = fromSupabaseArray([vehicle], VEHICLE_FIELD_MAP)[0] as Vehicle;
+                    return {
+                        vehicle: formatVehicle(mapped),
+                        arrivalDate: mapped.arrivalDate,
+                        isNameChange: mapped.isNameChange,
+                    };
+                })
+                .filter(rec => !rec.isNameChange)
+                .map(rec => ({
+                    vehicle: rec.vehicle,
+                    arrivalDate: rec.arrivalDate,
+                }));
 
-            // Calculate weekly index for each received vehicle
+            // Calculate weekly index for each received vehicle (exclude name changes)
             // Sort all weekly arrivals by date, then assign index based on position
-            const weeklyArrivals = (weeklyArrivalsData || []).map((v, idx) => {
-                const mapped = fromSupabaseArray([v], VEHICLE_FIELD_MAP)[0] as Vehicle;
-                return {
-                    vehicle: formatVehicle(mapped),
-                    arrivalDate: mapped.arrivalDate,
-                    originalIndex: idx,
-                };
-            }).sort((a, b) => {
-                const dateA = a.arrivalDate ? (parseDateStringToUtc(a.arrivalDate)?.getTime() || 0) : 0;
-                const dateB = b.arrivalDate ? (parseDateStringToUtc(b.arrivalDate)?.getTime() || 0) : 0;
-                return dateA - dateB;
-            });
+            const weeklyArrivals = (weeklyArrivalsData || [])
+                .map((v, idx) => {
+                    const mapped = fromSupabaseArray([v], VEHICLE_FIELD_MAP)[0] as Vehicle;
+                    return {
+                        vehicle: formatVehicle(mapped),
+                        arrivalDate: mapped.arrivalDate,
+                        isNameChange: mapped.isNameChange,
+                        originalIndex: idx,
+                    };
+                })
+                .filter(arrival => !arrival.isNameChange)
+                .sort((a, b) => {
+                    const dateA = a.arrivalDate ? (parseDateStringToUtc(a.arrivalDate)?.getTime() || 0) : 0;
+                    const dateB = b.arrivalDate ? (parseDateStringToUtc(b.arrivalDate)?.getTime() || 0) : 0;
+                    return dateA - dateB;
+                })
+                .map(arrival => ({
+                    vehicle: arrival.vehicle,
+                    arrivalDate: arrival.arrivalDate,
+                    originalIndex: arrival.originalIndex,
+                }));
 
             // Create a map of vehicle+date to weekly index
             const weeklyArrivalIndexMap = new Map<string, number>();
@@ -266,6 +324,7 @@ const InventoryTextOutWidget: React.FC = () => {
             statusLogs.forEach(log => {
                 const vehicle = vehicleDetailsMap.get(log.vehicle_id);
                 if (!vehicle) return;
+                if (vehicle.isNameChange) return; // Skip name change vehicles entirely from status logs
 
                 const vehicleStr = formatVehicle(vehicle);
 
@@ -288,6 +347,7 @@ const InventoryTextOutWidget: React.FC = () => {
 
             inventory.forEach(vehicle => {
                 if (vehicle.status === 'Sold') return;
+                if (vehicle.isNameChange) return; // Exclude name change vehicles from inventory counts
                 if (ACTIVE_RETAIL_STATUSES.has(vehicle.status || '')) {
                     totalInventory++;
                     if (BHPH_STATUSES.has(vehicle.status || '')) {
@@ -301,6 +361,8 @@ const InventoryTextOutWidget: React.FC = () => {
 
             setReportData({
                 sold: soldWithIndex,
+                nameChanges: nameChangeVehicles,
+                trades: tradeVehicles,
                 receivedNew: receivedWithIndex,
                 repairs,
                 trash,
@@ -366,7 +428,7 @@ const InventoryTextOutWidget: React.FC = () => {
 
         const sections: string[] = [];
 
-        // 1. SOLD section
+        // 1. SOLD section (regular sales only, with weekly count)
         if (reportData.sold.length > 0) {
             const soldLines = ['*Sold:*'];
             reportData.sold.forEach(({ vehicle, weeklyIndex }) => {
@@ -375,7 +437,16 @@ const InventoryTextOutWidget: React.FC = () => {
             sections.push(soldLines.join('\n'));
         }
 
-        // 2. DEPOSIT section
+        // 2. TRADE section (no weekly count)
+        if (reportData.trades.length > 0) {
+            const tradeLines = ['*Trade:*'];
+            reportData.trades.forEach(vehicle => {
+                tradeLines.push(`-${vehicle}`);
+            });
+            sections.push(tradeLines.join('\n'));
+        }
+
+        // 3. DEPOSIT section
         if (reportData.deposit.length > 0) {
             const depositLines = ['*Deposit:*'];
             reportData.deposit.forEach(vehicle => {
@@ -384,7 +455,7 @@ const InventoryTextOutWidget: React.FC = () => {
             sections.push(depositLines.join('\n'));
         }
 
-        // 3. RECEIVED section (new arrivals + returns from shop)
+        // 4. RECEIVED section (new arrivals + returns from shop)
         const receivedItems: string[] = [];
         if (reportData.receivedNew.length > 0) {
             reportData.receivedNew.forEach(({ vehicle, weeklyIndex }) => {
@@ -400,7 +471,7 @@ const InventoryTextOutWidget: React.FC = () => {
             sections.push(['*From Nashville:*', ...receivedItems].join('\n'));
         }
 
-        // 4. REPAIRS section (Sent to Shop)
+        // 5. REPAIRS section (Sent to Shop)
         if (reportData.repairs.length > 0) {
             const repairsLines = ['*Sent to Shop:*'];
             reportData.repairs.forEach(vehicle => {
@@ -409,7 +480,7 @@ const InventoryTextOutWidget: React.FC = () => {
             sections.push(repairsLines.join('\n'));
         }
 
-        // 5. TRASH section (To Nashville)
+        // 6. TRASH section (To Nashville)
         if (reportData.trash.length > 0) {
             const trashLines = ['*To Nashville:*'];
             reportData.trash.forEach(vehicle => {
@@ -418,7 +489,7 @@ const InventoryTextOutWidget: React.FC = () => {
             sections.push(trashLines.join('\n'));
         }
 
-        // 6. FOOTER (Always show) - Format: "29 (28 bhph/1 _CASH_)"
+        // 7. FOOTER (Always show) - Format: "29 (28 bhph/1 _CASH_)"
         sections.push(`${reportData.totalInventory} (${reportData.bhphCount} bhph/${reportData.cashCount} _CASH_)`);
 
         // Join all non-empty sections with double newline
