@@ -2,7 +2,7 @@ import React, { useMemo, useState, useRef, useEffect } from 'react';
 import type { Sale } from '../types';
 import { ResponsiveContainer, ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, defs, linearGradient, stop } from 'recharts';
 import { FunnelIcon, CheckIcon, ChevronDownIcon } from '@heroicons/react/24/solid';
-import { buildSalesAggregates } from '../utils/salesAnalytics';
+import { buildSalesAggregates, getTodayInChicago } from '../utils/salesAnalytics';
 import { GlassButton } from '@/components/ui/glass-button';
 import { LiquidContainer } from './ui/liquid-container';
 
@@ -18,9 +18,13 @@ const YtdCumulativeSalesChart: React.FC<YtdCumulativeSalesChartProps> = ({ sales
     const { chartData, years, lineKeys, maxYear } = useMemo(() => {
         const { parsedSales, years } = buildSalesAggregates(salesData);
 
-        if (parsedSales.length === 0) return { chartData: [], years: [], lineKeys: [], maxYear: new Date().getFullYear() };
+        if (parsedSales.length === 0) {
+            const todayCST = getTodayInChicago();
+            return { chartData: [], years: [], lineKeys: [], maxYear: todayCST.getFullYear() };
+        }
 
-        const today = new Date();
+        // Use Central Standard Time (America/Chicago) for consistent date calculations
+        const today = getTodayInChicago();
         const endMonth = today.getMonth();
         const endDay = today.getDate();
         const latestYearInData = Math.max(...parsedSales.map(entry => entry.date.getFullYear()));

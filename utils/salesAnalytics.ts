@@ -1,5 +1,23 @@
 import type { Sale } from '../types';
 
+/**
+ * Get today's date in America/Chicago timezone (Central Standard Time).
+ * This ensures consistency across the application for date calculations.
+ */
+export const getTodayInChicago = (): Date => {
+    const now = new Date();
+    // Get the date string in Chicago timezone
+    const chicagoDateStr = now.toLocaleDateString('en-US', {
+        timeZone: 'America/Chicago',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+    });
+    // Parse it back to a Date object (this will be in local time, but represents Chicago date)
+    const [month, day, year] = chicagoDateStr.split('/');
+    return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+};
+
 export const parseSaleDate = (rawDate?: string | null): Date | null => {
     if (!rawDate) return null;
     const trimmed = rawDate.trim();

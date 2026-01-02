@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import type { Sale } from '../types';
-import { buildSalesAggregates } from '../utils/salesAnalytics';
+import { buildSalesAggregates, getTodayInChicago } from '../utils/salesAnalytics';
 import AppSelect from './AppSelect';
 import { LiquidContainer } from './ui/liquid-container';
 
@@ -10,7 +10,8 @@ interface YearOverYearComparisonProps {
 }
 
 const YearOverYearComparison: React.FC<YearOverYearComparisonProps> = ({ salesData, compact = false }) => {
-    const currentYear = useMemo(() => new Date().getFullYear(), []);
+    // Use Central Standard Time (America/Chicago) for consistent year determination
+    const currentYear = useMemo(() => getTodayInChicago().getFullYear(), []);
     const aggregates = useMemo(() => buildSalesAggregates(salesData), [salesData]);
     const { totalsByYearMonth, years } = aggregates;
 

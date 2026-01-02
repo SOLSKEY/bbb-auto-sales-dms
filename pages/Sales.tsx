@@ -7,7 +7,7 @@ import YearOverYearComparison from '../components/YearOverYearComparison';
 import NextStockCard from '../components/NextStockCard';
 import MonthlySalesComparisonChart from '../components/MonthlySalesComparisonChart';
 import { DataContext } from '../App';
-import { buildSalesAggregates, formatDateKey, getYtdCountForYear } from '../utils/salesAnalytics';
+import { buildSalesAggregates, formatDateKey, getYtdCountForYear, getTodayInChicago } from '../utils/salesAnalytics';
 import { computeNextAccountNumber, computeNextStockNumbers } from '../utils/stockNumbers';
 import { GlassButton } from '@/components/ui/glass-button';
 import { LiquidContainer } from '@/components/ui/liquid-container';
@@ -108,20 +108,6 @@ const SalesAnalytics: React.FC<{ layoutVariant?: 'classic' | 'compact' }> = ({ l
         // --- KPI CALCULATIONS ---
         // Get today's date in America/Chicago timezone to match the date display
         // This ensures consistency between the displayed date and calculations
-        const getTodayInChicago = () => {
-            const now = new Date();
-            // Get the date string in Chicago timezone
-            const chicagoDateStr = now.toLocaleDateString('en-US', {
-                timeZone: 'America/Chicago',
-                year: 'numeric',
-                month: '2-digit',
-                day: '2-digit',
-            });
-            // Parse it back to a Date object (this will be in local time, but represents Chicago date)
-            const [month, day, year] = chicagoDateStr.split('/');
-            return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-        };
-        
         const today = getTodayInChicago();
         const currentYearValue = today.getFullYear();
         const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate());
@@ -168,6 +154,9 @@ const SalesAnalytics: React.FC<{ layoutVariant?: 'classic' | 'compact' }> = ({ l
         const yearsInData = years;
         const latestYear = yearsInData.length > 0 ? Math.max(...yearsInData) : new Date().getFullYear();
 
+        // Always include the current calendar year in the years array, even if there are no sales yet
+        const allYears = [...new Set([...yearsInData, currentYearValue])].sort((a, b) => a - b);
+
         const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
         const dataByMonth: { [month: string]: { [key: string]: string | number | undefined } } = {};
 
@@ -185,16 +174,16 @@ const SalesAnalytics: React.FC<{ layoutVariant?: 'classic' | 'compact' }> = ({ l
             }
         });
 
-        if (latestYear >= today.getFullYear()) {
-            const currentMonthIndex = today.getMonth();
-            monthNames.forEach((name, index) => {
-                if (index <= currentMonthIndex) {
-                    if (dataByMonth[name][String(latestYear)] === undefined) {
-                        dataByMonth[name][String(latestYear)] = 0;
-                    }
+        // Always initialize the current year's data, even if there are no sales yet
+        // This ensures the chart shows the current year as the step area from the start of the year
+        const currentMonthIndex = today.getMonth();
+        monthNames.forEach((name, index) => {
+            if (index <= currentMonthIndex) {
+                if (dataByMonth[name][String(currentYearValue)] === undefined) {
+                    dataByMonth[name][String(currentYearValue)] = 0;
                 }
-            });
-        }
+            }
+        });
 
         const finalMonthlyData = monthNames.map(name => dataByMonth[name]);
 
@@ -203,10 +192,10 @@ const SalesAnalytics: React.FC<{ layoutVariant?: 'classic' | 'compact' }> = ({ l
         const activeSaleYear = latestStockYear ?? currentYearValue;
 
         return {
-            years: yearsInData,
+            years: allYears,
             kpis,
             monthlyChartData: finalMonthlyData,
-            currentYear: latestYear,
+            currentYear: currentYearValue, // Use actual calendar year, not latest year in data
             nextAccountNumber,
             nextStockNumbers: nextByPrefix,
             activeSaleYear,

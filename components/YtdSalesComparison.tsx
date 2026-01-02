@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import type { Sale } from '../types';
 import { ArrowUpIcon, ArrowDownIcon } from '@heroicons/react/24/solid';
-import { buildSalesAggregates, getYtdCountForYear } from '../utils/salesAnalytics';
+import { buildSalesAggregates, getYtdCountForYear, getTodayInChicago } from '../utils/salesAnalytics';
 import { LiquidContainer } from './ui/liquid-container';
 
 interface YtdSalesComparisonProps {
@@ -19,7 +19,8 @@ type ComparisonRow = {
 
 const YtdSalesComparison: React.FC<YtdSalesComparisonProps> = ({ salesData, compact = false }) => {
     const comparisonData = useMemo(() => {
-        const today = new Date();
+        // Use Central Standard Time (America/Chicago) for consistent date calculations
+        const today = getTodayInChicago();
         const currentYear = today.getFullYear();
         const aggregates = buildSalesAggregates(salesData);
         const { parsedSales, years } = aggregates;
