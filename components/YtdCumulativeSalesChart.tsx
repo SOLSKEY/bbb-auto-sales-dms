@@ -16,18 +16,42 @@ const YtdCumulativeSalesChart: React.FC<YtdCumulativeSalesChartProps> = ({ sales
     const filterRef = useRef<HTMLDivElement>(null);
 
     const { chartData, years, lineKeys, maxYear } = useMemo(() => {
-        const { parsedSales, years } = buildSalesAggregates(salesData);
-
-        if (parsedSales.length === 0) {
-            const todayCST = getTodayInChicago();
-            return { chartData: [], years: [], lineKeys: [], maxYear: todayCST.getFullYear() };
-        }
+        const { parsedSales, years: yearsInData } = buildSalesAggregates(salesData);
 
         // Use Central Standard Time (America/Chicago) for consistent date calculations
         const today = getTodayInChicago();
+        const currentYear = today.getFullYear();
         const endMonth = today.getMonth();
         const endDay = today.getDate();
-        const latestYearInData = Math.max(...parsedSales.map(entry => entry.date.getFullYear()));
+
+        if (parsedSales.length === 0) {
+            // Even with no sales, include current year and create empty chart data
+            const allYears = [...new Set([...yearsInData, currentYear])].sort((a, b) => a - b);
+            const startDate = new Date(2024, 0, 1); // Use a leap year to ensure Feb 29 is included
+            const endDate = new Date(2024, endMonth, endDay);
+            
+            const dateRange: Date[] = [];
+            for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                dateRange.push(new Date(d));
+            }
+            
+            const emptyChartData = dateRange.map(date => {
+                const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                const entry: Record<string, any> = { name: formattedDate };
+                allYears.forEach(year => entry[year] = 0);
+                entry['5-Year Avg'] = 0;
+                return entry;
+            });
+            
+            return { 
+                chartData: emptyChartData, 
+                years: allYears, 
+                lineKeys: [...allYears.map(String), '5-Year Avg'], 
+                maxYear: currentYear 
+            };
+        }
+
+        const latestYearInData = yearsInData.length > 0 ? Math.max(...yearsInData) : currentYear;
 
         const startDate = new Date(2024, 0, 1); // Use a leap year to ensure Feb 29 is included
         const endDate = new Date(2024, endMonth, endDay);
@@ -37,7 +61,8 @@ const YtdCumulativeSalesChart: React.FC<YtdCumulativeSalesChartProps> = ({ sales
             dateRange.push(new Date(d));
         }
 
-        const yearsToProcess = years.slice(); // already sorted ascending
+        // Always include the current calendar year, even if there are no sales yet
+        const yearsToProcess = [...new Set([...yearsInData, currentYear])].sort((a, b) => a - b);
 
         const salesByDayAndYear: Record<string, Record<string, number>> = {};
 
@@ -71,7 +96,8 @@ const YtdCumulativeSalesChart: React.FC<YtdCumulativeSalesChartProps> = ({ sales
             cumulativeData.push(dailyEntry);
         });
 
-        const prev5Years = yearsToProcess.filter(y => y < latestYearInData).slice(-5);
+        // Calculate 5-Year Avg using years before the current calendar year
+        const prev5Years = yearsToProcess.filter(y => y < currentYear).slice(-5);
         cumulativeData.forEach(day => {
             const sum = prev5Years.reduce((acc, year) => acc + (day[year] || 0), 0);
             day['5-Year Avg'] = prev5Years.length > 0 ? parseFloat((sum / prev5Years.length).toFixed(1)) : 0;
@@ -81,7 +107,7 @@ const YtdCumulativeSalesChart: React.FC<YtdCumulativeSalesChartProps> = ({ sales
             chartData: cumulativeData,
             years: yearsToProcess,
             lineKeys: [...yearsToProcess.map(String), '5-Year Avg'],
-            maxYear: latestYearInData
+            maxYear: currentYear // Use actual calendar year, not latest year in data
         };
     }, [salesData]);
 
