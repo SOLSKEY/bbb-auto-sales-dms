@@ -910,6 +910,34 @@ const buildSnapshot = (
     const bonusSource = options.allSales ?? sales;
     const weeklyBonusData = computeWeeklyBonusBreakdown(bonusSource, bonusRange.start, bonusRange.end);
 
+    // Collect all unique salespeople from the entire sales dataset to ensure all show in report
+    // Exclude "Unassigned" salespeople
+    const allUniqueSalespeople = new Set<string>();
+    const salesDataset = options.allSales ?? sales;
+    salesDataset.forEach(sale => {
+        if (sale.salespersonSplit && sale.salespersonSplit.length > 0) {
+            sale.salespersonSplit.forEach(split => {
+                const normalized = normalizeName(split.name);
+                if (normalized && normalized.toLowerCase() !== 'unassigned') {
+                    allUniqueSalespeople.add(normalized);
+                }
+            });
+        } else {
+            const normalized = normalizeName(sale.salesperson);
+            if (normalized && normalized.toLowerCase() !== 'unassigned') {
+                allUniqueSalespeople.add(normalized);
+            }
+        }
+    });
+
+    // Initialize rowsBySalesperson with all unique salespeople (with empty arrays)
+    // Exclude "Unassigned" salespeople
+    allUniqueSalespeople.forEach(salesperson => {
+        if (salesperson.toLowerCase() !== 'unassigned') {
+            rowsBySalesperson.set(salesperson, []);
+        }
+    });
+
     const sortedSales = [...sales].sort((a, b) => {
         const accountA = a.accountNumber ?? '';
         const accountB = b.accountNumber ?? '';
@@ -973,6 +1001,12 @@ const buildSnapshot = (
             .join(' | ');
 
         normalizedSplits.forEach(split => {
+            // Skip "Unassigned" salespeople
+            const normalizedSplitName = normalizeName(split.name);
+            if (normalizedSplitName.toLowerCase() === 'unassigned') {
+                return;
+            }
+
             const rowKey = `${getSaleKey(sale)}|${split.name}`;
             const manualNote = notesMap[rowKey] ?? '';
             const baseCommission = calculateBaseCommission(trueDownPayment);
@@ -1110,6 +1144,11 @@ const buildSnapshot = (
                 weeklySalesCountOverThreshold: isKey ? weeklyStats.over : undefined,
                 weeklySalesBonus: isKey ? weeklyStats.bonus : undefined,
             };
+        })
+        .filter(person => {
+            // Exclude "Unassigned" salespeople
+            const normalized = normalizeName(person.salesperson);
+            return normalized.toLowerCase() !== 'unassigned';
         })
         .sort((a, b) => {
             const aKey = a.salesperson.toLowerCase() === 'key';
