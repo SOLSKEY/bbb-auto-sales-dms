@@ -42,6 +42,9 @@ const Reports: React.FC = () => {
     const [isCollectionsBonusModalOpen, setIsCollectionsBonusModalOpen] = useState(false);
     const [isLoggingCollectionsBonus, setIsLoggingCollectionsBonus] = useState(false);
     const [collectionsBonusForm, setCollectionsBonusForm] = useState({ weekKey: '', amount: '' });
+    const [isLogHoursModalOpen, setIsLogHoursModalOpen] = useState(false);
+    const [isLoggingHours, setIsLoggingHours] = useState(false);
+    const [logHoursForm, setLogHoursForm] = useState({ salesperson: '', date: '', hours: '', minutes: '' });
 
     const dailyClosingRef = useRef<DailyClosingReportHandle | null>(null);
     const commissionRef = useRef<CommissionReportHandle | null>(null);
@@ -393,6 +396,28 @@ const Reports: React.FC = () => {
                         )}
                         {activeReport === 'Commission' && reportView === 'live' && (
                             <GlassButton
+                                onClick={handleExport}
+                                disabled={!canExportReport}
+                                contentClassName="flex items-center"
+                            >
+                                <ArrowDownTrayIcon className="h-5 w-5 mr-2" />
+                                Export
+                            </GlassButton>
+                        )}
+                        {activeReport === 'Commission' && reportView === 'live' && (
+                            <GlassButton
+                                onClick={() => {
+                                    setIsLogHoursModalOpen(true);
+                                }}
+                                disabled={isLoggingHours}
+                                contentClassName="flex items-center"
+                            >
+                                <BookmarkIcon className="h-5 w-5 mr-2" />
+                                {isLoggingHours ? 'Logging…' : 'Log Hours'}
+                            </GlassButton>
+                        )}
+                        {activeReport === 'Commission' && reportView === 'live' && (
+                            <GlassButton
                                 onClick={() => {
                                     if (weekBuckets.length > 0 && !collectionsBonusForm.weekKey) {
                                         setCollectionsBonusForm(prev => ({ ...prev, weekKey: selectedWeekKey || weekBuckets[0].key }));
@@ -429,6 +454,173 @@ const Reports: React.FC = () => {
                     {reportView === 'live' ? renderLiveReport() : renderLoggedReport()}
                 </div>
             </main>
+
+            {/* Log Hours Modal */}
+            {isLogHoursModalOpen && activeReport === 'Commission' && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-8">
+                    <div className="w-full max-w-xl p-6 relative bg-[#1b1f26] border border-border-high rounded-2xl shadow-2xl">
+                        <GlassButton
+                            type="button"
+                            size="icon"
+                            className="absolute top-3 right-3 text-secondary hover:text-primary transition-colors"
+                            onClick={() => {
+                                setIsLogHoursModalOpen(false);
+                                setLogHoursForm({ salesperson: '', date: '', hours: '', minutes: '' });
+                            }}
+                            disabled={isLoggingHours}
+                        >
+                            ✕
+                        </GlassButton>
+                        <h3 className="text-2xl font-semibold text-primary mb-1 tracking-tight-md">Log Hours</h3>
+                        <p className="text-sm text-muted mb-6">
+                            Log missed hours for a salesperson.
+                        </p>
+                        <form onSubmit={async (e) => {
+                            e.preventDefault();
+                            if (!logHoursForm.salesperson || !logHoursForm.date) {
+                                alert('Please select both salesperson and date.');
+                                return;
+                            }
+                            const hours = Number(logHoursForm.hours) || 0;
+                            const minutes = Number(logHoursForm.minutes) || 0;
+                            if (hours === 0 && minutes === 0) {
+                                alert('Please enter at least one hour or minute.');
+                                return;
+                            }
+                            setIsLoggingHours(true);
+                            try {
+                                const { error } = await supabase
+                                    .from('missed_hours')
+                                    .upsert(
+                                        {
+                                            salesperson: logHoursForm.salesperson,
+                                            date: logHoursForm.date,
+                                            hours: hours,
+                                            minutes: minutes,
+                                            updated_at: new Date().toISOString(),
+                                        },
+                                        {
+                                            onConflict: 'salesperson,date',
+                                        }
+                                    );
+
+                                if (error) {
+                                    console.error('Error logging missed hours:', error);
+                                    alert('Failed to log missed hours. Please try again.');
+                                    return;
+                                }
+
+                                alert('Missed hours logged successfully.');
+                                setIsLogHoursModalOpen(false);
+                                setLogHoursForm({ salesperson: '', date: '', hours: '', minutes: '' });
+                                
+                                // Refresh the commission report to show the logged hours
+                                if (commissionRef.current && selectedWeekKey) {
+                                    const currentKey = selectedWeekKey;
+                                    setSelectedWeekKey(null);
+                                    setTimeout(() => setSelectedWeekKey(currentKey), 50);
+                                }
+                            } catch (error) {
+                                console.error('Error logging missed hours:', error);
+                                alert('An error occurred while logging missed hours.');
+                            } finally {
+                                setIsLoggingHours(false);
+                            }
+                        }} className="space-y-5">
+                            <div>
+                                <label className="text-xs uppercase tracking-wide text-muted mb-2 block">Select Salesperson</label>
+                                <AppSelect
+                                    value={logHoursForm.salesperson}
+                                    onChange={value => setLogHoursForm(prev => ({ ...prev, salesperson: value || '' }))}
+                                    options={(() => {
+                                        const allSalespeople = new Set<string>();
+                                        sales.forEach(sale => {
+                                            if (sale.salespersonSplit && sale.salespersonSplit.length > 0) {
+                                                sale.salespersonSplit.forEach(split => {
+                                                    const name = split.name?.trim();
+                                                    if (name && name.toLowerCase() !== 'unassigned' && name.toLowerCase() !== 'key') {
+                                                        allSalespeople.add(name);
+                                                    }
+                                                });
+                                            } else {
+                                                const name = sale.salesperson?.trim();
+                                                if (name && name.toLowerCase() !== 'unassigned' && name.toLowerCase() !== 'key') {
+                                                    allSalespeople.add(name);
+                                                }
+                                            }
+                                        });
+                                        return [
+                                            { value: '', label: 'Select salesperson' },
+                                            ...Array.from(allSalespeople).sort().map(sp => ({ value: sp, label: sp })),
+                                        ];
+                                    })()}
+                                    required
+                                />
+                            </div>
+                            <div>
+                                <label className="text-xs uppercase tracking-wide text-muted mb-2 block">Select Date</label>
+                                <div className="relative">
+                                    <input
+                                        type="date"
+                                        value={logHoursForm.date}
+                                        onChange={e => setLogHoursForm(prev => ({ ...prev, date: e.target.value }))}
+                                        className="w-full bg-glass-panel border border-border-low text-primary rounded-md px-3 py-2 focus:border-lava-core focus:outline-none"
+                                        required
+                                    />
+                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-muted pointer-events-none">
+                                        📅
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="text-xs uppercase tracking-wide text-muted mb-2 block">Hours</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        value={logHoursForm.hours}
+                                        onChange={e => setLogHoursForm(prev => ({ ...prev, hours: e.target.value }))}
+                                        className="w-full bg-glass-panel border border-border-low text-primary rounded-md px-3 py-2 focus:border-lava-core focus:outline-none"
+                                        placeholder="0"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs uppercase tracking-wide text-muted mb-2 block">Minutes</label>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        max="59"
+                                        value={logHoursForm.minutes}
+                                        onChange={e => setLogHoursForm(prev => ({ ...prev, minutes: e.target.value }))}
+                                        className="w-full bg-glass-panel border border-border-low text-primary rounded-md px-3 py-2 focus:border-lava-core focus:outline-none"
+                                        placeholder="0"
+                                    />
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-3 pt-2">
+                                <GlassButton
+                                    type="submit"
+                                    disabled={isLoggingHours || !logHoursForm.salesperson || !logHoursForm.date || (Number(logHoursForm.hours) === 0 && Number(logHoursForm.minutes) === 0)}
+                                    className="flex-1"
+                                >
+                                    {isLoggingHours ? 'Logging…' : 'Log Hours'}
+                                </GlassButton>
+                                <GlassButton
+                                    type="button"
+                                    onClick={() => {
+                                        setIsLogHoursModalOpen(false);
+                                        setLogHoursForm({ salesperson: '', date: '', hours: '', minutes: '' });
+                                    }}
+                                    disabled={isLoggingHours}
+                                    className="opacity-70 hover:opacity-100"
+                                >
+                                    Cancel
+                                </GlassButton>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
 
             {/* Log Collections Bonus Modal */}
             {isCollectionsBonusModalOpen && activeReport === 'Commission' && (

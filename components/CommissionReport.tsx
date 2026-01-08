@@ -24,6 +24,7 @@ import AppSelect from './AppSelect';
 import { GlassButton } from '@/components/ui/glass-button';
 import { PencilSquareIcon, CheckCircleIcon } from '@heroicons/react/24/solid';
 import { supabase } from '../supabaseClient';
+import { LiquidContainer } from './ui/liquid-container';
 
 const BONUS_THRESHOLD = 5;
 const BONUS_PER_SALE = 50;
@@ -381,6 +382,12 @@ const getSaleKey = (sale: Sale) => {
         .join('|');
 };
 
+interface MissedHoursEntry {
+    date: string;
+    hours: number;
+    minutes: number;
+}
+
 interface CommissionSalespersonBlockProps {
     snapshot: CommissionSalespersonSnapshot;
     editable: boolean;
@@ -396,6 +403,9 @@ interface CommissionSalespersonBlockProps {
     manualOverrides?: Record<string, string>;
     onManualOverrideChange?: (rowKey: string, value: string) => void;
     bonusRange?: { start: Date; end: Date } | null;
+    missedHours?: MissedHoursEntry[];
+    weekStart?: Date;
+    weekEnd?: Date;
 }
 
 const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
@@ -413,6 +423,9 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
     manualOverrides = {},
     onManualOverrideChange,
     bonusRange = null,
+    missedHours = [],
+    weekStart,
+    weekEnd,
 }) => {
     const [commissionDrafts, setCommissionDrafts] = useState<Record<string, string>>({});
     const {
@@ -814,6 +827,69 @@ const CommissionSalespersonBlock: React.FC<CommissionSalespersonBlockProps> = ({
                     </tbody>
                 </table>
             </div>
+            {!isKey && (
+                <LiquidContainer variant="neon-red" className="mt-4 p-4">
+                    <h4 
+                        className="text-sm font-semibold mb-3 uppercase tracking-wide"
+                        style={{
+                            background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%)',
+                            WebkitBackgroundClip: 'text',
+                            WebkitTextFillColor: 'transparent',
+                            backgroundClip: 'text',
+                        }}
+                    >
+                        Hours Missed
+                    </h4>
+                    {missedHours.length === 0 ? (
+                        <p className="text-sm text-muted">No missed hours logged for this period.</p>
+                    ) : (
+                        <div className="space-y-2">
+                            {missedHours.map((entry, idx) => {
+                                const entryDate = new Date(entry.date + 'T00:00:00');
+                                const dayName = entryDate.toLocaleDateString('en-US', { weekday: 'short' });
+                                const hoursText = entry.hours > 0 ? `${entry.hours}hr` : '';
+                                const minutesText = entry.minutes > 0 ? `${entry.minutes}mins` : '';
+                                const timeText = [hoursText, minutesText].filter(Boolean).join(' ');
+                                return (
+                                    <div key={idx} className="flex items-center text-sm text-secondary">
+                                        <span className="font-medium min-w-[60px]">{dayName}</span>
+                                        <span className="text-muted mx-2">-</span>
+                                        <span>{timeText}</span>
+                                    </div>
+                                );
+                            })}
+                            <div className="border-t border-border-low mt-3 pt-3">
+                                <div className="flex items-center justify-between">
+                                    <span className="text-sm text-muted">Total Hours Missed:</span>
+                                    <span 
+                                        className="text-base font-bold"
+                                        style={{
+                                            background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 50%, #b91c1c 100%)',
+                                            WebkitBackgroundClip: 'text',
+                                            WebkitTextFillColor: 'transparent',
+                                            backgroundClip: 'text',
+                                        }}
+                                    >
+                                        {(() => {
+                                            const totalMinutes = missedHours.reduce((sum, entry) => sum + entry.hours * 60 + entry.minutes, 0);
+                                            const totalHours = Math.floor(totalMinutes / 60);
+                                            const remainingMinutes = totalMinutes % 60;
+                                            if (totalHours > 0 && remainingMinutes > 0) {
+                                                return `${totalHours}hr ${remainingMinutes}mins`;
+                                            } else if (totalHours > 0) {
+                                                return `${totalHours}hr`;
+                                            } else if (remainingMinutes > 0) {
+                                                return `${remainingMinutes}mins`;
+                                            }
+                                            return '0hr';
+                                        })()}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </LiquidContainer>
+            )}
         </section>
     );
 };
@@ -1333,6 +1409,7 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
 
         const [isCollectionsBonusLogged, setIsCollectionsBonusLogged] = useState(false);
         const isCollectionsBonusLoggedRef = React.useRef(false);
+        const [missedHoursData, setMissedHoursData] = useState<Record<string, MissedHoursEntry[]>>({});
 
         useEffect(() => {
             if (!currentWeek) {
@@ -1340,6 +1417,7 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                 setCollectionsLocks({});
                 setIsCollectionsBonusLogged(false);
                 isCollectionsBonusLoggedRef.current = false;
+                setMissedHoursData({});
                 return;
             }
 
@@ -1382,6 +1460,77 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
 
             loadFromSupabase();
         }, [currentWeek]);
+
+        // Load missed hours for the current week
+        useEffect(() => {
+            if (!currentWeek) {
+                setMissedHoursData({});
+                return;
+            }
+
+            const loadMissedHours = async () => {
+                try {
+                    // Get all unique salespeople from sales data
+                    const allSalespeople = new Set<string>();
+                    sales.forEach(sale => {
+                        if (sale.salespersonSplit && sale.salespersonSplit.length > 0) {
+                            sale.salespersonSplit.forEach(split => {
+                                const normalized = normalizeName(split.name);
+                                if (normalized && normalized.toLowerCase() !== 'unassigned' && normalized.toLowerCase() !== 'key') {
+                                    allSalespeople.add(normalized);
+                                }
+                            });
+                        } else {
+                            const normalized = normalizeName(sale.salesperson);
+                            if (normalized && normalized.toLowerCase() !== 'unassigned' && normalized.toLowerCase() !== 'key') {
+                                allSalespeople.add(normalized);
+                            }
+                        }
+                    });
+
+                    // Load missed hours for the week range (Friday to Thursday)
+                    const weekStartStr = formatDateKey(currentWeek.start);
+                    const weekEndStr = formatDateKey(currentWeek.end);
+
+                    const { data, error } = await supabase
+                        .from('missed_hours')
+                        .select('*')
+                        .gte('date', weekStartStr)
+                        .lte('date', weekEndStr)
+                        .order('date', { ascending: true });
+
+                    if (error) {
+                        console.error('[CommissionReport] Failed to load missed hours:', error);
+                        return;
+                    }
+
+                    // Group missed hours by salesperson
+                    const grouped: Record<string, MissedHoursEntry[]> = {};
+                    Array.from(allSalespeople).forEach(sp => {
+                        grouped[sp] = [];
+                    });
+
+                    if (data) {
+                        data.forEach(entry => {
+                            const normalizedSp = normalizeName(entry.salesperson);
+                            if (normalizedSp.toLowerCase() !== 'key' && grouped[normalizedSp]) {
+                                grouped[normalizedSp].push({
+                                    date: entry.date,
+                                    hours: entry.hours || 0,
+                                    minutes: entry.minutes || 0,
+                                });
+                            }
+                        });
+                    }
+
+                    setMissedHoursData(grouped);
+                } catch (error) {
+                    console.error('[CommissionReport] Error loading missed hours:', error);
+                }
+            };
+
+            loadMissedHours();
+        }, [currentWeek, sales]);
 
         const snapshot: CommissionReportSnapshot | null = useMemo(() => {
             if (!currentWeek) return null;
@@ -1558,6 +1707,7 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                                 : (snapshotSelection ?? '');
                         }
                         
+                        const missedHours = missedHoursData[normalized] || [];
                         return (
                             <CommissionSalespersonBlock
                                 key={block.salesperson}
@@ -1575,6 +1725,9 @@ export const CommissionReportLive = forwardRef<CommissionReportHandle, Commissio
                                 manualOverrides={manualCommissionOverrides}
                                 onManualOverrideChange={handleManualCommissionChange}
                                 bonusRange={bonusRange}
+                                missedHours={missedHours}
+                                weekStart={currentWeek?.start}
+                                weekEnd={currentWeek?.end}
                             />
                         );
                     })

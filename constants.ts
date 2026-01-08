@@ -30,7 +30,7 @@ export const USERS: User[] = [
 // Reconstructed from component usage.
 export const REPORT_TYPES: string[] = ['Daily Closing', 'Commission', 'Inventory Age', 'Sales Performance'];
 
-export const DATA_TABS: string[] = ['Inventory', 'Sales', 'Payments', 'Delinquency', 'Collections Bonus', 'Auction'];
+export const DATA_TABS: string[] = ['Inventory', 'Sales', 'Payments', 'Delinquency', 'Collections Bonus', 'Logged Hours', 'Auction'];
 
 export const INVENTORY_STATUS_VALUES = [
     'Available',

@@ -22,10 +22,14 @@ const Data: React.FC = () => {
     const [delinquencyData, setDelinquencyData] = useState<DailyDelinquencySummary[]>([]);
     const [auctionData, setAuctionData] = useState<any[]>([]);
     const [collectionsBonusData, setCollectionsBonusData] = useState<Array<{ weekKey: string; weekRange: string; collectionsBonus: number | null }>>([]);
+    const [loggedHoursData, setLoggedHoursData] = useState<Array<{ date: string; [salesperson: string]: string | number }>>([]);
 
 
     // Load data from Supabase when tab changes
     useEffect(() => {
+        if (!dataContext) return;
+        const { sales } = dataContext;
+        
         const loadTabData = async () => {
             if (activeTab === 'Payments') {
                 console.log('Loading payment records from Supabase...');
@@ -64,7 +68,7 @@ const Data: React.FC = () => {
                 
                 // Generate all commission week ranges from sales data
                 const weekBucketsMap = new Map<string, { start: Date; end: Date }>();
-                sales.forEach(sale => {
+                (sales || []).forEach(sale => {
                     const parsedDate = parseDateStringToUtc(sale.saleDate);
                     if (!parsedDate) return;
                     const { start, end } = getCommissionWeekRange(parsedDate);
@@ -104,6 +108,71 @@ const Data: React.FC = () => {
                     .sort((a, b) => b.weekKey.localeCompare(a.weekKey)); // Sort descending by week key
 
                 setCollectionsBonusData(allWeeks);
+            } else if (activeTab === 'Logged Hours') {
+                console.log('Loading logged hours data from Supabase...');
+                
+                // Get all unique salespeople (excluding Key)
+                const allSalespeople = new Set<string>();
+                (sales || []).forEach(sale => {
+                    if (sale.salespersonSplit && sale.salespersonSplit.length > 0) {
+                        sale.salespersonSplit.forEach(split => {
+                            const name = split.name?.trim();
+                            if (name && name.toLowerCase() !== 'unassigned' && name.toLowerCase() !== 'key') {
+                                allSalespeople.add(name);
+                            }
+                        });
+                    } else {
+                        const name = sale.salesperson?.trim();
+                        if (name && name.toLowerCase() !== 'unassigned' && name.toLowerCase() !== 'key') {
+                            allSalespeople.add(name);
+                        }
+                    }
+                });
+
+                // Load missed hours data
+                const { data: hoursData, error: hoursError } = await supabase
+                    .from('missed_hours')
+                    .select('*')
+                    .order('date', { ascending: false });
+
+                if (hoursError) {
+                    console.error('Error loading logged hours:', hoursError);
+                    setLoggedHoursData([]);
+                } else if (hoursData) {
+                    // Group by date
+                    const dateMap = new Map<string, Record<string, string>>();
+                    hoursData.forEach(entry => {
+                        const date = entry.date;
+                        if (!dateMap.has(date)) {
+                            dateMap.set(date, { Date: date });
+                        }
+                        const salesperson = entry.salesperson;
+                        const hours = entry.hours || 0;
+                        const minutes = entry.minutes || 0;
+                        let timeText = '';
+                        if (hours > 0 && minutes > 0) {
+                            timeText = `${hours}hr ${minutes}mins`;
+                        } else if (hours > 0) {
+                            timeText = `${hours}hr`;
+                        } else if (minutes > 0) {
+                            timeText = `${minutes}mins`;
+                        }
+                        dateMap.get(date)![salesperson] = timeText;
+                    });
+
+                    // Convert to array and ensure all salespeople columns exist
+                    const result = Array.from(dateMap.values()).map(row => {
+                        const newRow: { date: string; [salesperson: string]: string | number } = { date: row.Date };
+                        Array.from(allSalespeople).sort().forEach(sp => {
+                            newRow[sp] = row[sp] || '';
+                        });
+                        return newRow;
+                    });
+
+                    setLoggedHoursData(result);
+                } else {
+                    setLoggedHoursData([]);
+                }
             } else if (activeTab === 'Auction') {
                 // Note: Auction table does not exist in Supabase yet
                 console.log('Auction table not implemented in Supabase');
@@ -112,7 +181,7 @@ const Data: React.FC = () => {
         };
 
         loadTabData();
-    }, [activeTab]);
+    }, [activeTab, dataContext]);
 
     // State for modals
     const [saleToRevert, setSaleToRevert] = useState<Sale | null>(null);
@@ -170,6 +239,11 @@ const Data: React.FC = () => {
     }, [sales]);
 
     const tabConfig = useMemo(() => {
+        if (!dataContext) {
+            return { columns: [], data: [], setData: () => {} };
+        }
+        const { sales } = dataContext;
+        
         let config: { columns: any[]; data: any[]; setData: (...args: any) => void; onDeleteRow?: (row: any) => void; tableName?: string; primaryKey?: string; fieldMap?: Record<string, string>; } = { columns: [], data: [], setData: () => {} };
 
         switch (activeTab) {
@@ -281,6 +355,36 @@ const Data: React.FC = () => {
                     },
                 };
                 break;
+            case 'Logged Hours':
+                // Get all unique salespeople for columns
+                const allSalespeopleForHours = new Set<string>();
+                (sales || []).forEach(sale => {
+                    if (sale.salespersonSplit && sale.salespersonSplit.length > 0) {
+                        sale.salespersonSplit.forEach(split => {
+                            const name = split.name?.trim();
+                            if (name && name.toLowerCase() !== 'unassigned' && name.toLowerCase() !== 'key') {
+                                allSalespeopleForHours.add(name);
+                            }
+                        });
+                    } else {
+                        const name = sale.salesperson?.trim();
+                        if (name && name.toLowerCase() !== 'unassigned' && name.toLowerCase() !== 'key') {
+                            allSalespeopleForHours.add(name);
+                        }
+                    }
+                });
+                config = {
+                    columns: [
+                        { key: 'date', name: 'Date' },
+                        ...Array.from(allSalespeopleForHours).sort().map(sp => ({ key: sp, name: sp }))
+                    ],
+                    data: loggedHoursData,
+                    setData: setLoggedHoursData,
+                    // No tableName - this is a pivoted view, not directly editable
+                    // Use "Log Hours" button in Reports page to add/edit missed hours
+                    primaryKey: 'date',
+                };
+                break;
             case 'Auction':
                 config = {
                     columns: [
@@ -296,7 +400,7 @@ const Data: React.FC = () => {
                 config = { columns: [], data: [], setData: () => {} };
         }
         return config;
-    }, [activeTab, inventory, sortedSalesDesc, collectionsData, auctionData, delinquencyData, collectionsBonusData, sales, setInventory, setSales, revertSale]);
+    }, [activeTab, inventory, sortedSalesDesc, collectionsData, auctionData, delinquencyData, collectionsBonusData, loggedHoursData, sales, setInventory, setSales, revertSale]);
 
     return (
         <div className="h-full flex flex-col">
@@ -342,8 +446,8 @@ const Data: React.FC = () => {
                     columns={tabConfig.columns}
                     data={tabConfig.data}
                     setData={tabConfig.setData as React.Dispatch<React.SetStateAction<any[]>>}
-                    editable={isAdmin}
-                    onDeleteRow={isAdmin ? tabConfig.onDeleteRow : undefined}
+                    editable={isAdmin && activeTab !== 'Logged Hours'}
+                    onDeleteRow={isAdmin && activeTab !== 'Logged Hours' ? tabConfig.onDeleteRow : undefined}
                     tableName={tabConfig.tableName}
                     primaryKey={tabConfig.primaryKey}
                     fieldMap={tabConfig.fieldMap}
