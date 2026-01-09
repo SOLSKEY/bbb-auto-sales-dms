@@ -10,6 +10,7 @@ export const getStockPrefix = (make?: string): StockPrefix => {
     const normalized = make.toLowerCase();
     if (normalized.includes('nissan')) return 'N';
     if (normalized.includes('dodge')) return 'D';
+    if (normalized.includes('ram')) return 'D'; // Ram is categorized under Dodge
     if (normalized.includes('ford')) return 'F';
     if (normalized.includes('chevrolet') || normalized.includes('chevy')) return 'CH';
     return 'O';
