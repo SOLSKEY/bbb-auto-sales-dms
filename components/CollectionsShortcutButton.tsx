@@ -1,7 +1,32 @@
 import React, { useState } from 'react';
 import { ArrowDownTrayIcon } from '@heroicons/react/24/outline';
 
-const EXPORT_SERVER_URL = import.meta.env.VITE_EXPORT_SERVER_URL || 'http://localhost:3001';
+// Determine export server URL
+// Priority: VITE_EXPORT_SERVER_URL env var > production default > localhost fallback
+const getExportServerUrl = () => {
+    // If explicitly set, use it
+    if (import.meta.env.VITE_EXPORT_SERVER_URL) {
+        return import.meta.env.VITE_EXPORT_SERVER_URL;
+    }
+    
+    // In production, try to use the Railway export server
+    // Check if we're running on a production domain (not localhost)
+    if (typeof window !== 'undefined') {
+        const isProduction = window.location.hostname !== 'localhost' && 
+                           window.location.hostname !== '127.0.0.1' &&
+                           !window.location.hostname.startsWith('192.168.');
+        
+        if (isProduction) {
+            // Default production export server URL (Railway)
+            return 'https://bbb-export-server-production.up.railway.app';
+        }
+    }
+    
+    // Development fallback
+    return 'http://localhost:3001';
+};
+
+const EXPORT_SERVER_URL = getExportServerUrl();
 
 /**
  * CollectionsShortcutButton Component
@@ -23,6 +48,7 @@ const CollectionsShortcutButton: React.FC = () => {
         setIsLoading(true);
         try {
             console.log('⚡ Starting Collections shortcut automation...');
+            console.log(`📡 Export server URL: ${EXPORT_SERVER_URL}`);
             
             const response = await fetch(`${EXPORT_SERVER_URL}/api/shortcut-screenshot`, {
                 method: 'POST',
@@ -66,17 +92,27 @@ const CollectionsShortcutButton: React.FC = () => {
             
             // Check if it's a connection error
             if (errorMessage.includes('Failed to fetch') || errorMessage.includes('NetworkError')) {
-                alert(
-                    '❌ Cannot connect to export server.\n\n' +
-                    'The export server may be temporarily unavailable. Please try again later.'
-                );
+                const isLocalhost = EXPORT_SERVER_URL.includes('localhost') || EXPORT_SERVER_URL.includes('127.0.0.1');
+                const errorMsg = isLocalhost
+                    ? `❌ Cannot connect to export server at ${EXPORT_SERVER_URL}\n\n` +
+                      `The export server may not be running locally.\n\n` +
+                      `To fix:\n` +
+                      `1. Start the export server: cd export-server && node exportServer.mjs\n` +
+                      `2. Or set VITE_EXPORT_SERVER_URL in your environment variables`
+                    : `❌ Cannot connect to export server at ${EXPORT_SERVER_URL}\n\n` +
+                      `The export server may be temporarily unavailable.\n\n` +
+                      `Please check:\n` +
+                      `1. The export server is deployed and running\n` +
+                      `2. VITE_EXPORT_SERVER_URL is set correctly in your environment\n` +
+                      `3. Network connectivity is working`;
+                alert(errorMsg);
             } else if (errorMessage.includes('Development server is not running') || errorMessage.includes('server is not running')) {
                 alert(
                     '❌ Application server is not accessible.\n\n' +
                     'Please ensure the application is properly deployed and accessible.'
                 );
             } else {
-                alert(`❌ Collections shortcut failed:\n\n${errorMessage}`);
+                alert(`❌ Collections shortcut failed:\n\n${errorMessage}\n\nExport server: ${EXPORT_SERVER_URL}`);
             }
         } finally {
             setIsLoading(false);
