@@ -47,8 +47,40 @@ const CollectionsShortcutButton: React.FC = () => {
     const handleShortcut = async () => {
         setIsLoading(true);
         try {
+            // #region agent log
+            const DEBUG_LOG_ENDPOINT = 'http://127.0.0.1:7242/ingest/a2c8626d-6084-44f6-a47b-415e5e6bc498';
+            const sendDebugLog = (location: string, message: string, data: any, hypothesisId = 'E') => {
+                const logData = {
+                    location,
+                    message,
+                    data,
+                    timestamp: Date.now(),
+                    runId: 'cors-client-debug',
+                    hypothesisId
+                };
+                fetch(DEBUG_LOG_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(logData)
+                }).catch(() => {});
+            };
+            sendDebugLog('CollectionsShortcutButton.tsx:47', 'Starting export request', {
+                exportServerUrl: EXPORT_SERVER_URL,
+                origin: window.location.origin,
+                hostname: window.location.hostname
+            }, 'E');
+            // #endregion
+            
             console.log('⚡ Starting Collections shortcut automation...');
             console.log(`📡 Export server URL: ${EXPORT_SERVER_URL}`);
+            
+            // #region agent log
+            sendDebugLog('CollectionsShortcutButton.tsx:53', 'About to fetch', {
+                url: `${EXPORT_SERVER_URL}/api/shortcut-screenshot`,
+                method: 'POST',
+                origin: window.location.origin
+            }, 'E');
+            // #endregion
             
             const response = await fetch(`${EXPORT_SERVER_URL}/api/shortcut-screenshot`, {
                 method: 'POST',
@@ -57,6 +89,15 @@ const CollectionsShortcutButton: React.FC = () => {
                 },
                 body: JSON.stringify({ reportType: 'collections' }),
             });
+            
+            // #region agent log
+            sendDebugLog('CollectionsShortcutButton.tsx:64', 'Fetch completed', {
+                status: response.status,
+                statusText: response.statusText,
+                headers: Object.fromEntries(response.headers.entries()),
+                ok: response.ok
+            }, 'E');
+            // #endregion
 
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
@@ -83,6 +124,32 @@ const CollectionsShortcutButton: React.FC = () => {
             console.log('✅ Collections shortcut complete - PDF downloaded');
 
         } catch (error) {
+            // #region agent log
+            const DEBUG_LOG_ENDPOINT = 'http://127.0.0.1:7242/ingest/a2c8626d-6084-44f6-a47b-415e5e6bc498';
+            const sendDebugLog = (location: string, message: string, data: any, hypothesisId = 'E') => {
+                const logData = {
+                    location,
+                    message,
+                    data,
+                    timestamp: Date.now(),
+                    runId: 'cors-client-debug',
+                    hypothesisId
+                };
+                fetch(DEBUG_LOG_ENDPOINT, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(logData)
+                }).catch(() => {});
+            };
+            sendDebugLog('CollectionsShortcutButton.tsx:85', 'Fetch error caught', {
+                errorName: error instanceof Error ? error.name : 'Unknown',
+                errorMessage: error instanceof Error ? error.message : String(error),
+                errorStack: error instanceof Error ? error.stack : undefined,
+                exportServerUrl: EXPORT_SERVER_URL,
+                origin: window.location.origin
+            }, 'E');
+            // #endregion
+            
             console.error('❌ Collections shortcut failed:', error);
             
             let errorMessage = 'Unknown error occurred';

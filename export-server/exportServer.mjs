@@ -73,11 +73,6 @@ const corsOptions = {
   exposedHeaders: ['Content-Type', 'Content-Disposition']
 };
 
-app.use(cors(corsOptions));
-
-// Handle preflight requests explicitly with the same CORS configuration
-app.options('*', cors(corsOptions));
-
 // #region agent log
 // Log all incoming requests for debugging
 app.use((req, res, next) => {
@@ -85,6 +80,27 @@ app.use((req, res, next) => {
   next();
 });
 // #endregion
+
+// Handle OPTIONS preflight requests BEFORE CORS middleware
+app.options('*', (req, res) => {
+  // #region agent log
+  console.log(`[CORS DEBUG] OPTIONS preflight request - Origin: ${req.headers.origin || 'none'}`);
+  // #endregion
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+    // #region agent log
+    console.log(`[CORS DEBUG] OPTIONS response headers set for origin: ${origin}`);
+    // #endregion
+  }
+  res.status(204).end(); // No Content
+});
+
+app.use(cors(corsOptions));
 
 app.use(express.json());
 
