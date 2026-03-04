@@ -38,13 +38,31 @@ const allowedOrigins = [
   process.env.APP_URL
 ].filter(Boolean);
 
-app.use(cors({
+// #region agent log
+console.log(`[CORS DEBUG] Allowed origins at startup:`, JSON.stringify(allowedOrigins));
+// #endregion
+
+const corsOptions = {
   origin: function (origin, callback) {
+    // #region agent log
+    console.log(`[CORS DEBUG] Origin check - received: ${origin}, allowed:`, JSON.stringify(allowedOrigins));
+    // #endregion
     // Allow requests with no origin (like mobile apps or curl requests)
-    if (!origin) return callback(null, true);
+    if (!origin) {
+      // #region agent log
+      console.log(`[CORS DEBUG] No origin provided, allowing request`);
+      // #endregion
+      return callback(null, true);
+    }
     if (allowedOrigins.indexOf(origin) !== -1) {
+      // #region agent log
+      console.log(`[CORS DEBUG] Origin ${origin} is in allowed list, allowing`);
+      // #endregion
       callback(null, true);
     } else {
+      // #region agent log
+      console.log(`[CORS DEBUG] Origin ${origin} NOT in allowed list, blocking`);
+      // #endregion
       console.log(`⚠️ CORS: Blocking request from unlisted origin: ${origin}`);
       callback(new Error('Not allowed by CORS'));
     }
@@ -53,10 +71,20 @@ app.use(cors({
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   exposedHeaders: ['Content-Type', 'Content-Disposition']
-}));
+};
 
-// Handle preflight requests explicitly
-app.options('*', cors());
+app.use(cors(corsOptions));
+
+// Handle preflight requests explicitly with the same CORS configuration
+app.options('*', cors(corsOptions));
+
+// #region agent log
+// Log all incoming requests for debugging
+app.use((req, res, next) => {
+  console.log(`[CORS DEBUG] ${req.method} ${req.path} - Origin: ${req.headers.origin || 'none'}`);
+  next();
+});
+// #endregion
 
 app.use(express.json());
 
@@ -1581,6 +1609,9 @@ async function runShortcutAutomation({ email, password, reportType = 'sales', we
 
 
 app.post('/api/shortcut-screenshot', async (req, res) => {
+  // #region agent log
+  console.log(`[CORS DEBUG] POST /api/shortcut-screenshot reached - Origin: ${req.headers.origin || 'none'}`);
+  // #endregion
   console.log('⚡ Shortcut automation requested...');
 
   try {
