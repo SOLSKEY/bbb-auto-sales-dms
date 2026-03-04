@@ -83,26 +83,49 @@ app.use((req, res, next) => {
 
 // Handle OPTIONS preflight requests BEFORE CORS middleware
 app.options('*', (req, res) => {
-  // #region agent log
-  console.log(`[CORS DEBUG] OPTIONS preflight request - Origin: ${req.headers.origin || 'none'}`);
-  // #endregion
-  const origin = req.headers.origin;
-  if (origin && allowedOrigins.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-    res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+  try {
     // #region agent log
-    console.log(`[CORS DEBUG] OPTIONS response headers set for origin: ${origin}`);
+    console.log(`[CORS DEBUG] OPTIONS preflight request - Origin: ${req.headers.origin || 'none'}`);
     // #endregion
+    const origin = req.headers.origin;
+    if (origin && allowedOrigins.includes(origin)) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      res.setHeader('Access-Control-Max-Age', '86400'); // 24 hours
+      // #region agent log
+      console.log(`[CORS DEBUG] OPTIONS response headers set for origin: ${origin}`);
+      // #endregion
+      res.status(204).end(); // No Content
+    } else {
+      // #region agent log
+      console.log(`[CORS DEBUG] OPTIONS request from unallowed origin: ${origin || 'none'}`);
+      // #endregion
+      // Still respond to OPTIONS, but without CORS headers (browser will block)
+      res.status(204).end();
+    }
+  } catch (error) {
+    // #region agent log
+    console.error(`[CORS DEBUG] Error in OPTIONS handler:`, error);
+    // #endregion
+    console.error('Error handling OPTIONS request:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
-  res.status(204).end(); // No Content
 });
 
 app.use(cors(corsOptions));
 
 app.use(express.json());
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    allowedOrigins: allowedOrigins
+  });
+});
 
 // Helper function to check if app server is accessible
 function checkDevServer(url) {
@@ -1691,6 +1714,20 @@ app.post('/api/shortcut-screenshot', async (req, res) => {
 });
 
 
+// Global error handler for unhandled errors
+app.use((err, req, res, next) => {
+  // #region agent log
+  console.error(`[CORS DEBUG] Unhandled error:`, err);
+  // #endregion
+  console.error('Unhandled error:', err);
+  const origin = req.headers.origin;
+  if (origin && allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
+  res.status(500).json({ error: 'Internal server error', message: err.message });
+});
+
 app.listen(PORT, () => {
   console.log(`🚀 Export server running on port ${PORT}`);
   console.log(`📡 Endpoints:`);
@@ -1698,6 +1735,9 @@ app.listen(PORT, () => {
   console.log(`   - POST /api/shortcut-screenshot`);
   console.log(`🔗 App URL: ${APP_URL}`);
   console.log(`📄 Target page: ${SALES_PAGE_URL}`);
+  // #region agent log
+  console.log(`[CORS DEBUG] Server started - Allowed origins:`, JSON.stringify(allowedOrigins));
+  // #endregion
   if (process.env.NODE_ENV === 'production') {
     console.log(`\n✅ Running in production mode`);
   } else {
